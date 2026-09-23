@@ -1,0 +1,243 @@
+package views
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/blairham/dockyard/internal/docker"
+	"github.com/blairham/dockyard/internal/tui/style"
+)
+
+// imageListTimeout bounds the image listing. See refresh() for why it is
+// so much larger than every other call's.
+const imageListTimeout = 5 * time.Minute
+
+// ImagesRefreshMsg carries a refreshed image list.
+type ImagesRefreshMsg struct {
+	Err    error
+	Images []docker.Image
+}
+
+// ImagesView lists local images.
+type ImagesView struct {
+	client *docker.Client
+	err    error
+
+	filter  string
+	all     []docker.Image
+	visible []docker.Image
+	table   table.Model
+
+	loading  bool
+	showAll  bool
+	inFlight bool
+}
+
+// NewImagesView builds the images view. showAll includes intermediate
+// build layers (`docker images -a`).
+func NewImagesView(client *docker.Client, showAll bool) *ImagesView {
+	t := table.New(
+		table.WithColumns(imageColumns()),
+		table.WithFocused(true),
+		table.WithStyles(tableStyles()),
+		table.WithKeyMap(tableKeyMap()),
+	)
+	return &ImagesView{client: client, table: t, loading: true, showAll: showAll}
+}
+
+func imageColumns() []table.Column {
+	return []table.Column{
+		{Title: "REPOSITORY", Width: 44},
+		{Title: "TAG", Width: 22},
+		{Title: "IMAGE ID", Width: 13},
+		{Title: "SIZE", Width: 10},
+		{Title: "USED BY", Width: 8},
+		{Title: "AGE", Width: 6},
+	}
+}
+
+// Init kicks off the first fetch.
+func (v *ImagesView) Init() tea.Cmd { return v.refresh() }
+
+// ToggleAll flips intermediate-layer visibility and refetches.
+func (v *ImagesView) ToggleAll() tea.Cmd {
+	v.showAll = !v.showAll
+	return v.refresh()
+}
+
+// ShowAll reports whether intermediate layers are included.
+func (v *ImagesView) ShowAll() bool { return v.showAll }
+
+// Selected returns the image under the cursor.
+func (v *ImagesView) Selected() (docker.Image, bool) {
+	i := v.table.Cursor()
+	if i < 0 || i >= len(v.visible) {
+		return docker.Image{}, false
+	}
+	return v.visible[i], true
+}
+
+// Update folds the refresh message in.
+func (v *ImagesView) Update(msg tea.Msg) tea.Cmd {
+	if m, ok := msg.(ImagesRefreshMsg); ok {
+		v.loading = false
+		v.inFlight = false
+		if m.Err != nil {
+			v.err = docker.FormatUserError(m.Err)
+			return nil
+		}
+		v.err = nil
+		v.all = m.Images
+		v.rebuildRows()
+	}
+	return nil
+}
+
+// UpdateTable forwards navigation keys.
+func (v *ImagesView) UpdateTable(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	v.table, cmd = v.table.Update(msg)
+	return cmd
+}
+
+// Resize re-lays the table.
+func (v *ImagesView) Resize(width, height int) {
+	v.table.SetWidth(width)
+	v.table.SetHeight(height)
+	v.table.SetColumns(fitColumns(imageColumns(), width))
+	v.table.SetStyles(tableStylesWithWidth(width))
+}
+
+// Count is the visible row count.
+func (v *ImagesView) Count() int { return len(v.table.Rows()) }
+
+// Loading reports whether the first fetch is outstanding.
+func (v *ImagesView) Loading() bool { return v.loading }
+
+// SetFilter applies a row filter.
+func (v *ImagesView) SetFilter(f string) {
+	v.filter = f
+	v.rebuildRows()
+}
+
+// HandleKey maps a keystroke to an app action.
+func (v *ImagesView) HandleKey(key string) (string, string) {
+	im, ok := v.Selected()
+	if !ok {
+		switch key {
+		case "a":
+			return "toggle_all", ""
+		case "P":
+			return "confirm_prune_images", ""
+		}
+		return "", ""
+	}
+	switch key {
+	case KeyEnter, "L":
+		return "layers", im.ID
+	case "o":
+		return "inspect_image", im.ID
+	case "a":
+		return "toggle_all", ""
+	case "P":
+		return "confirm_prune_images", ""
+	case KeyCtrlD:
+		// Remove by reference when we have one: deleting by ID fails on a
+		// multi-tagged image ("image is referenced in multiple
+		// repositories") and the user meant this row, which is one tag.
+		ref := im.Ref()
+		if im.Dangling {
+			ref = im.ID
+		}
+		return "confirm_remove_image", ref
+	}
+	return "", ""
+}
+
+// View renders the table.
+func (v *ImagesView) View() string {
+	if v.err != nil {
+		return style.Error.Render(fmt.Sprintf("  %v", v.err))
+	}
+	if len(v.visible) == 0 && !v.loading {
+		return style.Muted.Render("  no images match")
+	}
+	return fixSelectedRow(v.table.View())
+}
+
+// Refresh refetches the image list.
+func (v *ImagesView) Refresh() tea.Cmd { return v.refresh() }
+
+func (v *ImagesView) refresh() tea.Cmd {
+	if v.inFlight {
+		return nil
+	}
+	v.inFlight = true
+	all := v.showAll
+	return func() tea.Msg {
+		// Generous on purpose. `docker images` is O(local image store) and
+		// on a VM-backed daemon with a few hundred images it is measured in
+		// minutes, not seconds — a host here took over two minutes for 651
+		// images through the CLI itself. The single-flight guard above is
+		// what keeps that from piling up; the timeout only has to be longer
+		// than the daemon's worst honest answer.
+		ctx, cancel := context.WithTimeout(context.Background(), imageListTimeout)
+		defer cancel()
+		list, err := v.client.Images(ctx, all)
+		return ImagesRefreshMsg{Images: list, Err: err}
+	}
+}
+
+func (v *ImagesView) rebuildRows() {
+	f := parseFilter(v.filter)
+	rows := make([]table.Row, 0, len(v.all))
+	v.visible = v.visible[:0]
+
+	for _, im := range v.all {
+		if !f.Empty() && !f.MatchesAny(im.Repo, im.Tag, im.Ref(), im.Short()) {
+			continue
+		}
+
+		repo, tag := im.Repo, im.Tag
+		if im.Dangling {
+			repo = style.Muted.Render("<none>")
+			tag = style.Muted.Render("<none>")
+		}
+
+		used := "—"
+		switch {
+		case im.Containers > 0:
+			used = fmt.Sprintf("%d", im.Containers)
+		case im.Containers == 0:
+			used = style.Muted.Render("0")
+		}
+
+		rows = append(rows, table.Row{
+			truncate(repo, 44),
+			truncate(tag, 22),
+			im.Short(),
+			docker.HumanSize(im.Size),
+			used,
+			im.Age(),
+		})
+		v.visible = append(v.visible, im)
+	}
+	setTableRows(&v.table, rows)
+}
+
+// RefFor resolves an image ID to its repo:tag reference.
+func (v *ImagesView) RefFor(id string) string {
+	for i := range v.all {
+		if v.all[i].ID == id || v.all[i].Ref() == id {
+			return v.all[i].Ref()
+		}
+	}
+	return ""
+}
+
+// Total is the unfiltered image-row count, for the info panel.
+func (v *ImagesView) Total() int { return len(v.all) }
