@@ -50,6 +50,8 @@ type InspectRefreshMsg struct {
 
 // InspectView is a read-only, syntax-colored viewport over inspect JSON.
 type InspectView struct {
+	// plain shows the fetched body as styled text, not colorized JSON.
+	plain  bool
 	tail   *tail.Model
 	client *docker.Client
 
@@ -115,9 +117,12 @@ func (v *InspectView) Update(msg tea.Msg) tea.Cmd {
 	v.err = nil
 
 	raw := strings.Split(strings.TrimRight(string(m.Body), "\n"), "\n")
-	styled := make([]string, 0, len(raw))
-	for _, l := range raw {
-		styled = append(styled, colorizeJSON(l))
+	styled := raw
+	if !v.plain {
+		styled = make([]string, 0, len(raw))
+		for _, l := range raw {
+			styled = append(styled, colorizeJSON(l))
+		}
 	}
 	v.lines = len(styled)
 

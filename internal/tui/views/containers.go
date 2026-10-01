@@ -252,6 +252,8 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 		return "logs", c.ID
 	case "o":
 		return "inspect_container", c.ID
+	case "H":
+		return "health", c.ID
 	case "u":
 		return "start", c.ID
 	case "x":

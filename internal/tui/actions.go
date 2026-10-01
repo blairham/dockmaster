@@ -191,6 +191,8 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- Kubernetes nodes: the containers inside a kind/k3d node -------
 
+	case "health":
+		return a.openReport(views.NewHealthView(a.client, param, a.containerName(param)))
 	case "node_containers":
 		node, _, name := splitNodeParam(param)
 		a.setView(style.ViewNode, views.NewNodeView(a.client, node, name))
@@ -570,6 +572,14 @@ func (a *App) execShell(id string) tea.Cmd {
 // docker exec into the node, then crictl exec into the container.
 func (a *App) nodeShell(node, id string) tea.Cmd {
 	return a.dockerExecIt(node, "crictl", "exec", "-it", id, "sh", "-c", shellProbe)
+}
+
+// openReport drills into a text report about a container — health, diff,
+// stats — shown in the inspect view's plain-text mode.
+func (a *App) openReport(v *views.InspectView) (tea.Model, tea.Cmd) {
+	a.setView(style.ViewInspect, v)
+	a.pushView(style.ViewInspect)
+	return a, v.Init()
 }
 
 // splitNodeParam unpacks views.NodeParam.

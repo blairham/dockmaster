@@ -178,6 +178,7 @@ func (a *App) renderShortcuts(info []string) []string {
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Logs"},
 			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<H>", Desc: "Health"},
 			{Key: "<s>", Desc: "Shell"},
 			{Key: "<u>", Desc: "Start"},
 			{Key: "<x>", Desc: "Stop"},
@@ -504,6 +505,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<x>", Desc: "Stop"},
 					{Key: "<R>", Desc: "Restart"},
 					{Key: "<K>", Desc: "Kill (SIGKILL)"},
+					{Key: "<H>", Desc: "Health"},
 					{Key: "<p>", Desc: "Pause/unpause"},
 					{Key: "<s>", Desc: "Shell into it"},
 					{Key: "<l>", Desc: "Logs"},

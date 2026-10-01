@@ -183,3 +183,25 @@ func selectNodeRow(t *testing.T, a *App, nv *views.NodeView, id string) {
 	}
 	t.Fatalf("container %s is not in the node view", id)
 }
+
+// TestHealthKeyOpensTheReport: H on a container opens its health report,
+// shown as text rather than run through the JSON colorizer.
+func TestHealthKeyOpensTheReport(t *testing.T) {
+	a := newTestApp(t)
+	loadContainers(a)
+	step(a, key("H"))
+	if a.view != style.ViewInspect {
+		t.Fatalf("H opened %v, want the health report", a.view)
+	}
+	iv := typedView[*views.InspectView](a, style.ViewInspect)
+	if iv.Title() != "web health" {
+		t.Errorf("title = %q", iv.Title())
+	}
+	// Probe output from an HTTP health endpoint is often JSON-ish: a
+	// `"key": value` line is exactly what the colorizer would restyle.
+	body := `  Status        unhealthy` + "\n" + `      "error": "db down"`
+	step(a, views.InspectRefreshMsg{Kind: views.InspectContainer, Body: []byte(body)})
+	if !strings.Contains(renderStyled(a), `"error": "db down"`) {
+		t.Errorf("probe output was restyled as JSON:\n%s", renderStyled(a))
+	}
+}
