@@ -104,3 +104,82 @@ func TestNodeShellIsGatedByReadonly(t *testing.T) {
 		t.Errorf("node_shell under --readonly: flash %q", a.errFlash)
 	}
 }
+
+func nodeWithExited() []docker.NodeContainer {
+	return []docker.NodeContainer{
+		{ID: "run1", Name: "kube-proxy", Pod: "kube-proxy-72cjf", Namespace: "kube-system", State: "running", Attempt: 8},
+		{ID: "old1", Name: "kube-proxy", Pod: "kube-proxy-72cjf", Namespace: "kube-system", State: "exited", Attempt: 7},
+		{ID: "oms1", Name: "oms", Pod: "oms-76f57894b8-qj95m", Namespace: "k5s-legate", State: "exited"},
+	}
+}
+
+func openNode(t *testing.T, a *App) *views.NodeView {
+	t.Helper()
+	a.handleAction("node_containers", views.NodeParam("node0000worker", "", "k8s-worker"))
+	step(a, views.NodeRefreshMsg{Node: "node0000worker", Containers: nodeWithExited()})
+	return typedView[*views.NodeView](a, style.ViewNode)
+}
+
+// TestNodeViewHidesExitedUntilA: exited containers are mostly a running
+// one's previous attempt; they are hidden until a, as docker ps hides
+// stopped containers until -a.
+func TestNodeViewHidesExitedUntilA(t *testing.T) {
+	a := newTestApp(t)
+	nv := openNode(t, a)
+	if nv.Count() != 1 || strings.Contains(render(a), "oms") {
+		t.Fatalf("exited containers shown by default: %d rows", nv.Count())
+	}
+	step(a, key("a"))
+	if nv.Count() != 3 || !strings.Contains(render(a), "oms") {
+		t.Errorf("a did not show the exited containers: %d rows", nv.Count())
+	}
+	step(a, key("a"))
+	if nv.Count() != 1 {
+		t.Errorf("a again did not hide them: %d rows", nv.Count())
+	}
+}
+
+// TestNodeRemoveOnlyExited: ctrl-d removes an exited container after a
+// confirm; on a running one it refuses, because the kubelet owns it.
+func TestNodeRemoveOnlyExited(t *testing.T) {
+	a := newTestApp(t)
+	nv := openNode(t, a)
+
+	step(a, key("ctrl+d")) // the running kube-proxy
+	if a.confirm.Active() || !strings.Contains(a.errFlash, "kubelet") {
+		t.Fatalf("ctrl-d on a running container: confirm=%v flash=%q", a.confirm.Active(), a.errFlash)
+	}
+
+	step(a, key("a"))
+	selectNodeRow(t, a, nv, "oms1")
+	step(a, key("ctrl+d"))
+	if !a.confirm.Active() {
+		t.Fatal("ctrl-d on an exited container did not ask first")
+	}
+	if !strings.Contains(render(a), "remove exited container oms-76f57894b8-qj95m/oms?") {
+		t.Errorf("confirm question is missing the container:\n%s", render(a))
+	}
+	step(a, key("n"))
+	if a.confirm.Active() {
+		t.Error("n did not close the confirm")
+	}
+
+	ro := NewApp(nil, Options{ReadOnly: true})
+	ro.handleAction("confirm_node_remove", views.NodeParam("n", "oms1", "p/oms"))
+	if ro.confirm.Active() || !strings.Contains(ro.errFlash, "readonly") {
+		t.Errorf("--readonly let a node remove through: confirm=%v flash=%q", ro.confirm.Active(), ro.errFlash)
+	}
+}
+
+// selectNodeRow moves the cursor to the container with id, failing rather
+// than looping when the row is not listed.
+func selectNodeRow(t *testing.T, a *App, nv *views.NodeView, id string) {
+	t.Helper()
+	for range nv.Count() {
+		if c, _ := nv.Selected(); c.ID == id {
+			return
+		}
+		step(a, key("j"))
+	}
+	t.Fatalf("container %s is not in the node view", id)
+}

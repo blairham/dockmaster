@@ -51,7 +51,7 @@ var mutating = map[string]bool{
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
-	"node_shell": true,
+	"node_shell": true, "confirm_node_remove": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -127,6 +127,8 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			return a, v.ToggleAll()
 		case *views.ImagesView:
 			return a, v.ToggleAll()
+		case *views.NodeView:
+			v.ToggleAll()
 		}
 		return a, nil
 
@@ -210,6 +212,14 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "node_shell":
 		node, id, _ := splitNodeParam(param)
 		return a, a.nodeShell(node, id)
+	case "confirm_node_remove":
+		_, _, name := splitNodeParam(param)
+		a.openConfirm("node_remove", param, fmt.Sprintf("remove exited container %s?", name))
+		return a, nil
+	case "node_remove_running":
+		_, _, name := splitNodeParam(param)
+		a.errFlash = name + " is running — the kubelet owns it and would restart it; delete the pod instead"
+		return a, nil
 
 	// ---- destructive: ask first ----------------------------------------
 
@@ -443,6 +453,11 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 	case "kill":
 		return a.run("killed", a.containerName(pa.param), func(ctx context.Context) error {
 			return a.client.KillContainer(ctx, pa.param, "SIGKILL")
+		})
+	case "node_remove":
+		node, id, name := splitNodeParam(pa.param)
+		return a.run("removed", name, func(ctx context.Context) error {
+			return a.client.NodeRemove(ctx, node, id)
 		})
 	case "remove_container":
 		name := a.containerName(pa.param)

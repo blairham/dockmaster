@@ -31,6 +31,18 @@ whose nodes are containers. From a row:
 | `enter` / `l` | logs | `crictl logs -f`, streamed into the ordinary logs view |
 | `o` | inspect | `crictl inspect` |
 | `s` | shell | `docker exec -it <node> crictl exec -it <id> sh` |
+| `ctrl-d` | remove, exited only, after a confirm | `crictl rm <id>` |
+| `a` | show / hide exited containers (hidden by default) | |
+
+Exited containers are hidden by default. Most are a running container's
+previous attempt, which the kubelet keeps one of per container so
+`kubectl logs --previous` can show why it restarted — removing those only
+loses crash history, and the next restart replaces them anyway. The rest
+are leftovers of a deleted pod, which the kubelet's garbage collection
+removes shortly after; `ctrl-d` is for not waiting. A running container is
+refused outright: the kubelet owns it and would restart it, so the answer
+is to delete its pod. dockyard never passes `crictl rm --force`, which is
+what would remove a running one.
 
 In a node container's logs, `x` and `R` are not offered: they would hand
 the docker daemon a containerd ID it has never seen.

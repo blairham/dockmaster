@@ -269,6 +269,8 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<enter>", Desc: "Logs"},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<s>", Desc: "Shell"},
+			{Key: "<a>", Desc: "Toggle Exited"},
+			{Key: "<ctrl-d>", Desc: "Remove Exited"},
 			{Key: "<esc>", Desc: "Back"},
 		}
 	case style.ViewInspect, style.ViewLayers:

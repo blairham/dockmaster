@@ -36,6 +36,10 @@ type NodeView struct {
 
 	loading  bool
 	inFlight bool
+	// showAll lists exited containers too. Off by default: most exited
+	// rows are a running container's previous attempt, kept by the
+	// kubelet for `kubectl logs --previous`, and they double the list.
+	showAll bool
 }
 
 // NewNodeView builds the drill-in for node (ID) named name.
@@ -63,6 +67,15 @@ func nodeColumns() []table.Column {
 
 // Title is the node's name, for the border title.
 func (v *NodeView) Title() string { return v.name }
+
+// ShowAll reports whether exited containers are listed.
+func (v *NodeView) ShowAll() bool { return v.showAll }
+
+// ToggleAll shows or hides exited containers.
+func (v *NodeView) ToggleAll() {
+	v.showAll = !v.showAll
+	v.rebuildRows()
+}
 
 // Node is the node container's ID.
 func (v *NodeView) Node() string { return v.node }
@@ -127,14 +140,23 @@ func (v *NodeView) SetFilter(f string) {
 // name — into the one string an action carries.
 func NodeParam(node, id, name string) string { return node + "\x00" + id + "\x00" + name }
 
-// HandleKey — enter/l logs, o inspect, s shell, on the selected container.
+// HandleKey — enter/l logs, o inspect, s shell, ctrl-d remove (exited
+// only), a show/hide exited.
 func (v *NodeView) HandleKey(key string) (string, string) {
+	if key == "a" {
+		return "toggle_all", ""
+	}
 	c, ok := v.Selected()
 	if !ok {
 		return "", ""
 	}
 	p := NodeParam(v.node, c.ID, c.Pod+"/"+c.Name)
 	switch key {
+	case KeyCtrlD, KeyDelete:
+		if c.State == "running" {
+			return "node_remove_running", p
+		}
+		return "confirm_node_remove", p
 	case KeyEnter, "l":
 		return "node_logs", p
 	case "o":
@@ -174,6 +196,9 @@ func (v *NodeView) rebuildRows() {
 	rows := make([]table.Row, 0, len(v.all))
 	v.visible = v.visible[:0]
 	for _, c := range v.all {
+		if !v.showAll && c.State == "exited" {
+			continue
+		}
 		if !f.Empty() && !f.MatchesAny(c.Namespace, c.Pod, c.Name, c.State, c.Image) {
 			continue
 		}
