@@ -31,14 +31,28 @@ type Stats struct {
 	BlockWrite int64
 	// PIDs is the process count inside the container.
 	PIDs int64
+	// CPUs is how many CPUs the container can use — the host's online
+	// CPUs, narrowed by a cpuset limit. CPUPerc reaches CPUs*100.
+	CPUs int
 	// OK is false for a container the poll could not sample (exited
 	// mid-poll, or the daemon refused). Distinguishes "0%" from "unknown".
 	OK bool
 }
 
-// MemPerc is memory usage against the container's limit, or 0 when the
-// container is unlimited (the daemon reports the host's total as the limit
-// in that case, which makes the percentage meaningless but harmless).
+// CPUShare is CPU use as a share of the CPUs the container can use,
+// 0–100: CPUPerc spread over CPUs. One core saturated on a 14-CPU host is
+// CPUPerc 100 but CPUShare ~7 — busy, not hot. Thresholds judge this.
+func (s Stats) CPUShare() float64 {
+	if s.CPUs <= 0 {
+		return s.CPUPerc
+	}
+	return s.CPUPerc / float64(s.CPUs)
+}
+
+// MemPerc is memory usage against the container's limit, as `docker
+// stats` MEM % reports it. An unlimited container's limit is the host's
+// memory, so its percentage is its share of the machine — what the
+// threshold colours judge it by.
 func (s Stats) MemPerc() float64 {
 	if s.MemLimit <= 0 {
 		return 0
@@ -118,6 +132,7 @@ func (c *Client) sampleOne(ctx context.Context, id string) (Stats, error) {
 
 	s := Stats{
 		CPUPerc:  cpuPercent(v),
+		CPUs:     onlineCPUs(v),
 		MemUsage: int64(v.MemoryStats.Usage), //nolint:gosec // daemon-reported byte counts
 		MemLimit: int64(v.MemoryStats.Limit), //nolint:gosec // daemon-reported byte counts
 		PIDs:     int64(v.PidsStats.Current), //nolint:gosec // daemon-reported process count
@@ -156,12 +171,14 @@ func cpuPercent(v container.StatsResponse) float64 {
 	if cpuDelta <= 0 || sysDelta <= 0 {
 		return 0
 	}
-	cpus := float64(v.CPUStats.OnlineCPUs)
+	return cpuDelta / sysDelta * float64(onlineCPUs(v)) * 100
+}
+
+// onlineCPUs is how many CPUs the container can use, as docker computes it.
+func onlineCPUs(v container.StatsResponse) int {
+	cpus := int(v.CPUStats.OnlineCPUs)
 	if cpus == 0 {
-		cpus = float64(len(v.CPUStats.CPUUsage.PercpuUsage))
+		cpus = len(v.CPUStats.CPUUsage.PercpuUsage)
 	}
-	if cpus == 0 {
-		cpus = 1
-	}
-	return cpuDelta / sysDelta * cpus * 100
+	return max(cpus, 1)
 }

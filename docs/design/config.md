@@ -55,8 +55,20 @@ An unknown key is an error naming the file and line (`unknown key
 would look exactly like a setting that had taken effect. A missing file is
 not an error: everything is optional.
 
+## thresholds
+
+`thresholds.cpu` and `thresholds.memory` (warn/critical, k9s's 70/90 by
+default) colour the containers view's CPU% and MEM columns orange and red.
+The displayed CPU% stays `docker stats`'s per-core figure, which reaches
+CPUs × 100; the threshold judges `Stats.CPUShare`, that figure spread over
+the CPUs the container can use. Otherwise one saturated core on a 14-CPU
+VM — CPU% 100, a 7% share — would read as critical. Memory is judged by
+usage over the container's limit, which for an unlimited container is the
+host's memory. The selected row is drawn in the selection style and shows
+no threshold colour.
+
 ## Not yet
 
-k9s's `thresholds`, `skin`, `logger.buffer` and `logger.sinceSeconds`, and
+k9s's `skin`, `logger.buffer` and `logger.sinceSeconds`, and
 `liveViewAutoRefresh` have no dockyard equivalent yet. Each lands in this
 file when its feature does.

@@ -29,6 +29,9 @@ func TestParseOverlaysDefaults(t *testing.T) {
   context: colima
   ui:
     logoless: true
+  thresholds:
+    cpu:
+      warn: 50
   logger:
     showTime: true
 `))
@@ -39,6 +42,7 @@ func TestParseOverlaysDefaults(t *testing.T) {
 	want.RequestTimeout = 90 * time.Second
 	want.RefreshRate, want.ReadOnly, want.DefaultView, want.Context = 7, true, "images", "colima"
 	want.UI.Logoless, want.Logger.ShowTime = true, true
+	want.Thresholds.CPU.Warn = 50 // critical keeps its default
 	if got != want {
 		t.Errorf("got %+v\nwant %+v", got, want)
 	}
@@ -66,13 +70,15 @@ func TestParseRejectsUnknownKeys(t *testing.T) {
 
 func TestParseRejectsBadValues(t *testing.T) {
 	for in, want := range map[string]string{
-		"dockyard:\n  refreshRate: 0\n":         "refreshRate",
-		"dockyard:\n  requestTimeout: -1s\n":    "requestTimeout",
-		"dockyard:\n  requestTimeout: soon\n":   "line 2",
-		"dockyard:\n  logger:\n    tail: 0\n":   "logger.tail",
-		"dockyard:\n  logger:\n    tail: -5\n":  "logger.tail",
-		"dockyard:\n  refreshRate: fast\n":      "line 2",
-		"dockyard:\n  logger:\n    tail: 1e9\n": "tail",
+		"dockyard:\n  thresholds:\n    cpu:\n      warn: 90\n      critical: 70\n": "thresholds.cpu",
+		"dockyard:\n  thresholds:\n    memory:\n      critical: 101\n":             "thresholds.memory",
+		"dockyard:\n  refreshRate: 0\n":                                            "refreshRate",
+		"dockyard:\n  requestTimeout: -1s\n":                                       "requestTimeout",
+		"dockyard:\n  requestTimeout: soon\n":                                      "line 2",
+		"dockyard:\n  logger:\n    tail: 0\n":                                      "logger.tail",
+		"dockyard:\n  logger:\n    tail: -5\n":                                     "logger.tail",
+		"dockyard:\n  refreshRate: fast\n":                                         "line 2",
+		"dockyard:\n  logger:\n    tail: 1e9\n":                                    "tail",
 	} {
 		_, err := Parse(strings.NewReader(in))
 		if err == nil || !strings.Contains(err.Error(), want) {

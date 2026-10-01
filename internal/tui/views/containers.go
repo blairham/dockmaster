@@ -23,6 +23,30 @@ import (
 // container looks like.
 const pending = "—"
 
+// Thresholds colour the CPU% and MEM columns: orange at warn, red at
+// critical, in percent. CPU is judged by docker.Stats.CPUShare, memory by
+// MemPerc. Zero values mean DefaultThresholds.
+type Thresholds struct {
+	CPUWarn, CPUCritical float64
+	MemWarn, MemCritical float64
+}
+
+// DefaultThresholds are k9s's: warn at 70, critical at 90.
+func DefaultThresholds() Thresholds {
+	return Thresholds{CPUWarn: 70, CPUCritical: 90, MemWarn: 70, MemCritical: 90}
+}
+
+// thresholdText renders a value in orange past warn, red past critical.
+func thresholdText(text string, pct, warn, critical float64) string {
+	switch {
+	case pct >= critical:
+		return lipgloss.NewStyle().Foreground(style.ColorRed).Bold(true).Render(text)
+	case pct >= warn:
+		return lipgloss.NewStyle().Foreground(style.ColorOrange).Render(text)
+	}
+	return text
+}
+
 // ContainersRefreshMsg carries a refreshed container list.
 type ContainersRefreshMsg struct {
 	Err        error
@@ -41,6 +65,8 @@ type ContainersView struct {
 	err    error
 
 	stats map[string]docker.Stats
+	// thresholds colour CPU% and MEM (config thresholds:).
+	thresholds Thresholds
 
 	filter  string
 	all     []docker.Container
@@ -63,12 +89,13 @@ func NewContainersView(client *docker.Client, showAll, statsOn bool) *Containers
 		table.WithKeyMap(tableKeyMap()),
 	)
 	return &ContainersView{
-		client:  client,
-		table:   t,
-		loading: true,
-		showAll: showAll,
-		statsOn: statsOn,
-		stats:   make(map[string]docker.Stats),
+		client:     client,
+		table:      t,
+		loading:    true,
+		showAll:    showAll,
+		statsOn:    statsOn,
+		thresholds: DefaultThresholds(),
+		stats:      make(map[string]docker.Stats),
 	}
 }
 
@@ -95,6 +122,15 @@ func (v *ContainersView) ShowAll() bool { return v.showAll }
 func (v *ContainersView) ToggleAll() tea.Cmd {
 	v.showAll = !v.showAll
 	return v.refresh()
+}
+
+// SetThresholds replaces the CPU/MEM colour thresholds; zero keeps the
+// defaults.
+func (v *ContainersView) SetThresholds(t Thresholds) {
+	if t != (Thresholds{}) {
+		v.thresholds = t
+		v.rebuildRows()
+	}
 }
 
 // StatsEnabled reports whether the CPU/MEM poll is on.
@@ -319,8 +355,9 @@ func (v *ContainersView) rebuildRows() {
 		if !v.statsOn {
 			cpu, mem = "", ""
 		} else if s, ok := v.stats[c.ID]; ok && s.OK {
-			cpu = fmt.Sprintf("%.2f", s.CPUPerc)
-			mem = docker.HumanSize(s.MemUsage)
+			th := v.thresholds
+			cpu = thresholdText(fmt.Sprintf("%.2f", s.CPUPerc), s.CPUShare(), th.CPUWarn, th.CPUCritical)
+			mem = thresholdText(docker.HumanSize(s.MemUsage), s.MemPerc(), th.MemWarn, th.MemCritical)
 		} else if !c.Running() {
 			// A stopped container has no stats and never will — an
 			// eternal "…" there reads as a hung poll.

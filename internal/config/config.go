@@ -45,10 +45,23 @@ type File struct {
 }
 
 // Config is everything config.yaml can set.
+//
+// Field comments sit in this block rather than on each field: the linter's
+// fieldalignment fix reorders fields and drops their comments with them.
+//
+//   - DefaultView: the view to open on, by palette name, as -c.
+//   - Context: the docker context to use when neither --host nor
+//     --context is given.
+//   - RequestTimeout: when non-zero, replaces every daemon request's own
+//     deadline (20s for a list, 5m for images). A Go duration: 30s, 2m.
+//   - RefreshRate: the auto-refresh interval in seconds.
+//   - ShowAll: start with stopped containers listed (docker ps -a).
+//   - NoStats: disable the CPU/MEM poll.
 type Config struct {
 	DefaultView    string        `yaml:"defaultView"`
 	Context        string        `yaml:"context"`
 	Logger         Logger        `yaml:"logger"`
+	Thresholds     Thresholds    `yaml:"thresholds"`
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
 	RefreshRate    int           `yaml:"refreshRate"`
 	UI             UI            `yaml:"ui"`
@@ -65,6 +78,21 @@ type UI struct {
 	Splashless bool `yaml:"splashless"`
 }
 
+// Thresholds colour the containers view's CPU% and MEM columns, as k9s's
+// `thresholds:` block: orange at warn, red at critical, both percentages.
+// CPU is judged as a share of the CPUs the container can use, memory as a
+// share of its limit (the host's memory when it has none).
+type Thresholds struct {
+	CPU    Threshold `yaml:"cpu"`
+	Memory Threshold `yaml:"memory"`
+}
+
+// Threshold is one resource's warn and critical percentages.
+type Threshold struct {
+	Warn     int `yaml:"warn"`
+	Critical int `yaml:"critical"`
+}
+
 // Logger is the logs view, as k9s's `logger:` block.
 type Logger struct {
 	// Tail is how many lines of backlog a log view opens with.
@@ -78,6 +106,10 @@ func Default() Config {
 	return Config{
 		RefreshRate: DefaultRefreshRate,
 		Logger:      Logger{Tail: DefaultLogTail},
+		Thresholds: Thresholds{
+			CPU:    Threshold{Warn: 70, Critical: 90},
+			Memory: Threshold{Warn: 70, Critical: 90},
+		},
 	}
 }
 
@@ -152,6 +184,15 @@ func (c Config) Validate() error {
 	if c.RequestTimeout < 0 {
 		errs = append(errs, fmt.Sprintf("requestTimeout cannot be negative, got %v", c.RequestTimeout))
 	}
+	for _, t := range []struct {
+		name string
+		t    Threshold
+	}{{name: "cpu", t: c.Thresholds.CPU}, {name: "memory", t: c.Thresholds.Memory}} {
+		if t.t.Warn < 1 || t.t.Critical > 100 || t.t.Warn >= t.t.Critical {
+			errs = append(errs, fmt.Sprintf("thresholds.%s needs 1 <= warn < critical <= 100, got warn %d, critical %d",
+				t.name, t.t.Warn, t.t.Critical))
+		}
+	}
 	if c.Logger.Tail < 1 || c.Logger.Tail > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.tail must be between 1 and %d, got %d", MaxLogTail, c.Logger.Tail))
 	}
@@ -193,4 +234,14 @@ dockyard:
     tail: 500
     # Start log views with timestamps on.
     showTime: false
+  # CPU% and MEM turn orange at warn and red at critical (percent). CPU is
+  # a share of the CPUs the container can use; memory of its limit, or of
+  # the host's memory when it has none.
+  thresholds:
+    cpu:
+      warn: 70
+      critical: 90
+    memory:
+      warn: 70
+      critical: 90
 `

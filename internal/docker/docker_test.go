@@ -196,3 +196,21 @@ func TestRequestContextOverride(t *testing.T) {
 		}
 	}
 }
+
+// TestCPUShare: one saturated core on a 14-CPU host is CPUPerc 100 but
+// only a 7% share — busy, not hot.
+func TestCPUShare(t *testing.T) {
+	for _, tc := range []struct {
+		s    Stats
+		want float64
+	}{
+		{s: Stats{CPUPerc: 100, CPUs: 14}, want: 100.0 / 14},
+		{s: Stats{CPUPerc: 1260, CPUs: 14}, want: 90},
+		{s: Stats{CPUPerc: 45, CPUs: 1}, want: 45},
+		{s: Stats{CPUPerc: 45}, want: 45}, // CPU count unknown
+	} {
+		if got := tc.s.CPUShare(); got < tc.want-0.001 || got > tc.want+0.001 {
+			t.Errorf("%+v: CPUShare = %v, want %v", tc.s, got, tc.want)
+		}
+	}
+}

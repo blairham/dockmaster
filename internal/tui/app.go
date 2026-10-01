@@ -16,6 +16,7 @@ import (
 	"github.com/blairham/tuikit/loading"
 	"github.com/blairham/tuikit/viewfsm"
 
+	"github.com/blairham/dockyard/internal/config"
 	"github.com/blairham/dockyard/internal/docker"
 	"github.com/blairham/dockyard/internal/engines"
 	"github.com/blairham/dockyard/internal/tui/style"
@@ -93,7 +94,9 @@ type App struct {
 	logShowTime bool
 	// requestTimeout is --request-timeout, carried onto each client a
 	// context switch dials.
-	requestTimeout  time.Duration
+	requestTimeout time.Duration
+	// thresholds survive a context switch, which rebuilds the views.
+	thresholds      views.Thresholds
 	commandBar      *chrome.CommandBar
 	filterBar       *chrome.FilterBar
 	prompt          *chrome.Prompt
@@ -172,6 +175,24 @@ type Options struct {
 	// RequestTimeout overrides every daemon request's own deadline when
 	// non-zero (--request-timeout).
 	RequestTimeout time.Duration
+	// Thresholds colour the containers view's CPU% and MEM; zero is k9s's
+	// 70/90.
+	Thresholds views.Thresholds
+}
+
+// ThresholdsFrom converts config.yaml's thresholds block for the views.
+func ThresholdsFrom(t config.Thresholds) views.Thresholds {
+	return views.Thresholds{
+		CPUWarn: float64(t.CPU.Warn), CPUCritical: float64(t.CPU.Critical),
+		MemWarn: float64(t.Memory.Warn), MemCritical: float64(t.Memory.Critical),
+	}
+}
+
+// containersView builds the root view with the configured thresholds.
+func containersView(client *docker.Client, opts Options) *views.ContainersView {
+	v := views.NewContainersView(client, opts.ShowAll, !opts.NoStats)
+	v.SetThresholds(opts.Thresholds)
+	return v
 }
 
 // NewApp builds the root model.
@@ -207,7 +228,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 
 	statsOn := !opts.NoStats
 	vm := map[style.ViewType]views.View{
-		style.ViewContainers:   views.NewContainersView(client, opts.ShowAll, statsOn),
+		style.ViewContainers:   containersView(client, opts),
 		style.ViewImages:       views.NewImagesView(client, false),
 		style.ViewVolumes:      views.NewVolumesView(client),
 		style.ViewNetworks:     views.NewNetworksView(client),
@@ -256,6 +277,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logTail:        opts.LogTail,
 		logShowTime:    opts.LogShowTime,
 		requestTimeout: opts.RequestTimeout,
+		thresholds:     opts.Thresholds,
 	}
 	a.history.Visit(viewfsm.ViewID(startView))
 	return a
@@ -455,7 +477,7 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 	cv.SetConnectedHost(a.client.Host)
 
 	a.viewMap = map[style.ViewType]views.View{
-		style.ViewContainers:   views.NewContainersView(a.client, a.showAll, a.statsOn),
+		style.ViewContainers:   containersView(a.client, Options{ShowAll: a.showAll, NoStats: !a.statsOn, Thresholds: a.thresholds}),
 		style.ViewImages:       views.NewImagesView(a.client, false),
 		style.ViewVolumes:      views.NewVolumesView(a.client),
 		style.ViewNetworks:     views.NewNetworksView(a.client),

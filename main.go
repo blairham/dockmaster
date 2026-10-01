@@ -163,6 +163,7 @@ func run() error {
 		LogTail:         cfg.Logger.Tail,
 		LogShowTime:     cfg.Logger.ShowTime,
 		RequestTimeout:  cfg.RequestTimeout,
+		Thresholds:      tui.ThresholdsFrom(cfg.Thresholds),
 		Engines:         providers,
 		StartOnRuntimes: startOnRuntimes,
 		Notice:          notice,
