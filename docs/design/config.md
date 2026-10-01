@@ -1,0 +1,62 @@
+# Design: config.yaml
+
+**Status:** Living
+**Code:** `internal/config/config.go`, `internal/config/flags.go` (flag layering, `dockyard config`)
+
+## Shape
+
+The file follows k9s's `config.yaml`: a single top-level key, `dockyard:`
+here and `k9s:` there, with the same camelCase key names where the settings
+match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` — `ui.headless`, `ui.logoless`,
+`ui.crumbsless`, `ui.splashless`, `logger.tail`, `logger.showTime`). Settings
+k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
+spelling. `dockyard config init` writes the commented defaults
+(`config.Sample`); `TestSampleIsTheDefaults` keeps that sample in step with
+`config.Default()`.
+
+## Where it lives
+
+`$DOCKYARD_CONFIG_DIR/config.yaml`, else `$XDG_CONFIG_HOME/dockyard/config.yaml`,
+else `~/.config/dockyard/config.yaml`. `dockyard config path` prints the
+answer. k9s's own default on macOS is `~/Library/Application Support`;
+dockyard uses `~/.config` on every platform, where command-line tools keep
+their dotfiles.
+
+## Precedence
+
+Defaults, then the file, then flags **set on the command line**.
+`flag.Visit` sees only the flags that were given, so a flag left at its
+default never overwrites the file: without that, `readOnly: true` would be
+undone by every run that does not pass `--readonly`. A flag that is given
+wins in both directions (`--readonly=false` turns off a `readOnly: true`).
+`TestApplyFlagsOnlySetFlagsWin` pins both halves.
+
+`context:` is a default `--context`. It applies only when none of `--host`,
+`--context`, `$DOCKER_HOST` or `$DOCKER_CONTEXT` is set, so it sits between
+those and the docker CLI's `currentContext` in the resolution order
+(`docker-context-resolution.md`).
+
+## requestTimeout
+
+Each daemon request carries its own deadline — 20s for a list or inspect,
+60s for an action, 5m for the image list and disk usage. `requestTimeout`
+(and `--request-timeout`) replaces all of them with one value, through
+`docker.Client.RequestContext`: longer for a slow but honest daemon, shorter
+to fail fast on one that hangs. It does not touch log and event streams,
+Compose, or the runtime CLIs (colima, podman), which are not single daemon
+requests. `TestDaemonRequestsHonorRequestTimeout` fails if a view grows a
+hand-rolled `context.WithTimeout`.
+
+## Strict on purpose
+
+An unknown key is an error naming the file and line (`unknown key
+"readonly"`), and so is an out-of-range value (`refreshRate` below 1 second,
+`logger.tail` outside 1–100000). A misspelled key that was silently ignored
+would look exactly like a setting that had taken effect. A missing file is
+not an error: everything is optional.
+
+## Not yet
+
+k9s's `thresholds`, `skin`, `logger.buffer` and `logger.sinceSeconds`, and
+`liveViewAutoRefresh` have no dockyard equivalent yet. Each lands in this
+file when its feature does.

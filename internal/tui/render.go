@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/blairham/tuikit/chrome"
-	tktheme "github.com/blairham/tuikit/theme"
+	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/blairham/dockyard/internal/tui/style"
 	"github.com/blairham/dockyard/internal/tui/views"
@@ -24,11 +24,14 @@ func (a *App) View() tea.View {
 		return v
 	}
 
+	a.syncViewSize()
+	info := a.renderInfoPanel()
+	shortcuts := a.renderShortcuts(info)
 	frame := chrome.Frame{
 		Width:       a.width,
 		Height:      a.height,
-		InfoLines:   a.renderInfoPanel(),
-		Shortcuts:   a.renderShortcuts(),
+		InfoLines:   info,
+		Shortcuts:   shortcuts,
 		Content:     a.renderContent(),
 		Breadcrumb:  a.breadcrumb(),
 		HelpVisible: a.showHelp,
@@ -55,7 +58,7 @@ func (a *App) View() tea.View {
 		frame.Command = a.commandBar.Input()
 	}
 
-	v := tea.NewView(a.chrome.Render(frame))
+	v := tea.NewView(a.headerChrome().Render(frame))
 	v.AltScreen = true
 	// Cell-motion mouse mode gives the tables and log viewport wheel
 	// scrolling. It is set per-View in bubbletea v2, not as a program
@@ -65,9 +68,9 @@ func (a *App) View() tea.View {
 }
 
 func (a *App) renderSplash() string {
-	lines := make([]string, 0, len(logoBigLines)+4)
+	lines := make([]string, 0, len(logoLines)+4)
 	lines = append(lines, "")
-	for _, l := range logoBigLines {
+	for _, l := range logoLines {
 		lines = append(lines, style.Logo.Render(l))
 	}
 	lines = append(lines, "", a.loader.View(), "")
@@ -84,14 +87,12 @@ func (a *App) renderSplash() string {
 		Height(h).
 		Align(lipgloss.Center, lipgloss.Center).
 		Background(style.ColorBg).
-		Foreground(style.ColorDockerBlue).
+		Foreground(style.ColorOrange).
 		Render(strings.Join(lines, "\n"))
 }
 
 // renderInfoPanel is the top-left key/value block.
 func (a *App) renderInfoPanel() []string {
-	label, value := style.InfoLabel, style.InfoValue
-
 	ctxName, host, version := "—", "—", "—"
 	if a.client != nil {
 		ctxName, host, version = a.client.ContextName, a.client.Host, a.client.Version
@@ -99,23 +100,35 @@ func (a *App) renderInfoPanel() []string {
 			version += " " + a.client.OSArch
 		}
 	}
-	// The endpoint is the single most useful thing on screen when
-	// something is wrong, and it is also the longest — show the tail,
-	// which is the part that differs between contexts.
-	if len(host) > 34 {
-		host = "…" + host[len(host)-33:]
+	return a.renderInfoPanelWith(ctxName, host, version)
+}
+
+// renderInfoPanelWith lays out the info panel for the given values.
+func (a *App) renderInfoPanelWith(ctxName, host, version string) []string {
+	label, value := style.InfoLabel, style.InfoValue
+
+	// Every value is clipped at the end to the room the info panel has, so
+	// none wraps the panel or pushes the shortcuts over. The beginning is
+	// what identifies a value — an endpoint's scheme and path, a context
+	// name — so that is what stays; the overflow is simply cut, with no
+	// ellipsis taking a cell of it.
+	room := a.infoValueRoom()
+	const roBadge = " [RO]"
+	ctxRoom := room
+	if a.readonly {
+		ctxRoom -= len(roBadge)
 	}
 
-	ctxLine := label.Render("Context:  ") + value.Render(ctxName)
+	ctxLine := label.Render("Context:  ") + value.Render(clipEnd(ctxName, ctxRoom))
 	if a.readonly {
 		ctxLine += " " + lipgloss.NewStyle().Foreground(style.ColorOrange).Bold(true).Render("[RO]")
 	}
 
 	return []string{
 		ctxLine,
-		label.Render("Endpoint: ") + value.Render(host),
-		label.Render("Engine:   ") + value.Render(version),
-		label.Render("Counts:   ") + value.Render(a.renderCounts()),
+		label.Render("Endpoint: ") + value.Render(clipEnd(host, room)),
+		label.Render("Engine:   ") + value.Render(clipEnd(version, room)),
+		label.Render("Counts:   ") + value.Render(clipEnd(a.renderCounts(), room)),
 		a.chrome.VersionLine("Dockyard: ", a.version, ""),
 	}
 }
@@ -148,13 +161,15 @@ func (a *App) renderCounts() string {
 
 // renderShortcuts is the k9s-style grid: view-switch digits on the left,
 // per-view plus always-on actions on the right.
-func (a *App) renderShortcuts() []string {
+func (a *App) renderShortcuts(info []string) []string {
 	viewKeys := []chrome.Shortcut{
-		{Key: "<1>", Desc: "Containers"},
-		{Key: "<2>", Desc: "Images"},
-		{Key: "<3>", Desc: "Volumes"},
-		{Key: "<4>", Desc: "Networks"},
-		{Key: "<5>", Desc: "Projects"},
+		{Key: "<0>", Desc: "Containers"},
+		{Key: "<1>", Desc: "Images"},
+		{Key: "<2>", Desc: "Volumes"},
+		{Key: "<3>", Desc: "Networks"},
+		{Key: "<4>", Desc: "Projects"},
+		{Key: "<5>", Desc: "Runtimes"},
+		{Key: "<6>", Desc: "Events"},
 	}
 
 	var actions []chrome.Shortcut //nolint:prealloc // each case assigns a fresh literal
@@ -163,11 +178,13 @@ func (a *App) renderShortcuts() []string {
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Logs"},
 			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<e>", Desc: "Shell"},
-			{Key: "<s>", Desc: "Start"},
+			{Key: "<s>", Desc: "Shell"},
+			{Key: "<u>", Desc: "Start"},
 			{Key: "<x>", Desc: "Stop"},
 			{Key: "<R>", Desc: "Restart"},
 			{Key: "<a>", Desc: "All"},
+			{Key: "<shift-f>", Desc: "Port-Forward"},
+			{Key: "<b>", Desc: "Browse"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
 		}
 	case style.ViewImages:
@@ -194,16 +211,64 @@ func (a *App) renderShortcuts() []string {
 	case style.ViewProjects:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Containers"},
-			{Key: "<s>", Desc: "Start all"},
-			{Key: "<x>", Desc: "Stop all"},
-			{Key: "<ctrl-d>", Desc: "Remove all"},
+			{Key: "<u>", Desc: "Up"},
+			{Key: "<x>", Desc: "Stop"},
+			{Key: "<R>", Desc: "Restart"},
+			{Key: "<p>", Desc: "Pull"},
+			{Key: "<ctrl-d>", Desc: "Down"},
+		}
+	case style.ViewRuntimes:
+		actions = []chrome.Shortcut{
+			{Key: "<n>", Desc: "New"},
+			{Key: "<e>", Desc: "Edit"},
+			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<enter>", Desc: "Connect"},
+			{Key: "<s>", Desc: "Shell"},
+			{Key: "<u>", Desc: "Start"},
+			{Key: "<x>", Desc: "Stop"},
+			{Key: "<R>", Desc: "Restart"},
+			{Key: "<ctrl-d>", Desc: "Delete"},
+		}
+	case style.ViewEvents:
+		actions = []chrome.Shortcut{
+			{Key: "<f>", Desc: "Follow"},
+		}
+	case style.ViewPods:
+		actions = []chrome.Shortcut{
+			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<u>", Desc: "Start"},
+			{Key: "<x>", Desc: "Stop"},
+			{Key: "<R>", Desc: "Restart"},
+			{Key: "<ctrl-d>", Desc: "Remove"},
+		}
+	case style.ViewPortForwards:
+		actions = []chrome.Shortcut{
+			{Key: "<b>", Desc: "Open"},
+			{Key: "<ctrl-d>", Desc: "Stop"},
+		}
+	case style.ViewDiskUsage:
+		actions = []chrome.Shortcut{
+			{Key: "<P>", Desc: "Prune"},
+		}
+	case style.ViewRuntimeForm:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Save"},
+			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<esc>", Desc: "Cancel"},
 		}
 	case style.ViewLogs:
 		actions = []chrome.Shortcut{
 			{Key: "<f>", Desc: "Follow"},
 			{Key: "<T>", Desc: "Timestamps"},
 			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<e>", Desc: "Shell"},
+			{Key: "<s>", Desc: "Shell"},
+			{Key: "<esc>", Desc: "Back"},
+		}
+	case style.ViewNode:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Logs"},
+			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<s>", Desc: "Shell"},
 			{Key: "<esc>", Desc: "Back"},
 		}
 	case style.ViewInspect, style.ViewLayers:
@@ -233,55 +298,92 @@ func (a *App) renderShortcuts() []string {
 	)
 	sortShortcuts(actions)
 
-	return a.shortcutGrid(viewKeys, actions)
+	return a.shortcutGrid(info, viewKeys, actions)
 }
 
-// Shortcut-grid column widths. tuikit's own ShortcutGrid hardcodes the
-// first description column at 10 cells, and "Containers" is exactly 10 —
-// so it butts straight against the next key with no separating space, and
-// those widths are not configurable. The grid is composed here instead,
-// reusing tuikit's styles so the coloring still matches the chrome.
-// Worth pushing upstream as a configurable width.
-const (
-	shortcutKeyWidth  = 9
-	shortcutDescWidth = 12
-)
+// shortcutGrid lays out the view-switch keys and the actions k9s-style with
+// tuikit's grid: columns of ShortcutRows entries, the digits first, then the
+// actions down the columns after them.
+//
+// The logo shows only when every shortcut column fits beside it. It is
+// 55 cells wide; giving it priority would shed shortcuts on any terminal
+// short of ~175 columns, and the shortcuts are the part you use. When even
+// the logo-less header is too narrow, whole columns are shed rather than
+// letting tuikit cut every row short — the view digits first, since the
+// command palette and help both cover them, then trailing action columns.
+// Everything shed is still listed under <?>.
+func (a *App) shortcutGrid(info []string, views, actions []chrome.Shortcut) []string {
+	rows := min(a.chrome.ShortcutRows, a.chrome.TopSectionRows())
+	out := a.chrome.ShortcutGrid(views, actions)
 
-// shortcutGrid lays view-switch keys in the left column and actions in the
-// right, k9s-style, one pair per row.
-func (a *App) shortcutGrid(views, actions []chrome.Shortcut) []string {
-	rows := len(views)
-	if len(actions) > rows {
-		rows = len(actions)
+	a.headerLogo = a.logoShown() && rowsWidth(out) <= a.shortcutBudget(info, true)
+	budget := a.shortcutBudget(info, a.headerLogo)
+
+	if len(views) > 0 && len(actions) > 0 && rowsWidth(out) > budget {
+		// tuikit keeps an empty views column in place so the actions do
+		// not move; passing the actions as the first list drops it. Key
+		// colors are per key, so the actions still render as actions.
+		views = nil
+		out = a.chrome.ShortcutGrid(actions, nil)
 	}
-	keyCol := lipgloss.NewStyle().Width(shortcutKeyWidth)
-	descCol := lipgloss.NewStyle().Width(shortcutDescWidth)
-	t := a.chrome.Theme
-
-	out := make([]string, rows)
-	for i := range out {
-		var v, act chrome.Shortcut
-		if i < len(views) {
-			v = views[i]
+	for len(actions) > rows && rowsWidth(out) > budget {
+		actions = actions[:(len(actions)-1)/rows*rows]
+		if len(views) == 0 {
+			out = a.chrome.ShortcutGrid(actions, nil)
+		} else {
+			out = a.chrome.ShortcutGrid(views, actions)
 		}
-		if i < len(actions) {
-			act = actions[i]
-		}
-		out[i] = shortcutKeyStyle(t, v.Key).Render(keyCol.Render(v.Key)) +
-			t.ShortcutDesc.Render(descCol.Render(v.Desc)) +
-			shortcutKeyStyle(t, act.Key).Render(keyCol.Render(act.Key)) +
-			t.ShortcutDesc.Render(act.Desc)
 	}
 	return out
 }
 
-// shortcutKeyStyle mirrors tuikit's own rule: view-switch digit keys get
-// the view color, every other key the action color.
-func shortcutKeyStyle(t tktheme.Theme, key string) lipgloss.Style {
-	if isDigitKey(key) {
-		return t.ShortcutView
+// rowsWidth is the widest of a set of rendered rows.
+func rowsWidth(rows []string) int {
+	w := 0
+	for _, r := range rows {
+		w = max(w, lipgloss.Width(r))
 	}
-	return t.ShortcutKey
+	return w
+}
+
+// logoShown mirrors tuikit's rule for when the header carries the logo.
+func (a *App) logoShown() bool {
+	return len(a.chrome.Logo) > 0 && a.width >= a.chrome.MinLogoWidth
+}
+
+// shortcutBudget is the shortcut grid's room in tuikit's k9s header layout:
+// the width less the info block (inset, widest info line and gap, capped at
+// InfoLabelWidth) and the one-cell right inset, and with the logo less the
+// logo and the blank cell tuikit keeps before it.
+func (a *App) shortcutBudget(info []string, logo bool) int {
+	infoW := 0
+	for _, l := range info {
+		infoW = max(infoW, lipgloss.Width(l))
+	}
+	infoW = min(1+infoW+infoGap, a.chrome.InfoLabelWidth)
+	budget := a.width - infoW - 1
+	if logo {
+		logoW := 0
+		for _, l := range a.chrome.Logo {
+			logoW = max(logoW, lipgloss.Width(l))
+		}
+		budget -= logoW + 1
+	}
+	return max(budget, 0)
+}
+
+// infoGap is the blank space tuikit leaves between the info panel and the
+// first shortcut column.
+const infoGap = 2
+
+// headerChrome is the chrome for this frame: the logo comes off when the
+// shortcut grid needs its room.
+func (a *App) headerChrome() chrome.Chrome {
+	c := a.chrome
+	if !a.headerLogo {
+		c.Logo = nil
+	}
+	return c
 }
 
 // renderContent assembles the bordered content box. When help is showing,
@@ -377,14 +479,15 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	panel := chrome.HelpPanel{
 		Sections: []chrome.HelpSection{
 			{
-				Title:      "RESOURCE",
-				TitleColor: style.ColorFuchsia,
+				Title: "RESOURCE",
 				Entries: []chrome.HelpEntry{
-					{Key: "<1>", Desc: "Containers"},
-					{Key: "<2>", Desc: "Images"},
-					{Key: "<3>", Desc: "Volumes"},
-					{Key: "<4>", Desc: "Networks"},
-					{Key: "<5>", Desc: "Projects"},
+					{Key: "<0>", Desc: "Containers"},
+					{Key: "<1>", Desc: "Images"},
+					{Key: "<2>", Desc: "Volumes"},
+					{Key: "<3>", Desc: "Networks"},
+					{Key: "<4>", Desc: "Projects"},
+					{Key: "<5>", Desc: "Runtimes"},
+					{Key: "<6>", Desc: "Events"},
 					{Key: "<enter>", Desc: "Drill in"},
 					{Key: "<o>", Desc: "Inspect"},
 					{Key: "<a>", Desc: "Toggle stopped/all"},
@@ -393,51 +496,44 @@ func (a *App) helpPanel() chrome.HelpPanel {
 				},
 			},
 			{
-				Title:      "CONTAINER",
-				TitleColor: style.ColorFuchsia,
+				Title: "CONTAINER",
 				Entries: []chrome.HelpEntry{
-					{Key: "<s>", Desc: "Start"},
+					{Key: "<u>", Desc: "Start"},
 					{Key: "<x>", Desc: "Stop"},
 					{Key: "<R>", Desc: "Restart"},
 					{Key: "<K>", Desc: "Kill (SIGKILL)"},
 					{Key: "<p>", Desc: "Pause/unpause"},
-					{Key: "<e>", Desc: "Shell into it"},
+					{Key: "<s>", Desc: "Shell into it"},
 					{Key: "<l>", Desc: "Logs"},
 					{Key: "<t>", Desc: "Toggle CPU/MEM poll"},
 					{Key: "<ctrl-d>", Desc: "Remove"},
 					{Key: "<P>", Desc: "Prune"},
 				},
 			},
-			{
-				Title: "GENERAL",
-				Entries: []chrome.HelpEntry{
-					{Key: "<:cmd>", Desc: "Command mode"},
-					{Key: "</>", Desc: "Filter (! negates)"},
-					{Key: "<esc>", Desc: "Back / clear filter"},
-					{Key: "<r>", Desc: "Refresh"},
-					{Key: "<f>", Desc: "Toggle log follow"},
-					{Key: "<T>", Desc: "Toggle timestamps"},
-					{Key: "<?>", Desc: "Help"},
-					{Key: "<ctrl-c>", Desc: "Quit"},
-				},
-			},
-			{
-				Title: "NAVIGATION",
-				Entries: []chrome.HelpEntry{
-					{Key: "<j>", Desc: "Down"},
-					{Key: "<k>", Desc: "Up"},
-					{Key: "<g>", Desc: "Top"},
-					{Key: "<G>", Desc: "Bottom"},
-					{Key: "<ctrl-f>", Desc: "Page down"},
-					{Key: "<ctrl-b>", Desc: "Page up"},
-				},
-			},
+			generalHelp(),
+			chrome.NavigationHelp(),
 		},
 	}
 	for i := range panel.Sections {
 		sortHelpEntries(panel.Sections[i].Entries)
 	}
 	return panel
+}
+
+// generalHelp is tuikit's shared GENERAL column — every key in it is bound
+// in keys.go — plus dockyard's own: r as well as ctrl-r, the log toggles,
+// :logo, and ctrl-c.
+func generalHelp() chrome.HelpSection {
+	g := chrome.GeneralHelp()
+	g.Entries = append(
+		g.Entries,
+		chrome.HelpEntry{Key: "<r>", Desc: "Reload"},
+		chrome.HelpEntry{Key: "<f>", Desc: "Toggle log follow"},
+		chrome.HelpEntry{Key: "<T>", Desc: "Toggle timestamps"},
+		chrome.HelpEntry{Key: "<:logo>", Desc: "Toggle logo"},
+		chrome.HelpEntry{Key: "<ctrl-c>", Desc: "Quit"},
+	)
+	return g
 }
 
 // isDigitKey reports whether key is a "<N>" view-switch hotkey.
@@ -485,3 +581,16 @@ func sortHelpEntries(s []chrome.HelpEntry) {
 		return sortByDigitThenDesc(s[i].Key, s[i].Desc, s[j].Key, s[j].Desc)
 	})
 }
+
+// infoLabelCells is the width of every info-panel label ("Endpoint: ").
+const infoLabelCells = 10
+
+// infoValueRoom is how many cells an info-panel value may take: the panel's
+// cap, less tuikit's one-cell inset, the gap before the shortcuts, and the
+// label.
+func (a *App) infoValueRoom() int {
+	return max(a.chrome.InfoLabelWidth-1-infoGap-infoLabelCells, 8)
+}
+
+// clipEnd cuts s to n cells, keeping the beginning, with no ellipsis.
+func clipEnd(s string, n int) string { return xansi.Truncate(s, n, "") }

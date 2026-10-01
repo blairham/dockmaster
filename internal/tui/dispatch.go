@@ -2,6 +2,7 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/blairham/tuikit/viewfsm"
 
 	"github.com/blairham/dockyard/internal/tui/style"
 	"github.com/blairham/dockyard/internal/tui/views"
@@ -10,6 +11,13 @@ import (
 // switchView jumps to a top-level view, clearing the drill stack. Used by
 // the digit hotkeys and the `:` palette.
 func (a *App) switchView(v style.ViewType) tea.Cmd {
+	a.history.Visit(viewfsm.ViewID(v))
+	return a.showView(v)
+}
+
+// showView is switchView without recording a history visit, for the
+// history keys themselves.
+func (a *App) showView(v style.ViewType) tea.Cmd {
 	a.stopStoppableViews()
 	a.viewStack = nil
 	a.view = v
@@ -94,7 +102,26 @@ func (a *App) tableHeight() int { _, h := a.contentSize(); return h }
 
 func (a *App) resizeActiveView() {
 	if v := a.activeView(); v != nil {
-		v.Resize(a.innerWidth(), a.tableHeight())
+		w, h := a.contentSize()
+		v.Resize(w, h)
+		a.sizedView, a.sizedW, a.sizedH = a.view, w, h
+	}
+}
+
+// syncViewSize re-sizes the active view when the room it has changed since
+// it was last sized. View calls it on every frame.
+//
+// The content box's height depends on which bars are up — confirm, command,
+// filter, a status flash — and those open from many places: a key, an
+// action, a confirm dispatched from an action, a message landing. Leaving
+// each to remember resizeActiveView is how a confirm bar opened from an
+// action came to sit above a table still sized for the whole screen: the box
+// grew by three rows and its bottom border and the breadcrumb fell off the
+// screen. Checking at render time cannot be forgotten.
+func (a *App) syncViewSize() {
+	w, h := a.contentSize()
+	if a.view != a.sizedView || w != a.sizedW || h != a.sizedH {
+		a.resizeActiveView()
 	}
 }
 
@@ -121,10 +148,13 @@ func (a *App) refreshActiveView() tea.Cmd {
 //     holds a daemon connection open continuously.
 //
 // Containers and projects are the live, cheap, volatile things, so they are
-// what the tick is for.
+// what the tick is for. Colima profiles are polled because their state moves
+// on its own — a start runs for a minute — and listing them is a local
+// read that never touches the daemon.
 var polled = map[style.ViewType]bool{
 	style.ViewContainers: true,
 	style.ViewProjects:   true,
+	style.ViewRuntimes:   true,
 }
 
 // refreshPolledView is the tick's refresh: a no-op unless the active view
@@ -149,14 +179,6 @@ func (a *App) updateActiveTable(msg tea.Msg) tea.Cmd {
 	v := a.activeView()
 	if v == nil {
 		return nil
-	}
-	if km, ok := msg.(tea.KeyMsg); ok {
-		switch km.String() {
-		case "ctrl+f":
-			msg = tea.KeyPressMsg{Code: tea.KeyPgDown}
-		case "ctrl+b":
-			msg = tea.KeyPressMsg{Code: tea.KeyPgUp}
-		}
 	}
 	return v.UpdateTable(msg)
 }
@@ -202,8 +224,16 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewInspect
 	case views.LayersRefreshMsg:
 		return a.view == style.ViewLayers
+	case views.NodeRefreshMsg:
+		return a.view == style.ViewNode
 	case views.ContextsRefreshMsg:
 		return a.view == style.ViewContexts
+	case views.DiskUsageRefreshMsg:
+		return a.view == style.ViewDiskUsage
+	case views.PortForwardsRefreshMsg:
+		return a.view == style.ViewPortForwards
+	case views.EventsBatchMsg, views.EventsClosedMsg:
+		return a.view == style.ViewEvents
 	case views.LogBatchMsg, views.LogClosedMsg:
 		return a.view == style.ViewLogs
 	}

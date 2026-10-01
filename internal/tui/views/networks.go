@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -157,7 +156,7 @@ func (v *NetworksView) refresh() tea.Cmd {
 	}
 	v.inFlight = true
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := v.client.RequestContext(20 * time.Second)
 		defer cancel()
 		list, err := v.client.Networks(ctx)
 		return NetworksRefreshMsg{Networks: list, Err: err}

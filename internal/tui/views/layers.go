@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -120,7 +119,7 @@ func (v *LayersView) View() string {
 func (v *LayersView) Refresh() tea.Cmd {
 	id, client := v.imageID, v.client
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := client.RequestContext(20 * time.Second)
 		defer cancel()
 		layers, err := client.ImageHistory(ctx, id)
 		return LayersRefreshMsg{ImageID: id, Layers: layers, Err: err}

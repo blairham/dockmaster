@@ -33,7 +33,12 @@ func TestApplyFlagsOnlySetFlagsWin(t *testing.T) {
 func TestApplyFlagsRefreshAndTimeout(t *testing.T) {
 	file := Default()
 	file.RefreshRate, file.RequestTimeout = 9, time.Minute
-	if got := ApplyFlags(file, map[string]bool{}, FlagValues{Refresh: 0}); got.RefreshRate != 9 || got.RequestTimeout != time.Minute {
+	if got := ApplyFlags(
+		file,
+		map[string]bool{},
+		FlagValues{Refresh: 0},
+	); got.RefreshRate != 9 ||
+		got.RequestTimeout != time.Minute {
 		t.Errorf("unset -r / --request-timeout overwrote the file: %+v", got)
 	}
 	for _, name := range []string{"r", "refresh"} {
@@ -50,7 +55,11 @@ func TestConfigInitWritesTheSampleOnce(t *testing.T) {
 	t.Setenv(EnvDir, dir)
 
 	var out bytes.Buffer
-	if err := Command([]string{"path"}, &out); err != nil || strings.TrimSpace(out.String()) != filepath.Join(dir, FileName) {
+	if err := Command(
+		[]string{"path"},
+		&out,
+	); err != nil ||
+		strings.TrimSpace(out.String()) != filepath.Join(dir, FileName) {
 		t.Fatalf("config path = %q, %v", out.String(), err)
 	}
 	if err := Command([]string{"init"}, &out); err != nil {

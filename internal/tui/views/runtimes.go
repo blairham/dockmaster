@@ -1,0 +1,368 @@
+package views
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/blairham/dockyard/internal/engines"
+	"github.com/blairham/dockyard/internal/tui/style"
+)
+
+// runtimesListTimeout bounds listing every runtime. Each is a local CLI
+// call or a socket ping; anything slower is a wedged runtime.
+const runtimesListTimeout = 20 * time.Second
+
+// RuntimesRefreshMsg carries every runtime's machines. Err joins the
+// runtimes that failed to list; the others' machines are still shown.
+type RuntimesRefreshMsg struct {
+	Err      error
+	Machines []engines.Machine
+}
+
+// RuntimesView lists the container runtimes installed on this machine and
+// their VMs or engines — Colima profiles, Podman machines, Docker Desktop,
+// Rancher Desktop, OrbStack — and their lifecycle.
+//
+// It manages what is underneath the daemon rather than anything in it, so
+// it is the one view that keeps working while the daemon is down: stopping
+// the machine dockyard is connected to takes every other view's data source
+// away, and this is where you start it again.
+type RuntimesView struct {
+	providers []engines.Provider
+	err       error
+
+	// busy names the operation in flight per machine ("starting", ...);
+	// a start runs for a minute and most runtimes report "Stopped" for
+	// most of it.
+	busy map[string]string
+
+	// connectedHost is the docker endpoint dockyard is talking to, so the
+	// machine serving it can be marked.
+	connectedHost string
+
+	filter  string
+	all     []engines.Machine
+	visible []engines.Machine
+	table   table.Model
+
+	loading  bool
+	inFlight bool
+}
+
+// NewRuntimesView builds the view over the detected providers.
+func NewRuntimesView(providers []engines.Provider, connectedHost string) *RuntimesView {
+	t := table.New(
+		table.WithColumns(runtimeColumns()),
+		table.WithFocused(true),
+		table.WithStyles(tableStyles()),
+		table.WithKeyMap(tableKeyMap()),
+	)
+	return &RuntimesView{
+		providers: providers, connectedHost: connectedHost,
+		busy: map[string]string{}, table: t, loading: len(providers) > 0,
+	}
+}
+
+func runtimeColumns() []table.Column {
+	return []table.Column{
+		{Title: "", Width: 2},
+		{Title: "PROVIDER", Width: 15},
+		{Title: "NAME", Width: 22},
+		{Title: "STATUS", Width: 12},
+		{Title: "ARCH", Width: 8},
+		{Title: "CPUS", Width: 5},
+		{Title: "MEMORY", Width: 8},
+		{Title: "DISK", Width: 8},
+		{Title: "RUNTIME", Width: 11},
+		{Title: "CONTEXT", Width: 16},
+	}
+}
+
+// MachineKey identifies a machine across providers.
+func MachineKey(provider, name string) string { return provider + "\x00" + name }
+
+// SplitMachineKey is the inverse of MachineKey.
+func SplitMachineKey(k string) (provider, name string) {
+	provider, name, _ = strings.Cut(k, "\x00")
+	return provider, name
+}
+
+// Init kicks off the first listing.
+func (v *RuntimesView) Init() tea.Cmd { return v.refresh() }
+
+// Providers are the detected runtimes.
+func (v *RuntimesView) Providers() []engines.Provider { return v.providers }
+
+// Provider finds a detected runtime by name.
+func (v *RuntimesView) Provider(name string) (engines.Provider, bool) {
+	for _, p := range v.providers {
+		if p.Name() == name {
+			return p, true
+		}
+	}
+	return nil, false
+}
+
+// Selected returns the machine under the cursor.
+func (v *RuntimesView) Selected() (engines.Machine, bool) {
+	i := v.table.Cursor()
+	if i < 0 || i >= len(v.visible) {
+		return engines.Machine{}, false
+	}
+	return v.visible[i], true
+}
+
+// Machine returns a machine from the last listing.
+func (v *RuntimesView) Machine(provider, name string) (engines.Machine, bool) {
+	for _, m := range v.all {
+		if m.Provider == provider && m.Name == name {
+			return m, true
+		}
+	}
+	return engines.Machine{}, false
+}
+
+// Machines is the last listing.
+func (v *RuntimesView) Machines() []engines.Machine { return v.all }
+
+// Update folds the refresh message in.
+func (v *RuntimesView) Update(msg tea.Msg) tea.Cmd {
+	if m, ok := msg.(RuntimesRefreshMsg); ok {
+		v.loading = false
+		v.inFlight = false
+		v.err = m.Err
+		v.all = m.Machines
+		v.rebuildRows()
+	}
+	return nil
+}
+
+// SetBusy marks a machine as mid-operation; an empty op clears it.
+func (v *RuntimesView) SetBusy(provider, name, op string) {
+	if op == "" {
+		delete(v.busy, MachineKey(provider, name))
+	} else {
+		v.busy[MachineKey(provider, name)] = op
+	}
+	v.rebuildRows()
+}
+
+// Busy reports the operation in flight on a machine, if any.
+func (v *RuntimesView) Busy(provider, name string) string { return v.busy[MachineKey(provider, name)] }
+
+// SetConnectedHost records which endpoint dockyard is talking to.
+func (v *RuntimesView) SetConnectedHost(host string) {
+	v.connectedHost = host
+	v.rebuildRows()
+}
+
+// UpdateTable forwards navigation keys.
+func (v *RuntimesView) UpdateTable(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	v.table, cmd = v.table.Update(msg)
+	return cmd
+}
+
+// Resize re-lays the table.
+func (v *RuntimesView) Resize(width, height int) {
+	v.table.SetWidth(width)
+	v.table.SetHeight(height)
+	v.table.SetColumns(fitColumns(runtimeColumns(), width))
+	v.table.SetStyles(tableStylesWithWidth(width))
+}
+
+// Count is the visible row count.
+func (v *RuntimesView) Count() int { return len(v.table.Rows()) }
+
+// Loading reports whether the first listing is outstanding.
+func (v *RuntimesView) Loading() bool { return v.loading }
+
+// SetFilter applies a row filter.
+func (v *RuntimesView) SetFilter(f string) {
+	v.filter = f
+	v.rebuildRows()
+}
+
+// HandleKey maps a keystroke to an app action; the param is the machine's
+// MachineKey. Whether the runtime supports the verb is the app's to check,
+// so the refusal can name the runtime.
+//
+// Stop and restart confirm, unlike their container counterparts: a machine
+// is the VM every container on it runs in.
+func (v *RuntimesView) HandleKey(key string) (string, string) {
+	if key == "n" && len(v.providers) > 0 {
+		provider := ""
+		if m, ok := v.Selected(); ok {
+			provider = m.Provider
+		}
+		return "runtime_new", provider
+	}
+	m, ok := v.Selected()
+	if !ok {
+		return "", ""
+	}
+	k := MachineKey(m.Provider, m.Name)
+	switch key {
+	case KeyEnter, "u", "x", "R", "e", KeyCtrlD:
+		if op := v.busy[k]; op != "" {
+			return "runtime_busy", k + "\x00" + op
+		}
+	}
+	switch key {
+	case KeyEnter:
+		return "runtime_connect", k
+	case "s":
+		return "runtime_shell", k
+	case "o":
+		return "runtime_inspect", k
+	case "u":
+		return "runtime_start", k
+	case "e":
+		return "runtime_edit", k
+	case "x":
+		return "confirm_runtime_stop", k
+	case "R":
+		return "confirm_runtime_restart", k
+	case KeyCtrlD:
+		return "confirm_runtime_delete", k
+	}
+	return "", ""
+}
+
+// View renders the table.
+func (v *RuntimesView) View() string {
+	if len(v.providers) == 0 {
+		return style.Muted.Render(
+			"  no container runtime found — install colima, podman, Docker Desktop, Rancher Desktop or OrbStack to manage it from here",
+		)
+	}
+	var b strings.Builder
+	if v.err != nil {
+		b.WriteString(style.Error.Render(fmt.Sprintf("  %v", v.err)) + "\n")
+	}
+	if len(v.visible) == 0 && !v.loading {
+		if len(v.all) == 0 {
+			b.WriteString(style.Muted.Render("  no machines — <n> creates one"))
+		} else {
+			b.WriteString(style.Muted.Render("  no machines match"))
+		}
+		return b.String()
+	}
+	b.WriteString(fixSelectedRow(v.table.View()))
+	return b.String()
+}
+
+// Refresh relists every runtime.
+func (v *RuntimesView) Refresh() tea.Cmd { return v.refresh() }
+
+func (v *RuntimesView) refresh() tea.Cmd {
+	if len(v.providers) == 0 || v.inFlight {
+		return nil
+	}
+	v.inFlight = true
+	providers := v.providers
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), runtimesListTimeout)
+		defer cancel()
+		// In parallel: each runtime is its own CLI, and one slow to answer
+		// must not hold the others' rows back. Results keep provider order.
+		type result struct {
+			err error
+			ms  []engines.Machine
+		}
+		results := make([]result, len(providers))
+		var wg sync.WaitGroup
+		for i, p := range providers {
+			wg.Go(func() {
+				ms, err := p.List(ctx)
+				if err != nil {
+					err = fmt.Errorf("%s: %w", p.Name(), err)
+				}
+				results[i] = result{ms: ms, err: err}
+			})
+		}
+		wg.Wait()
+		var (
+			all  []engines.Machine
+			errs []error
+		)
+		for _, r := range results {
+			if r.err != nil {
+				errs = append(errs, r.err)
+				continue
+			}
+			all = append(all, r.ms...)
+		}
+		return RuntimesRefreshMsg{Machines: all, Err: errors.Join(errs...)}
+	}
+}
+
+func (v *RuntimesView) rebuildRows() {
+	f := parseFilter(v.filter)
+	rows := make([]table.Row, 0, len(v.all))
+	v.visible = v.visible[:0]
+
+	for _, m := range v.all {
+		if !f.Empty() && !f.MatchesAny(m.Provider, m.Name, m.Status, m.Runtime, m.Arch, m.Context) {
+			continue
+		}
+		marker, name := " ", m.Name
+		if m.Host != "" && m.Host == v.connectedHost {
+			marker = style.Success.Render("▸")
+			name = style.Success.Render(m.Name)
+		}
+		cpus := style.Muted.Render("—")
+		if m.CPUs > 0 {
+			cpus = strconv.Itoa(m.CPUs)
+		}
+		ctx := m.Context
+		if ctx == "" {
+			ctx = style.Muted.Render("—")
+		}
+		rows = append(rows, table.Row{
+			marker,
+			m.Provider,
+			truncate(name, 22),
+			v.statusCell(m),
+			m.Arch,
+			cpus,
+			gib(m.Memory),
+			gib(m.Disk),
+			m.Runtime,
+			truncate(ctx, 16),
+		})
+		v.visible = append(v.visible, m)
+	}
+	setTableRows(&v.table, rows)
+}
+
+func (v *RuntimesView) statusCell(m engines.Machine) string {
+	if op := v.busy[MachineKey(m.Provider, m.Name)]; op != "" {
+		return style.StateRestarting.Render(op + "…")
+	}
+	if m.Running {
+		return style.StateRunning.Render(m.Status)
+	}
+	return style.StateExited.Render(m.Status)
+}
+
+// gib renders a byte count in GiB, the unit colima's own flags and listing
+// use: a 16GiB VM shown as "17.2GB" reads like a different machine.
+func gib(n int64) string {
+	if n <= 0 {
+		return style.Muted.Render("—")
+	}
+	const g = 1 << 30
+	if n%g == 0 {
+		return fmt.Sprintf("%dGiB", n/g)
+	}
+	return fmt.Sprintf("%.1fGiB", float64(n)/g)
+}

@@ -1,8 +1,9 @@
 // Package style holds dockyard's palette, view enum, and the pre-built
 // lipgloss styles the views share. It is a thin layer over
-// [github.com/blairham/tuikit/theme] — the colors flow from a
-// [theme.NoPaintBackground] base so the bubbles table's per-row Selected
-// styling wins without fighting a forced canvas background.
+// [github.com/blairham/tuikit/theme] — the colors flow from tuikit's
+// [theme.Default], which paints its black canvas behind every cell. The
+// whole frame is one color, rather than the terminal's own background
+// showing around and between the panes.
 //
 // The [ViewType] enum and its helpers live here rather than in tuikit
 // because they are dockyard's own resource model.
@@ -19,14 +20,13 @@ import (
 // app can hand the same value to chrome, table, and loading and be sure
 // they agree.
 func Base() theme.Theme {
-	t := theme.NoPaintBackground()
-	// Recolor the logo and accents to Docker's brand blue.
-	t.Logo = ColorDockerBlue
-	t.Accent = ColorDockerBlue
-	return t
+	// tuikit's default is k9s's palette (orange logo and labels, aqua
+	// titles, light-sky-blue focused border), and dockyard keeps it as is so
+	// the two read the same side by side.
+	return theme.Default()
 }
 
-var t = theme.NoPaintBackground()
+var t = theme.Default()
 
 // Palette. The named docker colors are literals; everything else tracks
 // the tuikit theme so a tuikit recolor propagates.
@@ -54,16 +54,19 @@ var (
 	ColorSeaGreen   color.Color = lipgloss.Color("#2E8B57")
 	ColorSlateGray  color.Color = lipgloss.Color("#778899")
 	ColorPurple     color.Color = lipgloss.Color("#9370DB")
+	// ColorLogText is k9s's default log foreground (lightskyblue), so a
+	// log pane reads the same in both tools.
+	ColorLogText color.Color = lipgloss.Color("#87CEFA")
 )
 
 // Info panel (top-left).
 var (
-	InfoLabel = lipgloss.NewStyle().Foreground(ColorDockerBlue)
+	InfoLabel = lipgloss.NewStyle().Foreground(t.Label)
 	InfoValue = lipgloss.NewStyle().Foreground(ColorWhite).Bold(true)
 )
 
 // Logo is the ASCII-art style.
-var Logo = lipgloss.NewStyle().Foreground(ColorDockerBlue).Bold(true)
+var Logo = lipgloss.NewStyle().Foreground(t.Logo).Bold(true)
 
 // General text styles.
 var (
@@ -120,7 +123,7 @@ func HealthStyle(health string) lipgloss.Style {
 // ViewType identifies which view is active.
 type ViewType int
 
-// View type constants. The first five are the digit-hotkey top-level
+// View type constants. The first six are the digit-hotkey top-level
 // views; the rest are drill-ins reached with enter or a per-view key.
 const (
 	ViewContainers ViewType = iota
@@ -128,10 +131,17 @@ const (
 	ViewVolumes
 	ViewNetworks
 	ViewProjects
+	ViewRuntimes
 	ViewLogs
 	ViewInspect
 	ViewLayers
 	ViewContexts
+	ViewRuntimeForm
+	ViewDiskUsage
+	ViewPortForwards
+	ViewPods
+	ViewEvents
+	ViewNode
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -147,6 +157,8 @@ func ViewName(v ViewType) string {
 		return "Networks"
 	case ViewProjects:
 		return "Projects"
+	case ViewRuntimes:
+		return "Runtimes"
 	case ViewLogs:
 		return "Logs"
 	case ViewInspect:
@@ -155,6 +167,18 @@ func ViewName(v ViewType) string {
 		return "Layers"
 	case ViewContexts:
 		return "Contexts"
+	case ViewRuntimeForm:
+		return "Machine"
+	case ViewDiskUsage:
+		return "Disk Usage"
+	case ViewPortForwards:
+		return "Port Forwards"
+	case ViewPods:
+		return "Pods"
+	case ViewEvents:
+		return "Events"
+	case ViewNode:
+		return "Node"
 	default:
 		return "Unknown"
 	}
@@ -174,6 +198,8 @@ func ViewResource(v ViewType) string {
 		return "network"
 	case ViewProjects:
 		return "project"
+	case ViewRuntimes:
+		return "runtime"
 	case ViewLogs:
 		return "line"
 	case ViewInspect:
@@ -182,6 +208,18 @@ func ViewResource(v ViewType) string {
 		return "layer"
 	case ViewContexts:
 		return "context"
+	case ViewRuntimeForm:
+		return "field"
+	case ViewDiskUsage:
+		return "type"
+	case ViewPortForwards:
+		return "portforward"
+	case ViewPods:
+		return "pod"
+	case ViewEvents:
+		return "event"
+	case ViewNode:
+		return "container"
 	default:
 		return ""
 	}

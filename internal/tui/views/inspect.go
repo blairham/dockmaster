@@ -1,7 +1,9 @@
 package views
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -62,6 +64,10 @@ type InspectView struct {
 	height int
 
 	loading bool
+
+	// fetch, when set, replaces the daemon call: the view shows whatever
+	// it returns — a runtime's own description of a machine, say.
+	fetch func(context.Context) ([]byte, error)
 }
 
 // NewInspectView builds an inspect view for one object.
@@ -70,8 +76,15 @@ func NewInspectView(client *docker.Client, kind InspectKind, id, name string) *I
 	// Inspect output is a document, not a stream — pin it to the top and
 	// leave it there, or every refresh would yank the user to the bottom.
 	t.SetFollow(false)
-	t.SetBackground(pkgTheme.Bg)
+	paintTailBackground(t)
 	return &InspectView{client: client, tail: t, kind: kind, id: id, name: name, loading: true}
+}
+
+// NewInspectFetchView shows what fetch returns, indented when it is JSON.
+func NewInspectFetchView(name string, fetch func(context.Context) ([]byte, error)) *InspectView {
+	v := NewInspectView(nil, InspectContainer, "", name)
+	v.fetch = fetch
+	return v
 }
 
 // Title is the object's name, for the border title.
@@ -113,7 +126,7 @@ func (v *InspectView) Update(msg tea.Msg) tea.Cmd {
 	v.tail.SetFilter("")
 	fresh := tail.New()
 	fresh.SetFollow(false)
-	fresh.SetBackground(pkgTheme.Bg)
+	paintTailBackground(fresh)
 	w, h := v.dims()
 	fresh.Resize(w, h)
 	fresh.AppendLines(styled)
@@ -149,7 +162,7 @@ func (v *InspectView) HandleKey(key string) (string, string) {
 		switch key {
 		case "l":
 			return "logs", v.id
-		case "e":
+		case "s":
 			return "exec", v.id
 		}
 	}
@@ -170,8 +183,22 @@ func (v *InspectView) View() string {
 // Refresh refetches the inspect body.
 func (v *InspectView) Refresh() tea.Cmd {
 	kind, id, client := v.kind, v.id, v.client
+	if fetch := v.fetch; fetch != nil {
+		return func() tea.Msg {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			body, err := fetch(ctx)
+			if err == nil && json.Valid(body) {
+				var buf bytes.Buffer
+				if json.Indent(&buf, bytes.TrimSpace(body), "", "  ") == nil {
+					body = buf.Bytes()
+				}
+			}
+			return InspectRefreshMsg{Kind: kind, ID: id, Body: body, Err: err}
+		}
+	}
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := client.RequestContext(20 * time.Second)
 		defer cancel()
 
 		var (

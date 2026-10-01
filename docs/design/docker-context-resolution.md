@@ -62,6 +62,6 @@ follow it:
   a freshly dialed client rather than mutating the old one. Each view caches
   its own rows; showing one daemon's containers under another daemon's name,
   even for a single tick, is how the wrong container gets killed.
-- **`e` (shell into a container)** passes `--host` to the `docker` CLI. Without
-  it, switching context inside dockyard and then pressing `e` would exec
+- **`s` (shell into a container)** passes `--host` to the `docker` CLI. Without
+  it, switching context inside dockyard and then pressing `s` would exec
   against whatever context the *shell* has — possibly a different machine.

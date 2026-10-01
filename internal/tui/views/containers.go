@@ -5,13 +5,13 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/blairham/dockyard/internal/docker"
 	"github.com/blairham/dockyard/internal/tui/style"
@@ -206,12 +206,17 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 		return "", ""
 	}
 
+	// A Kubernetes node's workloads are inside it, not in this daemon:
+	// enter opens them. l still tails the node's own output.
+	if _, node := docker.NodeRole(c); node && key == KeyEnter {
+		return "node_containers", NodeParam(c.ID, "", c.Name)
+	}
 	switch key {
 	case KeyEnter, "l":
 		return "logs", c.ID
 	case "o":
 		return "inspect_container", c.ID
-	case "s":
+	case "u":
 		return "start", c.ID
 	case "x":
 		return "stop", c.ID
@@ -224,12 +229,16 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 			return "unpause", c.ID
 		}
 		return "pause", c.ID
-	case "e":
+	case "s":
 		return "exec", c.ID
 	case "a":
 		return "toggle_all", ""
 	case "t":
 		return "toggle_stats", ""
+	case "F":
+		return "portforward", c.ID
+	case "b":
+		return "open_published", c.ID
 	case KeyCtrlD:
 		return "confirm_remove_container", c.ID
 	}
@@ -268,7 +277,7 @@ func (v *ContainersView) refresh() tea.Cmd {
 	v.inFlight = true
 	all := v.showAll
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := v.client.RequestContext(20 * time.Second)
 		defer cancel()
 		list, err := v.client.Containers(ctx, all)
 		return ContainersRefreshMsg{Containers: list, Err: err}
@@ -290,7 +299,7 @@ func (v *ContainersView) sampleStats() tea.Cmd {
 	}
 	client := v.client
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := client.RequestContext(20 * time.Second)
 		defer cancel()
 		return ContainerStatsMsg{Stats: client.SampleStats(ctx, ids)}
 	}
@@ -411,7 +420,37 @@ func fitColumns(cols []table.Column, width int) []table.Column {
 		}
 		out[at].Width--
 	}
+
+	// Still over: the fixed columns alone are wider than the terminal (the
+	// containers table needs 81 cells for them at 80 columns). Shave those
+	// next, widest first, down to their heading, so every column stays.
+	for tableWidth(out) > width {
+		widest, at := 0, -1
+		for i, c := range out {
+			if floor := fixedFloor(c); c.Width > floor && c.Width > widest {
+				widest, at = c.Width, i
+			}
+		}
+		if at < 0 {
+			break
+		}
+		out[at].Width--
+	}
+
+	// And past that, drop columns from the right. bubbles renders only the
+	// columns it is given, so a row's extra cells are simply not drawn.
+	// A clipped table is the price of a terminal this narrow; a table wider
+	// than the screen wraps every row and takes the frame's border with it.
+	for tableWidth(out) > width && len(out) > 1 {
+		out = out[:len(out)-1]
+	}
 	return out
+}
+
+// fixedFloor is how narrow a column may be shaved: its heading, and never
+// below three cells.
+func fixedFloor(c table.Column) int {
+	return max(3, lipgloss.Width(c.Title))
 }
 
 // minFlexWidth is the narrowest a free-text column may be squeezed to.
@@ -424,6 +463,16 @@ func tableWidth(cols []table.Column) int {
 		total += c.Width
 	}
 	return total
+}
+
+// ByID returns the container with the given ID from the last listing.
+func (v *ContainersView) ByID(id string) (docker.Container, bool) {
+	for i := range v.all {
+		if v.all[i].ID == id {
+			return v.all[i], true
+		}
+	}
+	return docker.Container{}, false
 }
 
 // NameFor resolves a container ID to its name, for status messages. The

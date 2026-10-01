@@ -1,21 +1,84 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/blairham/tuikit/chrome"
+	"github.com/blairham/tuikit/viewfsm"
 
 	"github.com/blairham/dockyard/internal/docker"
 	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockyard/internal/tui/views"
 )
 
 // knownCommands feeds the `:` palette's fuzzy suggestion.
 var knownCommands = []string{
-	"q", "q!", "quit", "exit",
-	"containers", "ps", "images", "volumes", "networks", "projects", "compose",
-	"context", "ctx", "contexts",
-	"logs", "inspect", "prune", "pull",
-	"readonly", "logo", "logoless", "stats", "all",
+	"q",
+	"q!",
+	"quit",
+	"exit",
+	"containers",
+	"ps",
+	"images",
+	"volumes",
+	"networks",
+	"projects",
+	"compose",
+	"runtimes",
+	"colima",
+	"df",
+	"pf",
+	"pods",
+	"events",
+	"context",
+	"ctx",
+	"contexts",
+	"logs",
+	"inspect",
+	"describe",
+	"prune",
+	"prune all",
+	"prune all volumes",
+	"prune cache",
+	"pull",
+	"readonly",
+	"logo",
+	"logoless",
+	"stats",
+	"all",
+}
+
+// viewCommands maps every name that opens a top-level view — from the `:`
+// palette or `-c` at startup — to that view. One table, so the flag and the
+// palette cannot drift apart.
+var viewCommands = map[string]style.ViewType{
+	"containers": style.ViewContainers, "container": style.ViewContainers, "ps": style.ViewContainers,
+	"images": style.ViewImages, "image": style.ViewImages,
+	"volumes": style.ViewVolumes, "volume": style.ViewVolumes,
+	"networks": style.ViewNetworks, "network": style.ViewNetworks,
+	"projects": style.ViewProjects, "project": style.ViewProjects, "compose": style.ViewProjects,
+	"runtimes": style.ViewRuntimes, "runtime": style.ViewRuntimes, "engines": style.ViewRuntimes,
+	"machines": style.ViewRuntimes, "machine": style.ViewRuntimes,
+	"colima": style.ViewRuntimes, "podman": style.ViewRuntimes, "vm": style.ViewRuntimes, "vms": style.ViewRuntimes,
+	"profiles": style.ViewRuntimes, "profile": style.ViewRuntimes,
+	"pods": style.ViewPods, "pod": style.ViewPods,
+	"events": style.ViewEvents, "event": style.ViewEvents, "ev": style.ViewEvents,
+	"pf": style.ViewPortForwards, "portforward": style.ViewPortForwards, "portforwards": style.ViewPortForwards,
+	"forwards": style.ViewPortForwards, "forward": style.ViewPortForwards,
+	"df": style.ViewDiskUsage, "disk": style.ViewDiskUsage, "usage": style.ViewDiskUsage, "system": style.ViewDiskUsage,
+}
+
+// ViewForCommand resolves a view name as the palette spells it.
+func ViewForCommand(name string) (style.ViewType, bool) {
+	vt, ok := viewCommands[strings.ToLower(strings.TrimSpace(name))]
+	return vt, ok
+}
+
+// ViewCommandNames lists the canonical view names, for error messages.
+func ViewCommandNames() []string {
+	return []string{"containers", "images", "volumes", "networks", "projects", "runtimes"}
 }
 
 // fuzzyMatch picks the best command for a partial input: exact prefixes
@@ -109,6 +172,19 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// A view taking typed input gets every key but esc: otherwise a `1`
+	// typed into a field would switch views and an `r` would refresh.
+	if c, ok := a.activeView().(views.InputCapturer); ok && c.CapturesInput() && !a.showHelp {
+		if key == "esc" {
+			a.popView()
+			return a, a.refreshActiveView()
+		}
+		if action, param := a.activeViewHandleKey(key); action != "" {
+			return a.handleAction(action, param)
+		}
+		return a, a.updateActiveTable(msg)
+	}
+
 	if a.showHelp {
 		return a.handleHelpKey(key)
 	}
@@ -136,19 +212,51 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		cmd := a.filterBar.OpenWith(a.filter)
 		a.resizeActiveView()
 		return a, cmd
-	case "1":
+	case "0":
 		return a, a.switchView(style.ViewContainers)
-	case "2":
+	case "1":
 		return a, a.switchView(style.ViewImages)
-	case "3":
+	case "2":
 		return a, a.switchView(style.ViewVolumes)
-	case "4":
+	case "3":
 		return a, a.switchView(style.ViewNetworks)
-	case "5":
+	case "4":
 		return a, a.switchView(style.ViewProjects)
-	case "r":
+	case "5":
+		return a, a.switchView(style.ViewRuntimes)
+	case "6":
+		return a, a.switchView(style.ViewEvents)
+	case "r", chrome.KeyReload:
 		a.flash = "refreshing..."
 		return a, a.refreshActiveView()
+	// q leaves a drill-in, like esc without clearing the filter. At a
+	// top-level view there is nothing to go back to, and quitting stays
+	// on :q and ctrl+c — a stray q must not end the session.
+	case chrome.KeyBack:
+		if len(a.viewStack) > 0 {
+			a.popView()
+			return a, a.refreshActiveView()
+		}
+		return a, nil
+	// k9s's view history: [ and ] walk it, - toggles to the last view.
+	case chrome.KeyHistoryBack:
+		return a, a.historyJump(a.history.Back())
+	case chrome.KeyHistoryForward:
+		return a, a.historyJump(a.history.Forward())
+	case chrome.KeyLastView:
+		return a, a.historyJump(a.history.Last())
+	// k9s's keys for the chrome: ctrl+g the breadcrumbs, ctrl+e the whole
+	// header. tuikit owns the state and the layout; the binding is the app's.
+	// The freed rows go to the table — syncViewSize re-sizes it on the next
+	// frame.
+	case chrome.KeyToggleCrumbs:
+		a.chrome.ToggleCrumbs()
+		a.resizeActiveView()
+		return a, nil
+	case chrome.KeyToggleHeader:
+		a.chrome.ToggleHeader()
+		a.resizeActiveView()
+		return a, nil
 	}
 
 	// View-specific keys next, then table navigation.
@@ -156,10 +264,19 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a.handleAction(action, param)
 	}
 
-	// j/k/g/G and friends: the log and inspect viewports take a different
-	// key vocabulary than the tables, so let the tail widget claim its own
-	// scroll keys before falling through.
-	return a, a.updateActiveTable(msg)
+	// Then navigation: tuikit maps the vim keys (j/k/h/l, g/G, ctrl+f/b)
+	// onto the arrow and page keys tables and viewports understand. After
+	// the view keys, so a view's own letter (l for logs) still wins.
+	return a, a.updateActiveTable(viewfsm.TranslateNavKey(msg))
+}
+
+// historyJump shows a view the history stepped to, without recording the
+// step as a new visit — History has already moved.
+func (a *App) historyJump(id viewfsm.ViewID, ok bool) tea.Cmd {
+	if !ok {
+		return nil
+	}
+	return a.showView(style.ViewType(id))
 }
 
 // handleHelpKey processes keys while the help overlay is up. `:` and `/`
@@ -207,22 +324,29 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return a.switchContextByName(strings.TrimSpace(rest))
 	}
 
+	if vt, ok := ViewForCommand(lower); ok {
+		return "", a.switchView(vt)
+	}
+
 	switch lower {
 	case "q", "q!", "quit", "exit":
 		a.shutdown()
 		return "", tea.Quit
-	case "containers", "container", "ps":
-		return "", a.switchView(style.ViewContainers)
-	case "images", "image":
-		return "", a.switchView(style.ViewImages)
-	case "volumes", "volume":
-		return "", a.switchView(style.ViewVolumes)
-	case "networks", "network":
-		return "", a.switchView(style.ViewNetworks)
-	case "projects", "project", "compose":
-		return "", a.switchView(style.ViewProjects)
+	case "logs", "log":
+		return a.rowCommand("logs", func(act string) bool { return act == "logs" }, "l")
+	case "inspect", "describe":
+		return a.rowCommand("inspect", isInspectAction, "o")
 	case "context", "ctx", "contexts":
 		_, cmd := a.handleAction("contexts", "")
+		return "", cmd
+	case "prune all":
+		_, cmd := a.handleAction("confirm_prune_all", "")
+		return "", cmd
+	case "prune all volumes", "prune all -v", "prune all --volumes":
+		_, cmd := a.handleAction("confirm_prune_all_volumes", "")
+		return "", cmd
+	case "prune cache", "prune build", "prune builder":
+		_, cmd := a.handleAction("confirm_prune_cache", "")
 		return "", cmd
 	case "prune":
 		_, cmd := a.handleAction("confirm_prune_containers", "")
@@ -237,11 +361,34 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		a.readonly = !a.readonly
 		a.flash = "readonly " + onOff(a.readonly)
 		return "", nil
-	case "logo", "logoless":
+	case "logo":
 		a.setLogoless(!a.logoless)
+		return "", nil
+	case "logoless":
+		a.setLogoless(true)
 		return "", nil
 	}
 	return "unknown command: " + lower, nil
+}
+
+// rowCommand runs a palette command that acts on the selected row — :logs,
+// :inspect — by asking the active view what its own key for that does, so
+// the command and the key can never disagree about which row or which kind
+// of inspect. The first key whose action passes want is carried out.
+func (a *App) rowCommand(name string, want func(string) bool, keys ...string) (string, tea.Cmd) {
+	for _, k := range keys {
+		if action, param := a.activeViewHandleKey(k); want(action) {
+			_, cmd := a.handleAction(action, param)
+			return "", cmd
+		}
+	}
+	return fmt.Sprintf(":%s needs a selected row it applies to — nothing here to %s", name, name), nil
+}
+
+// isInspectAction matches every view's inspect action (inspect_container,
+// inspect_image, runtime_inspect, ...).
+func isInspectAction(action string) bool {
+	return strings.HasPrefix(action, "inspect_") || strings.HasSuffix(action, "_inspect")
 }
 
 // switchContextByName resolves a context name from the store and switches
@@ -260,7 +407,8 @@ func (a *App) switchContextByName(name string) (string, tea.Cmd) {
 	return "no such docker context: " + name, nil
 }
 
-// setLogoless toggles the header logo, mirroring k9s's ctrl-l.
+// setLogoless hides or restores the header logo at runtime — the `:logo`
+// counterpart of the --logoless flag.
 func (a *App) setLogoless(v bool) {
 	a.logoless = v
 	if v {

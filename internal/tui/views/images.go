@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -185,7 +184,7 @@ func (v *ImagesView) refresh() tea.Cmd {
 		// images through the CLI itself. The single-flight guard above is
 		// what keeps that from piling up; the timeout only has to be longer
 		// than the daemon's worst honest answer.
-		ctx, cancel := context.WithTimeout(context.Background(), imageListTimeout)
+		ctx, cancel := v.client.RequestContext(imageListTimeout)
 		defer cancel()
 		list, err := v.client.Images(ctx, all)
 		return ImagesRefreshMsg{Images: list, Err: err}

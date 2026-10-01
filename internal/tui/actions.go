@@ -44,6 +44,14 @@ var mutating = map[string]bool{
 	"confirm_prune_networks": true, "confirm_prune_containers": true,
 	"start_project": true, "confirm_stop_project": true,
 	"confirm_remove_project": true, "pull": true,
+	"runtime_start": true, "runtime_shell": true,
+	"confirm_runtime_stop": true, "confirm_runtime_restart": true, "confirm_runtime_delete": true,
+	"runtime_new": true, "runtime_edit": true, "runtime_create": true, "runtime_apply": true,
+	"compose_up": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
+	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
+	"portforward": true, "confirm_stop_forward": true,
+	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
+	"node_shell": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -64,7 +72,7 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	case "logs":
 		name := a.containerName(param)
-		a.setView(style.ViewLogs, views.NewLogsView(a.client, param, name))
+		a.setView(style.ViewLogs, views.NewLogsView(a.client, param, name).Configure(a.logTail, a.logShowTime))
 		a.pushView(style.ViewLogs)
 		return a, a.viewMap[style.ViewLogs].Init()
 
@@ -179,6 +187,30 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "exec":
 		return a, a.execShell(param)
 
+	// ---- Kubernetes nodes: the containers inside a kind/k3d node -------
+
+	case "node_containers":
+		node, _, name := splitNodeParam(param)
+		a.setView(style.ViewNode, views.NewNodeView(a.client, node, name))
+		a.pushView(style.ViewNode)
+		return a, a.viewMap[style.ViewNode].Init()
+	case "node_logs":
+		node, id, name := splitNodeParam(param)
+		a.setView(style.ViewLogs, views.NewNodeLogsView(a.client, node, id, name).Configure(a.logTail, a.logShowTime))
+		a.pushView(style.ViewLogs)
+		return a, a.viewMap[style.ViewLogs].Init()
+	case "node_inspect":
+		node, id, name := splitNodeParam(param)
+		client := a.client
+		a.setView(style.ViewInspect, views.NewInspectFetchView(name, func(ctx context.Context) ([]byte, error) {
+			return client.NodeInspect(ctx, node, id)
+		}))
+		a.pushView(style.ViewInspect)
+		return a, a.viewMap[style.ViewInspect].Init()
+	case "node_shell":
+		node, id, _ := splitNodeParam(param)
+		return a, a.nodeShell(node, id)
+
 	// ---- destructive: ask first ----------------------------------------
 
 	case "confirm_remove_container":
@@ -206,6 +238,40 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "confirm_prune_networks":
 		a.openConfirm("prune_networks", "", "prune all unused networks?")
 		return a, nil
+	case "pod_inspect":
+		return a, a.podInspect(param)
+	case "pod_start":
+		return a, a.podRun(param, "start", "started")
+	case "pod_stop":
+		return a, a.podRun(param, "stop", "stopped")
+	case "pod_restart":
+		return a, a.podRun(param, "restart", "restarted")
+	case "confirm_pod_rm":
+		_, _, name := views.SplitPodKey(param)
+		a.openConfirm("pod_rm", param, fmt.Sprintf("remove pod %s and every container in it?", name))
+		return a, nil
+	case "portforward":
+		return a, a.promptForward(param)
+	case "open_published":
+		return a, a.openPublished(param)
+	case "open_url":
+		return a, a.openURL(param)
+	case "confirm_stop_forward":
+		_, label, _ := strings.Cut(param, "\x00")
+		a.openConfirm("stop_forward", param, "stop forwarding "+label+"?")
+		return a, nil
+	case "confirm_prune_all":
+		a.openConfirm("prune_all", "",
+			"prune all? stopped containers, unused networks, dangling images and build cache — volumes are kept")
+		return a, nil
+	case "confirm_prune_all_volumes":
+		a.openConfirm("prune_all_volumes", "",
+			"prune all INCLUDING VOLUMES? stopped containers, unused networks, dangling images, build cache, "+
+				"and every unused volume, named ones too — their data is gone")
+		return a, nil
+	case "confirm_prune_cache":
+		a.openConfirm("prune_cache", "", "prune the build cache? cache no image still uses is removed")
+		return a, nil
 	case "confirm_prune_containers":
 		a.openConfirm("prune_containers", "", "remove every stopped container?")
 		return a, nil
@@ -216,6 +282,19 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- compose projects ----------------------------------------------
 
+	case "project_busy":
+		name, op, _ := strings.Cut(param, "\x00")
+		a.errFlash = fmt.Sprintf("%s is already %s — wait for it to finish", name, op)
+		return a, nil
+	case "compose_up":
+		return a, a.composeUp(param)
+	case "compose_restart":
+		return a, a.composeRestart(param)
+	case "compose_pull":
+		return a, a.composePull(param)
+	case "confirm_compose_down":
+		a.confirmComposeDown(param)
+		return a, nil
 	case "start_project":
 		return a, a.runProject(param, "started", func(ctx context.Context, id string) error {
 			return a.client.StartContainer(ctx, id)
@@ -232,6 +311,36 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.run("pulled", param, func(ctx context.Context) error {
 			return a.client.PullImage(ctx, param)
 		})
+
+	// ---- colima profiles -----------------------------------------------
+
+	case "runtime_busy":
+		provider, rest, _ := strings.Cut(param, "\x00")
+		name, op, _ := strings.Cut(rest, "\x00")
+		a.errFlash = fmt.Sprintf("%s %s is already %s — wait for it to finish", provider, name, op)
+		return a, nil
+	case "runtime_connect":
+		return a, a.runtimeConnect(param)
+	case "runtime_shell":
+		return a, a.runtimeShell(param)
+	case "runtime_start":
+		return a, a.runtimeStart(param)
+	case "runtime_inspect":
+		return a, a.runtimeInspect(param)
+	case "runtime_new":
+		return a, a.runtimeNew(param)
+	case "runtime_edit":
+		return a, a.runtimeEdit(param)
+	case "runtime_create":
+		return a, a.runtimeCreate(param)
+	case "runtime_apply":
+		return a, a.runtimeApply(param)
+	case "confirm_runtime_stop", "confirm_runtime_restart", "confirm_runtime_delete":
+		verb := strings.TrimPrefix(action, "confirm_runtime_")
+		if q, ok := a.runtimeQuestion(verb, param); ok {
+			a.openConfirm("runtime_"+verb, param, q)
+		}
+		return a, nil
 	}
 
 	return a, nil
@@ -255,8 +364,9 @@ func (a *App) openInspect(kind views.InspectKind, id, name string) (tea.Model, t
 // actionDoneMsg. Every lifecycle key lands here, so the flash text, the
 // error surface, and the follow-up refresh are written once.
 func (a *App) run(verb, subject string, fn func(context.Context) error) tea.Cmd {
+	client := a.client
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+		ctx, cancel := client.RequestContext(actionTimeout)
 		defer cancel()
 		return actionDoneMsg{verb: verb, subject: subject, err: fn(ctx)}
 	}
@@ -372,6 +482,19 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 			n, err := a.client.PruneNetworks(ctx)
 			return n, 0, err
 		})
+	case "pod_rm":
+		return a.podRun(pa.param, "rm", "removed")
+	case "stop_forward":
+		id, label, _ := strings.Cut(pa.param, "\x00")
+		return a.run("stopped", "forwarding "+label, func(ctx context.Context) error {
+			return a.client.StopPortForward(ctx, id)
+		})
+	case "prune_all":
+		return a.runPruneAll(a.pruneAllSteps(false))
+	case "prune_all_volumes":
+		return a.runPruneAll(a.pruneAllSteps(true))
+	case "prune_cache":
+		return a.runPruneAll(pruneOnly(a.pruneAllSteps(false), "build cache"))
 	case "stop_project":
 		return a.runProject(pa.param, "stopped", func(ctx context.Context, id string) error {
 			return a.client.StopContainer(ctx, id, stopTimeout)
@@ -380,14 +503,21 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 		return a.runProject(pa.param, "removed", func(ctx context.Context, id string) error {
 			return a.client.RemoveContainer(ctx, id, true, false)
 		})
+	case "compose_down":
+		return a.composeDown(pa.param)
+	case "runtime_stop", "runtime_restart", "runtime_delete":
+		return a.runtimeConfirmed(strings.TrimPrefix(pa.action, "runtime_"), pa.param)
+	case "runtime_apply":
+		return a.runtimeApplyNow(pa.param)
 	}
 	return nil
 }
 
 // runPrune wraps a prune call, reporting what came back.
 func (a *App) runPrune(kind string, fn func(context.Context) (int, uint64, error)) tea.Cmd {
+	client := a.client
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+		ctx, cancel := client.RequestContext(actionTimeout)
 		defer cancel()
 		n, reclaimed, err := fn(ctx)
 		if err != nil {
@@ -413,22 +543,41 @@ func (a *App) runPrune(kind string, fn func(context.Context) (int, uint64, error
 // tea.ExecProcess hands it the real terminal for the duration. Re-doing
 // that against the hijacked stream is a large amount of code to get a
 // worse shell.
+// shellProbe tries bash and falls back to sh. Most images have only sh,
+// and a hard-coded bash fails on every alpine container.
+const shellProbe = `if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi`
+
 func (a *App) execShell(id string) tea.Cmd {
+	return a.dockerExecIt(id, "sh", "-c", shellProbe)
+}
+
+// nodeShell opens a shell in container id inside Kubernetes node node:
+// docker exec into the node, then crictl exec into the container.
+func (a *App) nodeShell(node, id string) tea.Cmd {
+	return a.dockerExecIt(node, "crictl", "exec", "-it", id, "sh", "-c", shellProbe)
+}
+
+// splitNodeParam unpacks views.NodeParam.
+func splitNodeParam(p string) (node, id, name string) {
+	node, rest, _ := strings.Cut(p, "\x00")
+	id, name, _ = strings.Cut(rest, "\x00")
+	return node, id, name
+}
+
+// dockerExecIt runs `docker exec -it target argv...` in the foreground,
+// against the daemon dockyard is showing.
+func (a *App) dockerExecIt(target string, argv ...string) tea.Cmd {
 	bin, err := exec.LookPath("docker")
 	if err != nil {
 		a.errFlash = "exec needs the `docker` CLI on PATH"
 		return nil
 	}
 
-	// Try bash, fall back to sh. Most images have only sh, and a hard-coded
-	// bash fails on every alpine container.
-	const shellProbe = `if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi`
-
 	args := []string{"exec", "-it"}
 	if host := a.dockerHostArg(); host != "" {
 		args = append([]string{"--host", host}, args...)
 	}
-	args = append(args, id, "sh", "-c", shellProbe)
+	args = append(append(args, target), argv...)
 
 	// context.Background() on purpose: the shell's lifetime is the user's,
 	// not the poll's. Canceling it would kill their session mid-command.
@@ -458,7 +607,7 @@ func asExitError(err error, target **exec.ExitError) bool {
 
 // dockerHostArg returns the endpoint to pass to the docker CLI so an exec
 // lands on the same daemon dockyard is showing. Without it, switching
-// context inside dockyard and then pressing `e` would exec against
+// context inside dockyard and then pressing `s` would exec against
 // whatever context the *shell* has — a different machine, potentially.
 func (a *App) dockerHostArg() string {
 	if a.client == nil {

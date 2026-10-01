@@ -13,8 +13,17 @@ var (
 	_ View = (*InspectView)(nil)
 	_ View = (*LayersView)(nil)
 	_ View = (*ContextsView)(nil)
+	_ View = (*RuntimesView)(nil)
+	_ View = (*RuntimeFormView)(nil)
+	_ View = (*DiskUsageView)(nil)
+	_ View = (*PortForwardsView)(nil)
+	_ View = (*PodsView)(nil)
+	_ View = (*EventsView)(nil)
+
+	_ InputCapturer = (*RuntimeFormView)(nil)
 
 	_ Stoppable = (*LogsView)(nil)
+	_ Stoppable = (*EventsView)(nil)
 )
 
 // View is what every dockyard view implements.

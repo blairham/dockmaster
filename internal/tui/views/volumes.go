@@ -1,7 +1,6 @@
 package views
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -166,7 +165,7 @@ func (v *VolumesView) refresh() tea.Cmd {
 	v.inFlight = true
 	withSize := v.withSize
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := v.client.RequestContext(60 * time.Second)
 		defer cancel()
 		list, err := v.client.Volumes(ctx, withSize)
 		return VolumesRefreshMsg{Volumes: list, Err: err}

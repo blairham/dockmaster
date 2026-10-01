@@ -46,23 +46,15 @@ type File struct {
 
 // Config is everything config.yaml can set.
 type Config struct {
-	// DefaultView is the view to open on, by palette name, as -c.
-	DefaultView string `yaml:"defaultView"`
-	// Context is the docker context to use when neither --host nor
-	// --context is given.
-	Context string `yaml:"context"`
-	Logger  Logger `yaml:"logger"`
-	UI      UI     `yaml:"ui"`
-	// RequestTimeout, when non-zero, replaces every daemon request's own
-	// deadline (20s for a list, 5m for images, ...). A Go duration: 30s, 2m.
+	DefaultView    string        `yaml:"defaultView"`
+	Context        string        `yaml:"context"`
+	Logger         Logger        `yaml:"logger"`
 	RequestTimeout time.Duration `yaml:"requestTimeout"`
-	// RefreshRate is the auto-refresh interval in seconds.
-	RefreshRate int  `yaml:"refreshRate"`
-	ReadOnly    bool `yaml:"readOnly"`
-	// ShowAll starts with stopped containers listed (docker ps -a).
-	ShowAll bool `yaml:"showAll"`
-	// NoStats disables the CPU/MEM poll.
-	NoStats bool `yaml:"noStats"`
+	RefreshRate    int           `yaml:"refreshRate"`
+	UI             UI            `yaml:"ui"`
+	ReadOnly       bool          `yaml:"readOnly"`
+	ShowAll        bool          `yaml:"showAll"`
+	NoStats        bool          `yaml:"noStats"`
 }
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
