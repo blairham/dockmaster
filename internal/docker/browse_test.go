@@ -28,7 +28,9 @@ func TestPortChoicesIsBounded(t *testing.T) {
 	if ports[0].Public != 30991 {
 		t.Errorf("not sorted: first is %d", ports[0].Public)
 	}
-	if got := PortChoices(ports); got != "30991→30991 30992→30992 30993→30993 30994→30994 30995→30995 30996→30996 +4 more" {
+	if got := PortChoices(
+		ports,
+	); got != "30991→30991 30992→30992 30993→30993 30994→30994 30995→30995 30996→30996 +4 more" {
 		t.Errorf("PortChoices = %q", got)
 	}
 }
@@ -55,8 +57,8 @@ func TestBrowseHost(t *testing.T) {
 func TestPortURL(t *testing.T) {
 	for _, tc := range []struct {
 		host string
-		p    PortMapping
 		want string
+		p    PortMapping
 	}{
 		{host: "localhost", p: PortMapping{Private: 80, Public: 8080}, want: "http://localhost:8080"},
 		{host: "localhost", p: PortMapping{Private: 443, Public: 8443}, want: "https://localhost:8443"},

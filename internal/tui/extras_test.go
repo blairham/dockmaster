@@ -25,7 +25,10 @@ func TestTopDiffStatsKeys(t *testing.T) {
 		Rows:   [][]string{{"root", "1", "nginx: master process"}, {"nginx", "29", "nginx: worker process"}},
 	}})
 	// After the real listing, so it would overwrite it if accepted.
-	step(a, views.TopRefreshMsg{ID: "someone-else", Procs: docker.Processes{Titles: []string{"X"}, Rows: [][]string{{"wrong"}}}})
+	step(
+		a,
+		views.TopRefreshMsg{ID: "someone-else", Procs: docker.Processes{Titles: []string{"X"}, Rows: [][]string{{"wrong"}}}},
+	)
 	out := render(a)
 	for _, want := range []string{"web processes", "UID", "PID", "CMD", "nginx: master process", "nginx: worker process"} {
 		if !strings.Contains(out, want) {

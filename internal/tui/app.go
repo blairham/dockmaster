@@ -477,7 +477,10 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 	cv.SetConnectedHost(a.client.Host)
 
 	a.viewMap = map[style.ViewType]views.View{
-		style.ViewContainers:   containersView(a.client, Options{ShowAll: a.showAll, NoStats: !a.statsOn, Thresholds: a.thresholds}),
+		style.ViewContainers: containersView(
+			a.client,
+			Options{ShowAll: a.showAll, NoStats: !a.statsOn, Thresholds: a.thresholds},
+		),
 		style.ViewImages:       views.NewImagesView(a.client, false),
 		style.ViewVolumes:      views.NewVolumesView(a.client),
 		style.ViewNetworks:     views.NewNetworksView(a.client),

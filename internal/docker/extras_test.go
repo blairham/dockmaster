@@ -12,7 +12,11 @@ func TestFileChanges(t *testing.T) {
 		{Path: "/etc/hosts", Kind: container.ChangeModify},
 		{Path: "/tmp/old", Kind: container.ChangeDelete},
 	})
-	want := []FileChange{{Path: "/etc/hosts", Kind: "C"}, {Path: "/tmp/old", Kind: "D"}, {Path: "/var/log/app.log", Kind: "A"}}
+	want := []FileChange{
+		{Path: "/etc/hosts", Kind: "C"},
+		{Path: "/tmp/old", Kind: "D"},
+		{Path: "/var/log/app.log", Kind: "A"},
+	}
 	if len(got) != len(want) {
 		t.Fatalf("got %+v", got)
 	}

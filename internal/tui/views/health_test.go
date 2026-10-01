@@ -18,10 +18,20 @@ func plainLines(lines []string) string {
 func TestFormatHealth(t *testing.T) {
 	now := time.Date(2026, 10, 1, 12, 1, 0, 0, time.Local)
 	r := docker.HealthReport{
-		Running: true, Status: "unhealthy", FailingStreak: 2,
-		Check: &docker.HealthCheck{Test: []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"}, Interval: 10 * time.Second},
+		Running:       true,
+		Status:        "unhealthy",
+		FailingStreak: 2,
+		Check: &docker.HealthCheck{
+			Test:     []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"},
+			Interval: 10 * time.Second,
+		},
 		Probes: []docker.HealthProbe{
-			{Start: now.Add(-10 * time.Second), End: now.Add(-9 * time.Second), ExitCode: 1, Output: "curl: (7) Failed to connect\nretrying\n"},
+			{
+				Start:    now.Add(-10 * time.Second),
+				End:      now.Add(-9 * time.Second),
+				ExitCode: 1,
+				Output:   "curl: (7) Failed to connect\nretrying\n",
+			},
 			{Start: now.Add(-20 * time.Second), ExitCode: 0},
 		},
 	}
@@ -44,10 +54,17 @@ func TestFormatHealth(t *testing.T) {
 	if out := plainLines(FormatHealth(docker.HealthReport{}, now)); !strings.Contains(out, "No healthcheck") {
 		t.Errorf("no healthcheck: %q", out)
 	}
-	if out := plainLines(FormatHealth(docker.HealthReport{Disabled: true}, now)); !strings.Contains(out, "disabled (NONE)") {
+	if out := plainLines(
+		FormatHealth(docker.HealthReport{Disabled: true}, now),
+	); !strings.Contains(
+		out,
+		"disabled (NONE)",
+	) {
 		t.Errorf("disabled: %q", out)
 	}
-	cmd := plainLines(FormatHealth(docker.HealthReport{Check: &docker.HealthCheck{Test: []string{"CMD", "pg_isready", "-U", "app"}}}, now))
+	cmd := plainLines(
+		FormatHealth(docker.HealthReport{Check: &docker.HealthCheck{Test: []string{"CMD", "pg_isready", "-U", "app"}}}, now),
+	)
 	if !strings.Contains(cmd, `["pg_isready" "-U" "app"]`) || !strings.Contains(cmd, "No probes have run yet") {
 		t.Errorf("CMD form / no probes:\n%s", cmd)
 	}
