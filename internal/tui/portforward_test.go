@@ -184,7 +184,7 @@ func TestBrowseIsNotInTheHeader(t *testing.T) {
 		t.Errorf("header still lists Browse:\n%s", h)
 	}
 	step(a, key("?"))
-	if !strings.Contains(render(a), "Browse a published port") {
+	if !strings.Contains(render(a), "Browse port") {
 		t.Error("help does not list b")
 	}
 }

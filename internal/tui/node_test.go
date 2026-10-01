@@ -250,7 +250,7 @@ func TestShortcutsHoldStillAcrossRows(t *testing.T) {
 		t.Errorf("the bar lists c:\n%s", node)
 	}
 	step(a, key("?"))
-	if !strings.Contains(render(a), "Node Containers (⎈)") {
+	if !strings.Contains(render(a), "Node containers ⎈") {
 		t.Error("help does not list c")
 	}
 	step(a, key("esc"))
