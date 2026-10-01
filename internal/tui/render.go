@@ -188,7 +188,6 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<R>", Desc: "Restart"},
 			{Key: "<a>", Desc: "All"},
 			{Key: "<shift-f>", Desc: "Port-Forward"},
-			{Key: "<b>", Desc: "Browse"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
 		}
 	case style.ViewImages:
@@ -513,6 +512,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<T>", Desc: "Top (processes)"},
 					{Key: "<D>", Desc: "Diff (files changed)"},
 					{Key: "<S>", Desc: "Stats"},
+					{Key: "<b>", Desc: "Browse a published port"},
 					{Key: "<p>", Desc: "Pause/unpause"},
 					{Key: "<s>", Desc: "Shell into it"},
 					{Key: "<l>", Desc: "Logs"},

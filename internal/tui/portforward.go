@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -89,20 +90,42 @@ func (a *App) stopSessionForwards() {
 	a.forwards = nil
 }
 
-// openPublished opens a container's first published TCP port in the
-// browser.
+// openPublished opens a container's published port in the browser: at
+// once when it publishes one, after asking which when it publishes more.
+// The URL is https for a TLS port and names the daemon's host when the
+// daemon is remote.
 func (a *App) openPublished(id string) tea.Cmd {
 	c, ok := a.containerByID(id)
 	if !ok {
 		return nil
 	}
-	for _, p := range c.PortList {
-		if p.Public != 0 && (p.Type == "" || p.Type == "tcp") {
-			return a.openURL("http://localhost:" + strconv.Itoa(int(p.Public)))
-		}
+	ports := docker.WebPorts(c)
+	host := "localhost"
+	if a.client != nil {
+		host = docker.BrowseHost(a.client.Host)
 	}
-	a.errFlash = c.Name + " publishes no ports — <F> forwards one"
-	return nil
+	switch len(ports) {
+	case 0:
+		a.errFlash = c.Name + " publishes no ports — <shift-f> forwards one"
+		return nil
+	case 1:
+		return a.openURL(docker.PortURL(host, ports[0]))
+	}
+	a.promptDispatch = func(value string) (string, tea.Cmd) {
+		n, err := strconv.Atoi(strings.TrimSpace(value))
+		for _, p := range ports {
+			if err == nil && int(p.Public) == n {
+				return "", a.openURL(docker.PortURL(host, p))
+			}
+		}
+		return fmt.Sprintf("%q is not one of %s's published ports: %s", value, c.Name, docker.PortChoices(ports)), nil
+	}
+	cmd := a.prompt.Open(strconv.Itoa(int(ports[0].Public)), chrome.OpenOpts{
+		Prompt:      fmt.Sprintf("🌐 open %s port (%s) ", c.Name, docker.PortChoices(ports)),
+		Placeholder: strconv.Itoa(int(ports[0].Public)),
+	})
+	a.resizeActiveView()
+	return cmd
 }
 
 // openURL opens a URL with the platform's opener. Tests replace urlOpener.

@@ -130,3 +130,61 @@ func TestQuitStopsSessionForwards(t *testing.T) {
 		t.Errorf("quit stopped %v, want [h1 h2]", stopped)
 	}
 }
+
+// TestBrowseAsksWhichPort: with more than one published port, b asks which
+// one — prefilled with the first — opens the chosen one with the right
+// scheme, and refuses a port the container does not publish.
+func TestBrowseAsksWhichPort(t *testing.T) {
+	a, opened := forwardApp(t, Options{})
+	step(a, views.ContainersRefreshMsg{Containers: []docker.Container{{
+		ID: "web1", Name: "web", State: "running",
+		PortList: []docker.PortMapping{
+			{Type: "tcp", Private: 80, Public: 8080},
+			{Type: "tcp", Private: 80, Public: 8080},
+			{Type: "tcp", Private: 443, Public: 8443},
+		},
+	}}})
+	step(a, key("b"))
+	if !a.prompt.Active() || a.prompt.Value() != "8080" || len(*opened) != 0 {
+		t.Fatalf("b with two ports: prompt %v value %q opened %v", a.prompt.Active(), a.prompt.Value(), *opened)
+	}
+	if !strings.Contains(render(a), "8080→80 8443→443") {
+		t.Errorf("prompt does not list the choices:\n%s", render(a))
+	}
+
+	msg, _ := a.promptDispatch("9999")
+	if !strings.Contains(msg, "not one of") || len(*opened) != 0 {
+		t.Errorf("unpublished port: %q opened %v", msg, *opened)
+	}
+	if msg, _ := a.promptDispatch("8443"); msg != "" || len(*opened) != 1 || (*opened)[0] != "https://localhost:8443" {
+		t.Errorf("8443: %q opened %v, want https://localhost:8443", msg, *opened)
+	}
+}
+
+// TestBrowseUsesTheRemoteDaemonsHost: a port published by a remote daemon
+// is on that machine, not this one.
+func TestBrowseUsesTheRemoteDaemonsHost(t *testing.T) {
+	c, err := docker.New("tcp://build-box.lan:2375")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, opened := forwardApp(t, Options{})
+	a.client = c
+	step(a, key("b"))
+	if len(*opened) != 1 || (*opened)[0] != "http://build-box.lan:5001" {
+		t.Errorf("opened %v, want http://build-box.lan:5001", *opened)
+	}
+}
+
+// TestBrowseIsNotInTheHeader: b is in help, not the shortcut bar.
+func TestBrowseIsNotInTheHeader(t *testing.T) {
+	a, _ := forwardApp(t, Options{})
+	lines := strings.Split(render(a), "\n")
+	if h := strings.Join(lines[:8], "\n"); strings.Contains(h, "Browse") {
+		t.Errorf("header still lists Browse:\n%s", h)
+	}
+	step(a, key("?"))
+	if !strings.Contains(render(a), "Browse a published port") {
+		t.Error("help does not list b")
+	}
+}
