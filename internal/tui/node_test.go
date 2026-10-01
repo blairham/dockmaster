@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -32,8 +33,8 @@ func rigContainers() []docker.NodeContainer {
 }
 
 // TestKindNodeDrillIn: a kind cluster's pods run in the node's own
-// containerd, so docker ps shows only the node. enter on the node lists
-// what is inside it; on any other container enter is still logs.
+// containerd, so docker ps shows only the node. c on the node lists what
+// is inside it; enter is logs on every row, the node included.
 func TestKindNodeDrillIn(t *testing.T) {
 	a := newTestApp(t)
 	step(a, views.ContainersRefreshMsg{Containers: kindNodes()})
@@ -43,8 +44,13 @@ func TestKindNodeDrillIn(t *testing.T) {
 	}
 
 	step(a, key("enter"))
+	if a.view != style.ViewLogs {
+		t.Fatalf("enter on a kind node opened %v, want its logs", a.view)
+	}
+	step(a, key("esc"))
+	step(a, key("c"))
 	if a.view != style.ViewNode {
-		t.Fatalf("enter on a kind node opened %v, want the node view", a.view)
+		t.Fatalf("c on a kind node opened %v, want the node view", a.view)
 	}
 	nv := typedView[*views.NodeView](a, style.ViewNode)
 	if nv.Node() != "node0000worker" || nv.Title() != "k8s-worker" {
@@ -88,6 +94,10 @@ func TestKindNodeDrillIn(t *testing.T) {
 
 	for c, _ := cv.Selected(); c.Name != "kind-registry"; c, _ = cv.Selected() {
 		step(a, key("j"))
+	}
+	step(a, key("c"))
+	if a.view != style.ViewContainers || !strings.Contains(a.errFlash, "not a kind/k3d node") {
+		t.Errorf("c on a plain container: view %v flash %q, want an explanation", a.view, a.errFlash)
 	}
 	step(a, key("enter"))
 	if a.view != style.ViewLogs {
@@ -204,4 +214,69 @@ func TestHealthKeyOpensTheReport(t *testing.T) {
 	if !strings.Contains(renderStyled(a), `"error": "db down"`) {
 		t.Errorf("probe output was restyled as JSON:\n%s", renderStyled(a))
 	}
+}
+
+// keyAt finds where key's shortcut is drawn in the header: line and column.
+func keyAt(header, key string) (int, int) {
+	for i, l := range strings.Split(header, "\n") {
+		if j := strings.Index(l, key); j >= 0 {
+			return i, j
+		}
+	}
+	return -1, -1
+}
+
+// TestShortcutsHoldStillAcrossRows: the bar is the same whichever row is
+// selected — enter is logs everywhere, and c (a node's containers) lives in
+// help rather than appearing on node rows: the bar is sorted, so any entry
+// coming and going would reflow every key after it.
+func TestShortcutsHoldStillAcrossRows(t *testing.T) {
+	a := newTestApp(t)
+	step(a, views.ContainersRefreshMsg{Containers: kindNodes()})
+	header := func() string {
+		lines := strings.Split(render(a), "\n")
+		return strings.Join(lines[:min(8, len(lines))], "\n")
+	}
+	step(a, key("g"))
+	node := header() // k8s-worker
+	step(a, key("j"))
+	plain := header() // kind-registry
+
+	if node != plain {
+		t.Errorf("the bar changed with the selected row:\nnode:\n%s\nplain:\n%s", node, plain)
+	}
+	// c is in help, not the bar: the bar holds the common actions, as k9s's.
+	if strings.Contains(node, "<c>") {
+		t.Errorf("the bar lists c:\n%s", node)
+	}
+	step(a, key("?"))
+	if !strings.Contains(render(a), "Node Containers (⎈)") {
+		t.Error("help does not list c")
+	}
+	step(a, key("esc"))
+	for _, k := range []string{"<enter>", "<o>", "<H>", "<s>", "<shift-f>", "<ctrl-d>"} {
+		nl, nc := keyAt(node, k)
+		pl, pc := keyAt(plain, k)
+		if nl < 0 || nl != pl || nc != pc {
+			t.Errorf("%s moved: line %d col %d on a node, line %d col %d otherwise", k, nl, nc, pl, pc)
+		}
+	}
+	if !regexp.MustCompile(`<enter> +Logs`).MatchString(node) {
+		t.Errorf("enter is not Logs on a node row:\n%s", node)
+	}
+}
+
+// TestNodeRowsAreMarked: a node is marked in the NAME column, so the
+// different enter is visible before the row is selected.
+func TestNodeRowsAreMarked(t *testing.T) {
+	a := newTestApp(t)
+	step(a, views.ContainersRefreshMsg{Containers: kindNodes()})
+	out := render(a)
+	if !strings.Contains(out, "⎈ k8s-worker") {
+		t.Errorf("node row is not marked:\n%s", out)
+	}
+	if strings.Contains(out, "⎈ kind-registry") || !strings.Contains(out, "kind-registry") {
+		t.Errorf("plain container is marked, or missing:\n%s", out)
+	}
+	assertFrameFits(t, a, "containers with a marked node")
 }

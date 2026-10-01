@@ -133,7 +133,7 @@ In the projects view the letters run Compose — `u` `compose up -d`, `R` restar
 
 In the runtimes view the same letters act on the machine, where its runtime supports the verb (see `docs/design/runtimes.md`): `n` new machine (the form's Provider field picks the runtime) and `e` edit resources (both a form, `views.RuntimeFormView`, which captures every key but esc), `o` inspect, `u` start, `x` stop, `R` restart, `ctrl-d` delete — the last three confirm, since each takes every container in the VM with it — `s` ssh into the VM, and `enter` connects dockyard to the profile's daemon. See `docs/design/colima.md`.
 
-`enter` on a kind or k3d node container opens the node view: the containers inside the node's own containerd (every pod), which `docker ps` never shows. They are read with `crictl` over a docker exec; `enter`/`l` logs, `o` inspect, `s` shell. See `docs/design/kubernetes-nodes.md` — in particular why node log streams run under a watcher.
+`c` on a kind or k3d node container (marked ⎈) opens the node view: the containers inside the node's own containerd (every pod), which `docker ps` never shows. They are read with `crictl` over a docker exec; `enter`/`l` logs, `o` inspect, `s` shell, `ctrl-d` remove (exited only, confirmed), `a` show exited (hidden by default). See `docs/design/kubernetes-nodes.md` — in particular why node log streams run under a watcher.
 
 `K` and every `ctrl-d` are uppercase or modified on purpose: the violent operations should not share a keystroke shape with navigation.
 

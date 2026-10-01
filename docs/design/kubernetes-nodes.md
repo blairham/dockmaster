@@ -17,8 +17,13 @@ cannot help; the daemon does not have them.
 
 `docker.NodeRole` recognises a node by its labels: `io.x-k8s.kind.role`
 (kind), `k3d.role` = `server`/`agent` (k3d; its load balancer and registry
-have no runtime inside). In the containers view, `enter` on a node opens
-the node view instead of the node's own logs (`l` still tails those).
+have no runtime inside). In the containers view a node is marked `⎈` before
+its name, and `c` opens the node view. `enter` stays logs on every row, the
+node's own logs included: an earlier version made `enter` open the node, and
+the shortcut bar had to change with the selected row to stay truthful, which
+reflowed every key in it. `c` is in the help overlay, not the shortcut bar —
+the bar holds the common actions, as k9s's does — and on anything but a node
+it says so.
 
 The node view lists the inner containers — namespace, pod, name, state,
 restarts, image, age — read with `crictl ps -a -o json` over a docker exec

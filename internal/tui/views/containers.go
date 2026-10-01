@@ -47,6 +47,20 @@ func thresholdText(text string, pct, warn, critical float64) string {
 	return text
 }
 
+// nodeMarker flags a kind/k3d node in the NAME column, where c opens the
+// containers inside it — visible before the row is selected. ⎈ is the
+// Kubernetes helm.
+const nodeMarker = "⎈ "
+
+// containerName is the NAME cell: the name, marked when it is a node.
+func containerName(c docker.Container) string {
+	if _, node := docker.NodeRole(c); node {
+		return lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Render(nodeMarker) +
+			truncate(c.Name, 28-lipgloss.Width(nodeMarker))
+	}
+	return truncate(c.Name, 28)
+}
+
 // ContainersRefreshMsg carries a refreshed container list.
 type ContainersRefreshMsg struct {
 	Err        error
@@ -242,10 +256,14 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 		return "", ""
 	}
 
-	// A Kubernetes node's workloads are inside it, not in this daemon:
-	// enter opens them. l still tails the node's own output.
-	if _, node := docker.NodeRole(c); node && key == KeyEnter {
-		return "node_containers", NodeParam(c.ID, "", c.Name)
+	// A Kubernetes node's workloads are inside it, not in this daemon: c
+	// opens them. enter stays logs on every row, so the key for logs never
+	// depends on what is selected.
+	if key == "c" {
+		if _, node := docker.NodeRole(c); node {
+			return "node_containers", NodeParam(c.ID, "", c.Name)
+		}
+		return "not_a_node", c.Name
 	}
 	switch key {
 	case KeyEnter, "l":
@@ -378,7 +396,7 @@ func (v *ContainersView) rebuildRows() {
 		}
 
 		rows = append(rows, table.Row{
-			truncate(c.Name, 28),
+			containerName(c),
 			truncate(c.Image, 30),
 			style.StateStyle(c.State).Render(c.State),
 			style.HealthStyle(c.Health).Render(health),

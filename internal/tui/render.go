@@ -508,6 +508,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<x>", Desc: "Stop"},
 					{Key: "<R>", Desc: "Restart"},
 					{Key: "<K>", Desc: "Kill (SIGKILL)"},
+					{Key: "<c>", Desc: "Node Containers (⎈)"},
 					{Key: "<H>", Desc: "Health"},
 					{Key: "<T>", Desc: "Top (processes)"},
 					{Key: "<D>", Desc: "Diff (files changed)"},

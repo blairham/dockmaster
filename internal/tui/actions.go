@@ -202,6 +202,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.pushView(style.ViewTop)
 		return a, a.viewMap[style.ViewTop].Init()
 
+	case "not_a_node":
+		a.errFlash = param + " is not a kind/k3d node — c opens the containers inside a ⎈ node"
+		return a, nil
 	case "node_containers":
 		node, _, name := splitNodeParam(param)
 		a.setView(style.ViewNode, views.NewNodeView(a.client, node, name))
