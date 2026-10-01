@@ -1,4 +1,4 @@
-# golangci-lint v2 configuration for dockyard.
+# golangci-lint v2 configuration for dockmaster.
 # See: https://golangci-lint.run/usage/configuration/
 #
 # Version pins live in go.mod's `tool` block (golangci-lint, gofumpt); the
@@ -73,7 +73,7 @@ linters:
     # Memory
     - wastedassign # Finds wasted assignment statements
 
-  # Nothing is disabled for adoption. dockyard started on the canonical
+  # Nothing is disabled for adoption. dockmaster started on the canonical
   # thresholds rather than inheriting another repo's burn-down; the handful
   # of genuinely flat dispatch functions (the key path, the action table)
   # carry targeted //nolint directives naming the reason instead.
@@ -196,7 +196,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/blairham/dockyard
+        - github.com/blairham/dockmaster
 
     gofumpt:
       extra-rules: true
@@ -205,7 +205,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/blairham/dockyard)
+        - prefix(github.com/blairham/dockmaster)
 
     golines:
       max-len: 120

@@ -9,15 +9,15 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 var sgrRe = regexp.MustCompile(`\x1b\[([0-9;:]*)m`)
 
 // unpaintedCells walks a styled frame tracking the SGR background the way a
 // terminal would, and reports every printed cell that had none — the cells
-// that show the terminal's own background through dockyard's canvas.
+// that show the terminal's own background through dockmaster's canvas.
 func unpaintedCells(frame string) []string {
 	var holes []string
 	for row, line := range strings.Split(frame, "\n") {
@@ -84,7 +84,7 @@ func applySGR(hasBg bool, params string) bool {
 }
 
 // TestWholeFrameIsPainted pins the canvas: every cell of every frame sits
-// on dockyard's background, not the terminal's. Spans styled without a
+// on dockmaster's background, not the terminal's. Spans styled without a
 // background end in a reset that drops the canvas for the rest of the line,
 // which is how only the log pane came to be black.
 func TestWholeFrameIsPainted(t *testing.T) {

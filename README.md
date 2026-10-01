@@ -1,4 +1,4 @@
-# dockyard
+# dockmaster
 
 A [k9s](https://k9scli.io)-style terminal UI for Docker — containers, images, volumes, networks and Compose projects in one navigable frame, with live log tailing, inspect, and the whole container lifecycle on the keyboard. On a Colima host it manages the VMs under the daemon too.
 
@@ -9,7 +9,7 @@ Built on [tuikit](https://github.com/blairham/tuikit), a shared Bubble Tea chrom
  Endpoint: —                                            <2>      Images      </>      Filter      <ctrl-d> Remove
  Engine:   —                                            <3>      Volumes     <?>      Help        <R>      Restart
  Counts:   2/4 ctr                                      <4>      Networks    <o>      Inspect     <s>      Shell
- Dockyard: v0.1.0                                       <5>      Projects    <enter>  Logs        <u>      Start
+ Dockmaster: v0.1.0                                       <5>      Projects    <enter>  Logs        <u>      Start
                                                                              <:q>     Quit        <x>      Stop
 ╭──────────────────────────────────────────────── containers(all)[4] ────────────────────────────────────────────────╮
 │ NAME              IMAGE              STATE       HEALTH     CPU%     MEM          PORTS                   AGE      │
@@ -24,7 +24,7 @@ Built on [tuikit](https://github.com/blairham/tuikit), a shared Bubble Tea chrom
 ## Install
 
 ```bash
-make install          # builds, copies to ~/.local/bin, and links the d6d alias
+make install          # builds, copies to ~/.local/bin, and links the dm alias
 ```
 
 This repo is local-only — no remote, no published release — so `make install`
@@ -32,26 +32,26 @@ is the install.
 
 ## Run
 
-`d6d` is the short name — `d` + 6 letters + `d`, the way `k8s` is Kubernetes — and runs the same binary.
+`dm` is the short name and runs the same binary.
 
 ```bash
-dockyard                        # the active docker context
-dockyard --context colima       # a specific context
-dockyard --readonly             # refuse every mutating action
-dockyard --all                  # start with stopped containers listed
-dockyard --no-stats             # skip the CPU/MEM poll
-dockyard --logoless             # no header logo (`:logo` toggles it at runtime)
-dockyard --splashless           # skip the startup splash
-dockyard --headless             # no header at all — the table gets the rows
-dockyard --crumbsless           # no breadcrumbs
-dockyard -r 5                   # refresh every 5s (default 3)
-dockyard --request-timeout 2m   # one limit for every daemon request
-dockyard -c runtimes            # open on a view (containers, images, volumes, networks, projects, runtimes)
+dockmaster                        # the active docker context
+dockmaster --context colima       # a specific context
+dockmaster --readonly             # refuse every mutating action
+dockmaster --all                  # start with stopped containers listed
+dockmaster --no-stats             # skip the CPU/MEM poll
+dockmaster --logoless             # no header logo (`:logo` toggles it at runtime)
+dockmaster --splashless           # skip the startup splash
+dockmaster --headless             # no header at all — the table gets the rows
+dockmaster --crumbsless           # no breadcrumbs
+dockmaster -r 5                   # refresh every 5s (default 3)
+dockmaster --request-timeout 2m   # one limit for every daemon request
+dockmaster -c runtimes            # open on a view (containers, images, volumes, networks, projects, runtimes)
 ```
 
-**Settings persist in `config.yaml`**, shaped like k9s's: `dockyard config init` writes a commented one with the defaults to `~/.config/dockyard/config.yaml` (`dockyard config path` shows where it is read from; `$DOCKYARD_CONFIG_DIR` and `$XDG_CONFIG_HOME` move it). Every flag above has a key there, plus `context`, `thresholds` (CPU/MEM colours, k9s's 70/90), and `logger.tail` / `logger.showTime`. Flags given on the command line win. See [`docs/design/config.md`](docs/design/config.md).
+**Settings persist in `config.yaml`**, shaped like k9s's: `dockmaster config init` writes a commented one with the defaults to `~/.config/dockmaster/config.yaml` (`dockmaster config path` shows where it is read from; `$DOCKMASTER_CONFIG_DIR` and `$XDG_CONFIG_HOME` move it). Every flag above has a key there, plus `context`, `thresholds` (CPU/MEM colours, k9s's 70/90), and `logger.tail` / `logger.showTime`. Flags given on the command line win. See [`docs/design/config.md`](docs/design/config.md).
 
-**It follows your docker context.** The Go SDK only reads `DOCKER_HOST`, which is empty on Colima, Rancher Desktop, Podman and remote hosts — so an SDK tool dials `/var/run/docker.sock` and claims your daemon is down while `docker ps` works fine. dockyard reads the context store itself, in the CLI's own precedence order. See [`docs/design/docker-context-resolution.md`](docs/design/docker-context-resolution.md).
+**It follows your docker context.** The Go SDK only reads `DOCKER_HOST`, which is empty on Colima, Rancher Desktop, Podman and remote hosts — so an SDK tool dials `/var/run/docker.sock` and claims your daemon is down while `docker ps` works fine. dockmaster reads the context store itself, in the CLI's own precedence order. See [`docs/design/docker-context-resolution.md`](docs/design/docker-context-resolution.md).
 
 ## Keys
 
@@ -84,7 +84,7 @@ Every destructive action asks first, and `--readonly` refuses them outright.
 
 - **Compose projects are labels**, folded from `com.docker.compose.project`. In the projects view `u` is `docker compose up -d`, `R` restart, `p` pull, `ctrl-d` `compose down` (confirms; volumes kept), run against the compose files the labels record. When those files are not on this machine — a remote daemon, a moved checkout — the keys fall back to acting on the containers directly. See [`docs/design/compose.md`](docs/design/compose.md).
 - **The daemon can be slow.** `docker images` on a development host here takes over two minutes. Every list view single-flights its refresh, only the volatile views poll, and the expensive ones load on open and on `r`. See [`docs/design/daemon-latency.md`](docs/design/daemon-latency.md).
-- **Container runtimes are view `5`** (`:runtimes`; `:colima` and `:podman` work too). dockyard finds what is installed — Colima, Podman machines, Docker Desktop, Rancher Desktop, OrbStack — and lists their VMs or engines together. `u` start, `x` stop, `R` restart and `enter` connect work everywhere; `n` new (pick the runtime in the form — that is how the first Podman machine is made), `e` edit resources (and Podman's rootful / user-mode networking), `o` inspect, `ctrl-d` delete and `s` shell where the runtime has machines to manage (Colima, Podman). `:pods` lists Podman pods across running machines. If the daemon dockyard resolves to belongs to a stopped runtime, it opens on this view instead of exiting. See [`docs/design/runtimes.md`](docs/design/runtimes.md).
+- **Container runtimes are view `5`** (`:runtimes`; `:colima` and `:podman` work too). dockmaster finds what is installed — Colima, Podman machines, Docker Desktop, Rancher Desktop, OrbStack — and lists their VMs or engines together. `u` start, `x` stop, `R` restart and `enter` connect work everywhere; `n` new (pick the runtime in the form — that is how the first Podman machine is made), `e` edit resources (and Podman's rootful / user-mode networking), `o` inspect, `ctrl-d` delete and `s` shell where the runtime has machines to manage (Colima, Podman). `:pods` lists Podman pods across running machines. If the daemon dockmaster resolves to belongs to a stopped runtime, it opens on this view instead of exiting. See [`docs/design/runtimes.md`](docs/design/runtimes.md).
 - **`s` shells out to the `docker` CLI** (via `tea.ExecProcess`), passing `--host` so it always lands on the daemon you are looking at. Interactive TTY handling is a solved problem and not worth re-solving against a hijacked stream.
 
 ## Development

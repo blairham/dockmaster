@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 func TestRefreshRateOption(t *testing.T) {

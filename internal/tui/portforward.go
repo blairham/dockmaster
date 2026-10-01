@@ -12,9 +12,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/chrome"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // forwardTimeout bounds starting a forward: the first one pulls the helper
@@ -72,7 +72,7 @@ func (a *App) handleForwardStarted(msg forwardStartedMsg) (tea.Model, tea.Cmd) {
 
 // stopSessionForwards removes the forwards this session started, as k9s's
 // end with k9s. The helpers live on the daemon, so without this they would
-// outlast dockyard and keep their ports. Best effort, bounded: quitting must
+// outlast dockmaster and keep their ports. Best effort, bounded: quitting must
 // not hang on a slow daemon.
 func (a *App) stopSessionForwards() {
 	stop := a.stopForward
@@ -146,7 +146,7 @@ func openInBrowser(url string) error {
 	}
 	return exec.CommandContext(context.Background(), name, url).
 		Start()
-	//nolint:gosec // fixed opener; url is a localhost URL dockyard built
+	//nolint:gosec // fixed opener; url is a localhost URL dockmaster built
 }
 
 // containerByID finds a container in the containers view's last listing.

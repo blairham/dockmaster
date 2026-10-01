@@ -1,4 +1,4 @@
-module github.com/blairham/dockyard
+module github.com/blairham/dockmaster
 
 go 1.26.6
 

@@ -1,4 +1,4 @@
-// Command dockyard is a k9s-style terminal UI for Docker: containers,
+// Command dockmaster is a k9s-style terminal UI for Docker: containers,
 // images, volumes, networks, and Compose projects in one navigable frame,
 // with live logs, inspect, and the full lifecycle keymap.
 package main
@@ -14,16 +14,16 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/config"
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui"
-	"github.com/blairham/dockyard/internal/version"
+	"github.com/blairham/dockmaster/internal/config"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui"
+	"github.com/blairham/dockmaster/internal/version"
 )
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "dockyard: %v\n", err)
+		fmt.Fprintf(os.Stderr, "dockmaster: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -59,7 +59,7 @@ func run() error {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("dockyard %s (%s, built %s)\n", version.Version, version.Commit, version.Date)
+		fmt.Printf("dockmaster %s (%s, built %s)\n", version.Version, version.Commit, version.Date)
 		return nil
 	}
 
@@ -99,7 +99,7 @@ func run() error {
 	}
 
 	// A --context flag is resolved through the store the same way the
-	// docker CLI resolves its own, so `dockyard --context colima` behaves
+	// docker CLI resolves its own, so `dockmaster --context colima` behaves
 	// like `docker --context colima`.
 	endpoint := *host
 	if endpoint == "" && *contextName != "" {
@@ -133,7 +133,7 @@ func run() error {
 	// plain one-line error on stderr, not an alt-screen full of empty
 	// tables that the user then has to quit out of to read — unless the
 	// endpoint belongs to a runtime's machine, in which case the TUI opens
-	// on the runtimes view, because starting it is the fix and dockyard can
+	// on the runtimes view, because starting it is the fix and dockmaster can
 	// do that.
 	startOnRuntimes, notice := false, ""
 	if err := client.Negotiate(ctx); err != nil {
@@ -173,7 +173,7 @@ func run() error {
 	// App.View), not program options.
 	p := tea.NewProgram(app)
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("running dockyard: %w", err)
+		return fmt.Errorf("running dockmaster: %w", err)
 	}
 	return nil
 }
@@ -185,30 +185,29 @@ func daemonError(err error, client *docker.Client) error {
 		// connection failure. Add only the endpoint it actually tried —
 		// the part the user cannot otherwise see, and the whole point of
 		// resolving through the context store.
-		"%w\n  endpoint: %s (from context %q)\n  `docker context ls` shows what dockyard resolves from",
+		"%w\n  endpoint: %s (from context %q)\n  `docker context ls` shows what dockmaster resolves from",
 		docker.FormatUserError(err),
 		client.Host,
 		client.ContextName,
 	)
 }
 
-// progName is the name this binary was run as — dockyard, or its d6d alias
+// progName is the name this binary was run as — dockmaster, or its dm alias
 // — so the usage line shows what the user typed.
 func progName() string {
 	if name := filepath.Base(os.Args[0]); name != "" && name != "." {
 		return name
 	}
-	return "dockyard"
+	return "dockmaster"
 }
 
 // usageHead and usageTail bracket flag.PrintDefaults() in the help output.
-const usageHead = `dockyard — a k9s-style TUI for Docker
+const usageHead = `dockmaster — a k9s-style TUI for Docker
 
 Usage:
   %s [flags]
 
-d6d is dockyard's short name (d + 6 letters + d, as k8s is Kubernetes);
-make install puts both on PATH.
+dm is dockmaster's short name; make install puts both on PATH.
 
 Flags:
 `
@@ -217,8 +216,8 @@ const usageTail = `
 Config:
   %[1]s config path    print where config.yaml is read from
   %[1]s config init    write a commented config.yaml with the defaults
-  The file is $DOCKYARD_CONFIG_DIR/config.yaml, else
-  $XDG_CONFIG_HOME/dockyard/config.yaml, else ~/.config/dockyard/config.yaml.
+  The file is $DOCKMASTER_CONFIG_DIR/config.yaml, else
+  $XDG_CONFIG_HOME/dockmaster/config.yaml, else ~/.config/dockmaster/config.yaml.
   Flags given on the command line override it.
 
 Endpoint resolution (same precedence as the docker CLI):

@@ -150,7 +150,7 @@ func TestDockerHostAndContextName(t *testing.T) {
 }
 
 // TestProfileForHost is the inverse of DockerHost, and the check that lets
-// dockyard offer to start a stopped VM rather than just failing to dial.
+// dockmaster offer to start a stopped VM rather than just failing to dial.
 func TestProfileForHost(t *testing.T) {
 	const home = "/Users/u/.colima"
 	for _, tc := range []struct {

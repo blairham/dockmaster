@@ -6,7 +6,7 @@
 ## Purpose
 
 On a Colima host the docker daemon runs inside a VM, and the VM is a thing you
-start, stop and resize. Every other view in dockyard manages objects *in* the
+start, stop and resize. Every other view in dockmaster manages objects *in* the
 daemon; this one manages the machine *under* it. That makes it the one view
 that keeps working when the daemon is gone — which is exactly when it is
 needed.
@@ -29,7 +29,7 @@ Two shapes of colima's output are load-bearing:
   vm: …` rather than a timestamp.
 
 `colima delete` is called with `--force`: colima's own y/n prompt has no
-terminal to ask on and would hang until the timeout. dockyard's confirm bar is
+terminal to ask on and would hang until the timeout. dockmaster's confirm bar is
 the prompt.
 
 ## Profile ↔ endpoint
@@ -37,7 +37,7 @@ the prompt.
 A profile's docker socket is `<colima home>/<profile>/docker.sock`, with the
 home at `$COLIMA_HOME` or `~/.colima`. The socket path exists whether or not
 the VM is running, so it is derived rather than looked up in the docker
-context store. `ProfileForHost` is the inverse, and it is how dockyard knows
+context store. `ProfileForHost` is the inverse, and it is how dockmaster knows
 that a daemon it cannot reach is a colima VM it could start.
 
 colima registers the docker context `colima` for the default profile and
@@ -45,11 +45,11 @@ colima registers the docker context `colima` for the default profile and
 
 ## Starting when the daemon is down
 
-Without colima support, dockyard refuses to start when the daemon does not
+Without colima support, dockmaster refuses to start when the daemon does not
 answer — a one-line error on stderr beats an alt-screen of empty tables. That
 still holds, with one exception: when the unreachable endpoint is a colima
-profile's socket, dockyard opens on the colima view with a notice instead,
-because starting the VM is the fix and dockyard can do it.
+profile's socket, dockmaster opens on the colima view with a notice instead,
+because starting the VM is the fix and dockmaster can do it.
 
 ## Lifecycle
 
@@ -62,11 +62,11 @@ because starting the VM is the fix and dockyard can do it.
 | `R` | `colima restart <p>` | yes |
 | `ctrl-d` | `colima delete --force <p>` | yes |
 | `s` | `colima ssh --profile <p>` (terminal handed over) | no |
-| `enter` | connect dockyard to the profile's daemon | no |
+| `enter` | connect dockmaster to the profile's daemon | no |
 
 Stop and restart confirm, unlike their container counterparts: a profile is
 the VM every container in it runs in, so either takes all of them down. The
-prompt also says when the profile is the one dockyard is connected to, since
+prompt also says when the profile is the one dockmaster is connected to, since
 then every other view goes dark too.
 
 All of them are actions in `handleAction`, so `--readonly` refuses them in the
@@ -82,7 +82,7 @@ at start, so:
 
 - editing a **stopped** profile starts it with the new resources;
 - editing a **running** one stops it first, which takes every container in it
-  down — that path confirms, and reconnects dockyard if it was the daemon.
+  down — that path confirms, and reconnects dockmaster if it was the daemon.
 
 The form validates before anything reaches colima: names colima accepts as a
 directory and a context name, not already taken; CPUs no more than this
@@ -100,14 +100,14 @@ key but esc and ctrl-c instead, so `dev1` can be typed as a name.
 first `colima start` provisions a VM, and abandoning one that was about to
 succeed is worse than waiting.
 
-**Busy state is tracked by dockyard, not read from colima.** For most of a
+**Busy state is tracked by dockmaster, not read from colima.** For most of a
 start `colima list` still says `Stopped`; without a marker the row would claim
 nothing is happening. The row shows `starting…` until the call returns, and a
 second lifecycle key on a busy profile is refused.
 
 ## Reconnecting
 
-Starting or restarting the profile dockyard is connected to replaces the
+Starting or restarting the profile dockmaster is connected to replaces the
 docker client and rebuilds the docker views — the same path as a context
 switch, but leaving the user on the colima view. The old client negotiated
 against a daemon that no longer exists, and the views hold rows from before

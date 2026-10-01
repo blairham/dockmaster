@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 func newPodsApp(t *testing.T, opts Options) (*App, *cliFake) {

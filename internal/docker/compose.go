@@ -15,7 +15,7 @@ import (
 // tests never touch a daemon.
 type ComposeRunner func(ctx context.Context, args ...string) ([]byte, error)
 
-// Compose drives `docker compose` for a project dockyard found by its
+// Compose drives `docker compose` for a project dockmaster found by its
 // labels.
 //
 // There is no Engine API for Compose: `up`, `down` and `pull` are client-side
@@ -31,7 +31,7 @@ type Compose struct {
 // ErrNoDockerCLI is returned when the docker CLI is not on PATH.
 var ErrNoDockerCLI = errors.New("compose actions need the `docker` CLI on PATH")
 
-// NewCompose finds the docker CLI. host is the endpoint dockyard is
+// NewCompose finds the docker CLI. host is the endpoint dockmaster is
 // connected to; every invocation passes it as --host so compose acts on
 // the daemon on screen, not whatever context the shell has.
 func NewCompose(host string) (*Compose, error) {
@@ -138,7 +138,7 @@ func (c *Compose) do(ctx context.Context, p Project, verb ...string) error {
 func (c *Compose) Up(ctx context.Context, p Project) error { return c.do(ctx, p, "up", "-d") }
 
 // Down stops and removes the project's containers and networks. Volumes
-// are kept: removing them is `down -v`, which dockyard does not offer.
+// are kept: removing them is `down -v`, which dockmaster does not offer.
 func (c *Compose) Down(ctx context.Context, p Project) error { return c.do(ctx, p, "down") }
 
 // Restart restarts the project's services.

@@ -7,9 +7,9 @@
 
 A kind or k3d cluster is a handful of docker containers — its nodes — each
 running its own containerd. Every pod's containers live in that inner
-runtime, so `docker ps` (and dockyard's containers view) shows the nodes and
+runtime, so `docker ps` (and dockmaster's containers view) shows the nodes and
 nothing in them. On 2026-10-01 a local rig was up and healthy, 34
-containers deep inside `k8s-worker`, while dockyard showed three rows:
+containers deep inside `k8s-worker`, while dockmaster showed three rows:
 `k8s-control-plane`, `k8s-worker`, `kind-registry`. Polling more often
 cannot help; the daemon does not have them.
 
@@ -46,7 +46,7 @@ loses crash history, and the next restart replaces them anyway. The rest
 are leftovers of a deleted pod, which the kubelet's garbage collection
 removes shortly after; `ctrl-d` is for not waiting. A running container is
 refused outright: the kubelet owns it and would restart it, so the answer
-is to delete its pod. dockyard never passes `crictl rm --force`, which is
+is to delete its pod. dockmaster never passes `crictl rm --force`, which is
 what would remove a running one.
 
 In a node container's logs, `x` and `R` are not offered: they would hand
@@ -57,7 +57,7 @@ the docker daemon a containerd ID it has never seen.
 Closing a docker exec stream does not stop the process inside the
 container, so a bare `crictl logs -f` would leave one orphan in the node per
 log view ever opened. `nodeLogScript` runs crictl under a watcher that
-kills it when the exec's stdin closes, and dockyard closes stdin when the
+kills it when the exec's stdin closes, and dockmaster closes stdin when the
 view's context is canceled. The watcher reads stdin through fd 3 because a
 non-interactive `sh` gives background jobs `/dev/null` as stdin — the
 first version saw EOF at once and killed crictl before it printed a line.

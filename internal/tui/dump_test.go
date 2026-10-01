@@ -7,17 +7,17 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
-// TestDumpFrame writes a plain-text frame to the path in DOCKYARD_DUMP.
+// TestDumpFrame writes a plain-text frame to the path in DOCKMASTER_DUMP.
 // Used to keep the README's sample screen honest — it is generated from
 // the real model rather than hand-drawn.
 func TestDumpFrame(t *testing.T) {
-	path := os.Getenv("DOCKYARD_DUMP")
+	path := os.Getenv("DOCKMASTER_DUMP")
 	if path == "" {
-		t.Skip("set DOCKYARD_DUMP to write a frame")
+		t.Skip("set DOCKMASTER_DUMP to write a frame")
 	}
 	a := NewApp(nil, Options{Version: "v0.1.0"})
 	a.splashActive = false

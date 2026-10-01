@@ -9,8 +9,8 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // ProjectsRefreshMsg carries the container list the projects view folds.

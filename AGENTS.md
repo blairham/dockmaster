@@ -1,12 +1,12 @@
-# AGENTS.md — dockyard
+# AGENTS.md — dockmaster
 
 Guidance for AI coding agents (Claude Code, Cursor, Copilot, Codex, OpenCode, …) working in this repository. This is the **cross-tool single source of truth** — `CLAUDE.md` imports it.
 
 ## Project Overview
 
-**dockyard** is a k9s-style terminal UI for Docker: containers, images, volumes, networks, and Compose projects in one navigable frame, with live log tailing, inspect, and the full container lifecycle on the keyboard. On a Colima host it also manages the VMs (profiles) under the daemon.
+**dockmaster** is a k9s-style terminal UI for Docker: containers, images, volumes, networks, and Compose projects in one navigable frame, with live log tailing, inspect, and the full container lifecycle on the keyboard. On a Colima host it also manages the VMs (profiles) under the daemon.
 
-- Module path: `github.com/blairham/dockyard`
+- Module path: `github.com/blairham/dockmaster`
 - Go 1.26 (pinned in `.tool-versions`, kept in sync with `go.mod` by a pre-commit hook)
 - Built on [`github.com/blairham/tuikit`](https://github.com/blairham/tuikit) — the shared Bubble Tea chrome — plus the Docker Engine API SDK.
 
@@ -18,8 +18,8 @@ Guidance for AI coding agents (Claude Code, Cursor, Copilot, Codex, OpenCode, �
 
 ```bash
 make help                 # list targets
-make build                # ./dist/dockyard
-make install              # build + copy to ~/.local/bin, plus a d6d -> dockyard symlink
+make build                # ./dist/dockmaster
+make install              # build + copy to ~/.local/bin, plus a dm -> dockmaster symlink
 make run ARGS='--readonly'
 
 make check                # fmt + vet + test
@@ -40,7 +40,7 @@ go run . --context colima # run against a specific docker context
 ```
 main.go                    flag parsing, daemon dial, program start
 internal/
-  config/                  config.yaml (k9s-shaped) — load, validate, defaults; flags over it; `dockyard config path|init`
+  config/                  config.yaml (k9s-shaped) — load, validate, defaults; flags over it; `dockmaster config path|init`
   docker/                  Engine API wrapper — no bubbletea in here
     client.go              dial, daemon metadata, error formatting
     context.go             docker CONTEXT STORE resolution (see below)
@@ -70,9 +70,9 @@ docs/                      design notes (see Documentation)
 - **`internal/docker` and `internal/colima` must not import bubbletea.** They return plain values and errors; views wrap them in messages. That boundary is what lets each be tested against the real thing with no TUI in the loop.
 - **Views never mutate.** `View.HandleKey` returns an `(action, param)` pair; `App.handleAction` carries it out. This is not ceremony — it is why `--readonly` is a single map lookup in one function rather than a flag threaded through nine views. Adding a mutation to a view directly defeats it.
 - **Every destructive action goes through `chrome.Confirm`.** No exceptions, including ones that "obviously" cannot lose data.
-- goimports local-prefix is `github.com/blairham/dockyard`; internal imports get their own group.
+- goimports local-prefix is `github.com/blairham/dockmaster`; internal imports get their own group.
 - golines max-len 120. misspell locale US.
-- **The lint config carries no adoption-relaxation block.** dockyard started green at the canonical thresholds and should stay there — a genuinely flat dispatch function takes a targeted `//nolint` naming the reason, not a globally disabled linter.
+- **The lint config carries no adoption-relaxation block.** dockmaster started green at the canonical thresholds and should stay there — a genuinely flat dispatch function takes a targeted `//nolint` naming the reason, not a globally disabled linter.
 - MIT, `LICENSE` in Blair Hamilton's name.
 
 ## The docker context store — the thing that is easy to get wrong
@@ -87,7 +87,7 @@ The Go SDK's `client.FromEnv` reads **only `DOCKER_HOST`**. It does not read doc
 4. `currentContext` from `~/.docker/config.json`, looked up in the store
 5. the platform default socket
 
-The store lives at `~/.docker/contexts/meta/<hex sha256 of the context name>/meta.json`. `TestContextDigestMatchesDockerCLI` pins that digest scheme against a real value, because if it ever drifts the failure is silent: dockyard falls back to the default socket and declares a live daemon dead.
+The store lives at `~/.docker/contexts/meta/<hex sha256 of the context name>/meta.json`. `TestContextDigestMatchesDockerCLI` pins that digest scheme against a real value, because if it ever drifts the failure is silent: dockmaster falls back to the default socket and declares a live daemon dead.
 
 ## Daemon calls are slow, and the design assumes it
 
@@ -102,7 +102,7 @@ This is not a theoretical concern. On a Colima host measured during development:
 Both were as slow through the CLI as through the SDK, so it is the daemon, not the client. Three consequences are baked in and must not be undone:
 
 - **Every list view single-flights its refresh** (`inFlight` guard). The 3-second poll skips entirely while a request is outstanding. Without it, a 6-second `ps` on a 3-second tick stacks requests until the socket refuses connections.
-- **The poll is 3 s, not k9s's 2 s**, and `imageListTimeout` is 5 minutes while everything else is 20–60 s. On the host above even that is not enough, and the images view surfaces a timeout with a hint rather than spinning forever — a daemon that cannot list its own images in five minutes is a daemon problem, and dockyard says so instead of hiding it.
+- **The poll is 3 s, not k9s's 2 s**, and `imageListTimeout` is 5 minutes while everything else is 20–60 s. On the host above even that is not enough, and the images view surfaces a timeout with a hint rather than spinning forever — a daemon that cannot list its own images in five minutes is a daemon problem, and dockmaster says so instead of hiding it.
 - **Every daemon request takes its deadline from `Client.RequestContext(def)`**, never a bare `context.WithTimeout`: `--request-timeout` / `requestTimeout` overrides `def` everywhere, and a guard test counts the exceptions (CLI calls only).
 - **The CPU/MEM sampler is one blocking request per running container** and is togglable with `<t>` for exactly that reason.
 
@@ -131,17 +131,17 @@ Navigation is tuikit's `viewfsm.TranslateNavKey` — `j`/`k`/`h`/`l`, `g`/`G`, `
 
 In the projects view the letters run Compose — `u` `compose up -d`, `R` restart, `p` pull, `ctrl-d` `compose down` (confirms) — via the `docker compose` CLI against the files the project's labels record, falling back to per-container actions when those files are not on this machine (`docs/design/compose.md`).
 
-In the runtimes view the same letters act on the machine, where its runtime supports the verb (see `docs/design/runtimes.md`): `n` new machine (the form's Provider field picks the runtime) and `e` edit resources (both a form, `views.RuntimeFormView`, which captures every key but esc), `o` inspect, `u` start, `x` stop, `R` restart, `ctrl-d` delete — the last three confirm, since each takes every container in the VM with it — `s` ssh into the VM, and `enter` connects dockyard to the profile's daemon. See `docs/design/colima.md`.
+In the runtimes view the same letters act on the machine, where its runtime supports the verb (see `docs/design/runtimes.md`): `n` new machine (the form's Provider field picks the runtime) and `e` edit resources (both a form, `views.RuntimeFormView`, which captures every key but esc), `o` inspect, `u` start, `x` stop, `R` restart, `ctrl-d` delete — the last three confirm, since each takes every container in the VM with it — `s` ssh into the VM, and `enter` connects dockmaster to the profile's daemon. See `docs/design/colima.md`.
 
 `c` on a kind or k3d node container (marked ⎈) opens the node view: the containers inside the node's own containerd (every pod), which `docker ps` never shows. They are read with `crictl` over a docker exec; `enter`/`l` logs, `o` inspect, `s` shell, `ctrl-d` remove (exited only, confirmed), `a` show exited (hidden by default). See `docs/design/kubernetes-nodes.md` — in particular why node log streams run under a watcher.
 
 `K` and every `ctrl-d` are uppercase or modified on purpose: the violent operations should not share a keystroke shape with navigation.
 
-`s` shells out to the `docker` CLI via `tea.ExecProcess` rather than driving the SDK's hijacked-stream exec. Interactive sessions need raw-mode TTY handling, window-resize propagation, and signal forwarding; the CLI already does all three correctly. It passes `--host` so an exec always lands on the daemon dockyard is showing, not whatever context the user's shell happens to have.
+`s` shells out to the `docker` CLI via `tea.ExecProcess` rather than driving the SDK's hijacked-stream exec. Interactive sessions need raw-mode TTY handling, window-resize propagation, and signal forwarding; the CLI already does all three correctly. It passes `--host` so an exec always lands on the daemon dockmaster is showing, not whatever context the user's shell happens to have.
 
 ## Configuration
 
-`config.yaml` is shaped after k9s's (`dockyard:` root, `ui:` and `logger:` blocks) and read from `$DOCKYARD_CONFIG_DIR`, else `$XDG_CONFIG_HOME/dockyard`, else `~/.config/dockyard`. **Only flags set on the command line override it** — `flag.Visit`, never the parsed default — and unknown keys are an error, not ignored. Adding a setting means a key in `config.Config`, its default in `Default()` *and* `Sample` (`TestSampleIsTheDefaults` fails otherwise), and, if it has a flag, a row in `applyFlags`. See `docs/design/config.md`.
+`config.yaml` is shaped after k9s's (`dockmaster:` root, `ui:` and `logger:` blocks) and read from `$DOCKMASTER_CONFIG_DIR`, else `$XDG_CONFIG_HOME/dockmaster`, else `~/.config/dockmaster`. **Only flags set on the command line override it** — `flag.Visit`, never the parsed default — and unknown keys are an error, not ignored. Adding a setting means a key in `config.Config`, its default in `Default()` *and* `Sample` (`TestSampleIsTheDefaults` fails otherwise), and, if it has a flag, a row in `applyFlags`. See `docs/design/config.md`.
 
 ## Testing
 

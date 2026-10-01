@@ -1,5 +1,5 @@
 // Package docker wraps the Docker Engine API in the narrow, TUI-shaped
-// surface dockyard needs: flat value types with pre-formatted fields, and
+// surface dockmaster needs: flat value types with pre-formatted fields, and
 // one method per thing a view can show or a keystroke can do.
 //
 // Nothing in here knows about bubbletea. Views call these from a tea.Cmd

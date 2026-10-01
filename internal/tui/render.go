@@ -10,8 +10,8 @@ import (
 	"github.com/blairham/tuikit/chrome"
 	xansi "github.com/charmbracelet/x/ansi"
 
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // View renders the whole screen. The frame — top section, bars, help
@@ -129,7 +129,7 @@ func (a *App) renderInfoPanelWith(ctxName, host, version string) []string {
 		label.Render("Endpoint: ") + value.Render(clipEnd(host, room)),
 		label.Render("Engine:   ") + value.Render(clipEnd(version, room)),
 		label.Render("Counts:   ") + value.Render(clipEnd(a.renderCounts(), room)),
-		a.chrome.VersionLine("Dockyard: ", a.version, ""),
+		a.chrome.VersionLine("DM Rev:   ", a.version, ""),
 	}
 }
 
@@ -532,7 +532,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 }
 
 // generalHelp is tuikit's shared GENERAL column — every key in it is bound
-// in keys.go — plus dockyard's own: r as well as ctrl-r, the log toggles,
+// in keys.go — plus dockmaster's own: r as well as ctrl-r, the log toggles,
 // :logo, and ctrl-c.
 func generalHelp() chrome.HelpSection {
 	g := chrome.GeneralHelp()

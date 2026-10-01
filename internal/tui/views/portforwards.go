@@ -8,8 +8,8 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // PortForwardsRefreshMsg carries the forward helpers on the daemon.
@@ -18,7 +18,7 @@ type PortForwardsRefreshMsg struct {
 	Forwards []docker.PortForward
 }
 
-// PortForwardsView lists port forwards — the relay containers dockyard runs
+// PortForwardsView lists port forwards — the relay containers dockmaster runs
 // for them — with b to open one and ctrl-d to stop it.
 type PortForwardsView struct {
 	client *docker.Client

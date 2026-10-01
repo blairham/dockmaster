@@ -10,10 +10,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/colima"
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/colima"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // cliFake answers any runtime CLI from a table and records every call.

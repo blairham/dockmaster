@@ -12,8 +12,8 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // runtimesListTimeout bounds listing every runtime. Each is a local CLI
@@ -33,7 +33,7 @@ type RuntimesRefreshMsg struct {
 //
 // It manages what is underneath the daemon rather than anything in it, so
 // it is the one view that keeps working while the daemon is down: stopping
-// the machine dockyard is connected to takes every other view's data source
+// the machine dockmaster is connected to takes every other view's data source
 // away, and this is where you start it again.
 type RuntimesView struct {
 	providers []engines.Provider
@@ -44,7 +44,7 @@ type RuntimesView struct {
 	// most of it.
 	busy map[string]string
 
-	// connectedHost is the docker endpoint dockyard is talking to, so the
+	// connectedHost is the docker endpoint dockmaster is talking to, so the
 	// machine serving it can be marked.
 	connectedHost string
 
@@ -158,7 +158,7 @@ func (v *RuntimesView) SetBusy(provider, name, op string) {
 // Busy reports the operation in flight on a machine, if any.
 func (v *RuntimesView) Busy(provider, name string) string { return v.busy[MachineKey(provider, name)] }
 
-// SetConnectedHost records which endpoint dockyard is talking to.
+// SetConnectedHost records which endpoint dockmaster is talking to.
 func (v *RuntimesView) SetConnectedHost(host string) {
 	v.connectedHost = host
 	v.rebuildRows()

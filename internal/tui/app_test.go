@@ -10,9 +10,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/blairham/tuikit/chrome"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // newTestApp builds an App past the splash with a known window size. The
@@ -404,7 +404,7 @@ func TestInfoPanelReportsEndpointAndCounts(t *testing.T) {
 	loadContainers(a)
 	lines := a.renderInfoPanel()
 	joined := strings.Join(lines, "\n")
-	for _, want := range []string{"Context:", "Endpoint:", "Engine:", "Counts:", "Dockyard:"} {
+	for _, want := range []string{"Context:", "Endpoint:", "Engine:", "Counts:", "DM Rev:"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("info panel missing %q", want)
 		}
@@ -910,11 +910,14 @@ func TestHeaderLogo(t *testing.T) {
 		{width: 240, wantLogo: true},
 		{width: 200, wantLogo: true},
 		// The info panel is as wide as its content (k9s layout), which
-		// leaves the logo room beside every column from ~172: seven view
-		// digits take a second column (<7> Events), so 160 sheds the logo
-		// rather than a shortcut.
+		// leaves the 22-column DM logo room beside every column from 139;
+		// a narrower header sheds the logo rather than a shortcut. (The
+		// full dockmaster art, 69 columns, needed 186 — why the header
+		// draws DM and only the splash the full name.)
 		{width: 180, wantLogo: true},
-		{width: 160},
+		{width: 160, wantLogo: true},
+		{width: 139, wantLogo: true},
+		{width: 138},
 		{width: 120},
 	} {
 		a := NewApp(nil, Options{Version: "test"})
@@ -925,13 +928,13 @@ func TestHeaderLogo(t *testing.T) {
 		header := strings.Join(strings.Split(out, "\n")[:6], "\n")
 
 		all := 0
-		for _, l := range logoLines {
+		for _, l := range dmLogo {
 			if strings.Contains(header, strings.TrimRight(l, " ")) {
 				all++
 			}
 		}
-		if got := all == len(logoLines); got != tc.wantLogo {
-			t.Errorf("width %d: logo shown %v (%d/%d lines), want %v", tc.width, got, all, len(logoLines), tc.wantLogo)
+		if got := all == len(dmLogo); got != tc.wantLogo {
+			t.Errorf("width %d: logo shown %v (%d/%d lines), want %v", tc.width, got, all, len(dmLogo), tc.wantLogo)
 		}
 		if strings.ContainsRune(out, 'ت') {
 			t.Errorf("width %d: stray glyph in the frame", tc.width)
@@ -950,7 +953,7 @@ func TestHeaderLogo(t *testing.T) {
 func TestLogoless(t *testing.T) {
 	hasLogo := func(a *App) bool {
 		header := strings.Join(strings.Split(render(a), "\n")[:6], "\n")
-		return strings.Contains(header, strings.TrimRight(logoLines[1], " "))
+		return strings.Contains(header, strings.TrimRight(dmLogo[1], " "))
 	}
 	a := NewApp(nil, Options{Version: "test", Logoless: true})
 	a.splashActive, a.loading = false, false
@@ -1120,8 +1123,16 @@ func TestHeaderLooksLikeK9s(t *testing.T) {
 	if !strings.Contains(lines[5], "<5>") || strings.Contains(lines[6], "<") {
 		t.Errorf("want <5> as the sixth and last row of the view column; rows 5-6 = %q / %q", lines[5], lines[6])
 	}
-	if !strings.HasSuffix(strings.TrimRight(row0, " "), logoLines[0][len(strings.TrimRight(logoLines[0], " "))-1:]) {
-		t.Errorf("logo is not pinned to the right edge: %q", row0)
+	// The logo is a block, padded to its widest line; that line must end
+	// at the right edge.
+	widest := 0
+	for i, l := range dmLogo {
+		if len(strings.TrimRight(l, " ")) > len(strings.TrimRight(dmLogo[widest], " ")) {
+			widest = i
+		}
+	}
+	if row := strings.TrimRight(lines[widest], " "); !strings.HasSuffix(row, strings.TrimRight(dmLogo[widest], " ")) {
+		t.Errorf("logo is not pinned to the right edge: %q", row)
 	}
 	if styled := renderStyled(a); !strings.Contains(styled, "38;2;255;165;0mContext:") {
 		t.Errorf("info label is not k9s orange")

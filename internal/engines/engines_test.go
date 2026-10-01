@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/blairham/dockyard/internal/colima"
+	"github.com/blairham/dockmaster/internal/colima"
 )
 
 // fake answers commands from a table keyed by the joined argv and records

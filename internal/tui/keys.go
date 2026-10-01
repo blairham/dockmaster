@@ -8,9 +8,9 @@ import (
 	"github.com/blairham/tuikit/chrome"
 	"github.com/blairham/tuikit/viewfsm"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // knownCommands feeds the `:` palette's fuzzy suggestion.
@@ -421,7 +421,7 @@ func (a *App) setLogoless(v bool) {
 	if v {
 		a.chrome.Logo = nil
 	} else {
-		a.chrome.Logo = logoLines
+		a.chrome.Logo = dmLogo
 	}
 	a.resizeActiveView()
 }

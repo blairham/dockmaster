@@ -4,8 +4,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/viewfsm"
 
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // switchView jumps to a top-level view, clearing the drill stack. Used by

@@ -26,7 +26,7 @@ var (
 	_ Stoppable = (*EventsView)(nil)
 )
 
-// View is what every dockyard view implements.
+// View is what every dockmaster view implements.
 //
 // HandleKey returns an (action, param) pair rather than a tea.Cmd so the
 // app owns every mutation — a view can ask for a container to be killed,

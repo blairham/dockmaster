@@ -12,7 +12,7 @@ import (
 const PodmanName = "podman"
 
 // Podman drives `podman machine`. A podman machine serves the Docker API on
-// its own socket, so dockyard can connect to it like any daemon.
+// its own socket, so dockmaster can connect to it like any daemon.
 type Podman struct{ Run Runner }
 
 // Name implements Provider.
@@ -85,7 +85,7 @@ func (p Podman) List(ctx context.Context) ([]Machine, error) {
 	return machines, nil
 }
 
-// podmanInfo is the part of `podman machine inspect` dockyard reads: the
+// podmanInfo is the part of `podman machine inspect` dockmaster reads: the
 // Docker-API socket a running machine serves, and its modes.
 type podmanInfo struct {
 	ConnectionInfo struct {
@@ -138,7 +138,7 @@ func (p Podman) Restart(ctx context.Context, name string) error {
 	return p.Start(ctx, name)
 }
 
-// Delete implements Provider. -f skips podman's own prompt; dockyard asks.
+// Delete implements Provider. -f skips podman's own prompt; dockmaster asks.
 func (p Podman) Delete(ctx context.Context, name string) error {
 	return p.machine(ctx, "rm", name, "-f")
 }

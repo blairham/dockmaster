@@ -9,9 +9,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // actionTimeout bounds every mutating call. A container that refuses to
@@ -55,7 +55,7 @@ var mutating = map[string]bool{
 }
 
 // handleAction turns a view's (action, param) request into state changes
-// and commands. Every mutation in dockyard funnels through here.
+// and commands. Every mutation in dockmaster funnels through here.
 //
 //nolint:gocyclo,gocognit,funlen // flat action dispatch; splitting it hides the readonly gate
 func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
@@ -602,7 +602,7 @@ func splitNodeParam(p string) (node, id, name string) {
 }
 
 // dockerExecIt runs `docker exec -it target argv...` in the foreground,
-// against the daemon dockyard is showing.
+// against the daemon dockmaster is showing.
 func (a *App) dockerExecIt(target string, argv ...string) tea.Cmd {
 	bin, err := exec.LookPath("docker")
 	if err != nil {
@@ -643,8 +643,8 @@ func asExitError(err error, target **exec.ExitError) bool {
 }
 
 // dockerHostArg returns the endpoint to pass to the docker CLI so an exec
-// lands on the same daemon dockyard is showing. Without it, switching
-// context inside dockyard and then pressing `s` would exec against
+// lands on the same daemon dockmaster is showing. Without it, switching
+// context inside dockmaster and then pressing `s` would exec against
 // whatever context the *shell* has — a different machine, potentially.
 func (a *App) dockerHostArg() string {
 	if a.client == nil {

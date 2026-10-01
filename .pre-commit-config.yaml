@@ -1,4 +1,4 @@
-# Pre-commit configuration for dockyard
+# Pre-commit configuration for dockmaster
 # Install: pre-commit install
 # Run:     pre-commit run --all-files
 # Update:  pre-commit autoupdate

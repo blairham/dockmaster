@@ -24,7 +24,7 @@ files the project was brought up with, and the labels record exactly that:
 | `com.docker.compose.project.config_files` (comma-separated) | one `-f` each |
 | `com.docker.compose.project.environment_file` (comma-separated) | one `--env-file` each |
 
-Every invocation also passes `--host`, so compose acts on the daemon dockyard
+Every invocation also passes `--host`, so compose acts on the daemon dockmaster
 is showing rather than the shell's current context.
 
 | Key | Verb | Confirms |

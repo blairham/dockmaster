@@ -9,7 +9,7 @@ import (
 )
 
 func TestParseEmptyIsDefault(t *testing.T) {
-	for _, in := range []string{"", "dockyard:\n", "# only a comment\n"} {
+	for _, in := range []string{"", "dockmaster:\n", "# only a comment\n"} {
 		got, err := Parse(strings.NewReader(in))
 		if err != nil {
 			t.Fatalf("Parse(%q): %v", in, err)
@@ -21,7 +21,7 @@ func TestParseEmptyIsDefault(t *testing.T) {
 }
 
 func TestParseOverlaysDefaults(t *testing.T) {
-	got, err := Parse(strings.NewReader(`dockyard:
+	got, err := Parse(strings.NewReader(`dockmaster:
   refreshRate: 7
   requestTimeout: 90s
   readOnly: true
@@ -55,8 +55,8 @@ func TestParseOverlaysDefaults(t *testing.T) {
 // must fail loudly, not be ignored as though it took effect.
 func TestParseRejectsUnknownKeys(t *testing.T) {
 	for _, in := range []string{
-		"dockyard:\n  readonly: true\n", // k9s spells it readOnly
-		"dockyard:\n  ui:\n    logoLess: true\n",
+		"dockmaster:\n  readonly: true\n", // k9s spells it readOnly
+		"dockmaster:\n  ui:\n    logoLess: true\n",
 		"k9s:\n  refreshRate: 2\n",
 	} {
 		_, err := Parse(strings.NewReader(in))
@@ -70,15 +70,15 @@ func TestParseRejectsUnknownKeys(t *testing.T) {
 
 func TestParseRejectsBadValues(t *testing.T) {
 	for in, want := range map[string]string{
-		"dockyard:\n  thresholds:\n    cpu:\n      warn: 90\n      critical: 70\n": "thresholds.cpu",
-		"dockyard:\n  thresholds:\n    memory:\n      critical: 101\n":             "thresholds.memory",
-		"dockyard:\n  refreshRate: 0\n":                                            "refreshRate",
-		"dockyard:\n  requestTimeout: -1s\n":                                       "requestTimeout",
-		"dockyard:\n  requestTimeout: soon\n":                                      "line 2",
-		"dockyard:\n  logger:\n    tail: 0\n":                                      "logger.tail",
-		"dockyard:\n  logger:\n    tail: -5\n":                                     "logger.tail",
-		"dockyard:\n  refreshRate: fast\n":                                         "line 2",
-		"dockyard:\n  logger:\n    tail: 1e9\n":                                    "tail",
+		"dockmaster:\n  thresholds:\n    cpu:\n      warn: 90\n      critical: 70\n": "thresholds.cpu",
+		"dockmaster:\n  thresholds:\n    memory:\n      critical: 101\n":             "thresholds.memory",
+		"dockmaster:\n  refreshRate: 0\n":                                            "refreshRate",
+		"dockmaster:\n  requestTimeout: -1s\n":                                       "requestTimeout",
+		"dockmaster:\n  requestTimeout: soon\n":                                      "line 2",
+		"dockmaster:\n  logger:\n    tail: 0\n":                                      "logger.tail",
+		"dockmaster:\n  logger:\n    tail: -5\n":                                     "logger.tail",
+		"dockmaster:\n  refreshRate: fast\n":                                         "line 2",
+		"dockmaster:\n  logger:\n    tail: 1e9\n":                                    "tail",
 	} {
 		_, err := Parse(strings.NewReader(in))
 		if err == nil || !strings.Contains(err.Error(), want) {
@@ -110,7 +110,7 @@ func TestLoadMissingFileIsDefault(t *testing.T) {
 
 func TestLoadNamesTheFileInErrors(t *testing.T) {
 	p := filepath.Join(t.TempDir(), FileName)
-	if err := os.WriteFile(p, []byte("dockyard:\n  bogus: 1\n"), 0o600); err != nil {
+	if err := os.WriteFile(p, []byte("dockmaster:\n  bogus: 1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(p); err == nil || !strings.Contains(err.Error(), p) {
@@ -129,9 +129,9 @@ func TestDirPrecedence(t *testing.T) {
 			t.Errorf("Dir() = %q, %v; want %q", got, err, want)
 		}
 	}
-	check(filepath.Join(home, ".config", "dockyard"))
+	check(filepath.Join(home, ".config", "dockmaster"))
 	t.Setenv("XDG_CONFIG_HOME", "/xdg")
-	check(filepath.Join("/xdg", "dockyard"))
+	check(filepath.Join("/xdg", "dockmaster"))
 	t.Setenv(EnvDir, "/explicit")
 	check("/explicit")
 }

@@ -32,7 +32,7 @@ be a lie. `TestDetect` pins that case.
 **Single-engine runtimes are "running" when their daemon answers a ping** on
 their endpoint. Each app has its own notion of status, but whether the daemon
 answers is the one that means the same thing for all three, and it is the one
-dockyard cares about.
+dockmaster cares about.
 
 **A runtime's own status wins over the ping** where it has one: `docker
 desktop status --format json` and `orb status`. Found live: with Docker
@@ -46,7 +46,7 @@ leaves the disk alone omits the flag. Found live; `TestPodmanVerbs` pins it.
 
 **Starting OrbStack or Docker Desktop switches the docker CLI's current
 context** to theirs (`~/.docker/config.json`). A shell that sets
-`DOCKER_CONTEXT` keeps its own; dockyard follows the same precedence.
+`DOCKER_CONTEXT` keeps its own; dockmaster follows the same precedence.
 
 **Units.** Forms take GiB everywhere; podman takes memory in MiB, so the Podman
 provider converts. `TestPodmanVerbs` pins the argv.
@@ -83,9 +83,9 @@ and its containers (confirms), `o`/`enter` inspects it.
 ## Daemon down at startup
 
 When the resolved endpoint does not answer, `engines.Owner` asks every detected
-runtime whether one of its machines serves it. If one does, dockyard opens on
+runtime whether one of its machines serves it. If one does, dockmaster opens on
 the runtimes view with a notice instead of exiting — starting that machine is
-the fix, and dockyard can do it. Otherwise it fails with the usual one-line
+the fix, and dockmaster can do it. Otherwise it fails with the usual one-line
 error.
 
 ## What carries over from Colima
@@ -93,7 +93,7 @@ error.
 Busy markers (a start runs for a minute while the runtime still says
 "Stopped"), the ten-minute lifecycle timeout, confirming stop/restart/delete
 (each takes every container in the VM with it), reconnecting after starting or
-restarting the machine dockyard is connected to, and the create/edit form — see
+restarting the machine dockmaster is connected to, and the create/edit form — see
 `colima.md`, which is still the reference for those choices.
 
 ## Verified live (2026-10-01)

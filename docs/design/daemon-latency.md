@@ -33,7 +33,7 @@ global: 20 s for containers and networks, 60 s for volumes, and
 `imageListTimeout` = **5 minutes** for images, with a comment saying why.
 
 **3. The CPU/MEM sampler is opt-outable.** It costs one blocking request per
-running container per poll — by far the most expensive thing dockyard does —
+running container per poll — by far the most expensive thing dockmaster does —
 so `<t>` turns it off and `--no-stats` starts it off. The fan-out is bounded
 at 12 concurrent requests: they must be parallel (each blocks ~1 s server-side)
 but 200 containers must not mean 200 simultaneous connections.

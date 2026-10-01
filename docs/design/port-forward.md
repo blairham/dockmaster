@@ -21,13 +21,13 @@ This reaches ports the target never published, which is the point.
 - **Loopback only.** The helper publishes on `127.0.0.1`, so a forward is
   reachable from this machine and nowhere else — the same as
   `kubectl port-forward`'s default. `TestForwardConfig` pins it.
-- **Labeled.** Every helper carries `dockyard.portforward=*` labels (target ID
+- **Labeled.** Every helper carries `dockmaster.portforward=*` labels (target ID
   and name, local and remote port), so `:pf` lists forwards from the daemon
   alone, and they are told apart from user containers.
 - **AutoRemove.** Stopping a helper is the whole cleanup.
-- **Forwards end with dockyard**, as k9s's do: quitting stops the forwards
+- **Forwards end with dockmaster**, as k9s's do: quitting stops the forwards
   this session started (bounded to 10 s, best effort). Helpers would
-  otherwise outlive dockyard and keep their ports.
+  otherwise outlive dockmaster and keep their ports.
 - **The target's first network with an address.** Host- and none-networked
   containers are refused with the reason.
 - The helper image is pulled on first use (a few megabytes).

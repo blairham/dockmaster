@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/blairham/dockyard/internal/colima"
+	"github.com/blairham/dockmaster/internal/colima"
 )
 
 // ColimaName is the colima provider's name.

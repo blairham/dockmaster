@@ -12,8 +12,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/blairham/tuikit/tail"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // logBatchWindow is how long a drain waits to accumulate lines before
@@ -369,7 +369,7 @@ func (v *LogsView) Status() string {
 }
 
 // paintTailBackground gives a tail the theme's background only when the
-// theme paints one. dockyard's theme does not — it leaves the terminal's own
+// theme paints one. dockmaster's theme does not — it leaves the terminal's own
 // background showing, as every table does — and painting Bg anyway turned the
 // log and inspect panes solid black, with the terminal's color bleeding back
 // through wherever a log line's own color codes reset it.
@@ -396,7 +396,7 @@ const logTabWidth = 4
 // Container output is written for a terminal, not for a cell in someone
 // else's layout. A TTY container ends every line in \r; a progress bar
 // rewrites itself with bare \r; systemd erases to the end of the line with
-// \x1b[K. Inside dockyard's frame each of those acts on the frame itself —
+// \x1b[K. Inside dockmaster's frame each of those acts on the frame itself —
 // a \r returns the cursor to column 0 and the next cells overwrite the box's
 // left edge, an erase wipes out its right border. So: keep only what a
 // terminal would finally show after the last carriage return, drop every

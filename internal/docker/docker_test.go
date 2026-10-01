@@ -108,7 +108,7 @@ func TestProjectsFoldByLabel(t *testing.T) {
 func TestContextDigestMatchesDockerCLI(t *testing.T) {
 	// The docker CLI names each context-store directory with the hex
 	// SHA-256 of the context name. This value was taken from a real
-	// store; if it ever stops matching, dockyard silently falls back to
+	// store; if it ever stops matching, dockmaster silently falls back to
 	// the default socket and reports a dead daemon on a live machine.
 	const wantColima = "f24fd3749c1368328e2b149bec149cb6795619f244c5b584e844961215dadd16"
 	if got := contextDigest("colima"); got != wantColima {

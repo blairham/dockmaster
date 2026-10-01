@@ -84,7 +84,7 @@ func TestMissingFile(t *testing.T) {
 }
 
 // TestComposeVerbs pins each verb's full argv, --host first so compose acts
-// on the daemon dockyard is showing.
+// on the daemon dockmaster is showing.
 func TestComposeVerbs(t *testing.T) {
 	var calls []string
 	run := func(_ context.Context, args ...string) ([]byte, error) {

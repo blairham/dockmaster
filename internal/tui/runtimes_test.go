@@ -9,10 +9,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/colima"
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/colima"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 const colimaListJSON = `{"name":"default","status":"Running","arch":"aarch64","cpus":8,"memory":17179869184,"disk":107374182400,"runtime":"docker"}

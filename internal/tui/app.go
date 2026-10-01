@@ -1,4 +1,4 @@
-// Package tui is dockyard's bubbletea layer: one root App model, a map of
+// Package tui is dockmaster's bubbletea layer: one root App model, a map of
 // views keyed by [style.ViewType], and the tuikit chrome around them.
 //
 // Views render and report intent; the App
@@ -16,11 +16,11 @@ import (
 	"github.com/blairham/tuikit/loading"
 	"github.com/blairham/tuikit/viewfsm"
 
-	"github.com/blairham/dockyard/internal/config"
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/config"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 const (
@@ -46,18 +46,33 @@ type tickMsg time.Time
 // splashDoneMsg fires when the splash duration elapses.
 type splashDoneMsg struct{}
 
-// logoLines is dockyard's logo, in the figlet "Graffiti" font — the font
+// logoLines is dockmaster's splash logo, in the figlet "Graffiti" font — the font
 // k9s draws its own logo in, so the two read as the same family side by
-// side. It is generated, not drawn: `figlet -f graffiti dockyard` (or
+// side. It is generated, not drawn: `figlet -f graffiti dockmaster` (or
 // pyfiglet) reproduces it. Every line is padded to the same width so the
 // block aligns. The header and the splash use the same art.
 var logoLines = []string{
-	`    .___             __                            .___`,
-	`  __| _/____   ____ |  | _____.__._____ _______  __| _/`,
-	` / __ |/  _ \_/ ___\|  |/ <   |  |\__  \\_  __ \/ __ | `,
-	`/ /_/ (  <_> )  \___|    < \___  | / __ \|  | \/ /_/ | `,
-	`\____ |\____/ \___  >__|_ \/ ____|(____  /__|  \____ | `,
-	`     \/           \/     \/\/          \/           \/ `,
+	`    .___             __                            __                `,
+	`  __| _/____   ____ |  | __ _____ _____    _______/  |_  ___________ `,
+	` / __ |/  _ \_/ ___\|  |/ //     \\__  \  /  ___/\   __\/ __ \_  __ \`,
+	`/ /_/ (  <_> )  \___|    <|  Y Y  \/ __ \_\___ \  |  | \  ___/|  | \/`,
+	`\____ |\____/ \___  >__|_ \__|_|  (____  /____  > |__|  \___  >__|   `,
+	`     \/           \/     \/     \/     \/     \/            \/       `,
+}
+
+// dmLogo is the logo the header draws: DM, dockmaster's short name, in
+// the same Graffiti font. The full name is 69 columns and the header only
+// had room for it from 186; DM fits beside every column at k9s's widths.
+// The splash keeps the full name (logoLines). `figlet -f graffiti DM`
+// reproduces it; it is written as quoted strings because the art contains
+// a backtick, which a raw string cannot.
+var dmLogo = []string{
+	"________      _____   ",
+	"\\______ \\    /     \\  ",
+	" |    |  \\  /  \\ /  \\ ",
+	" |    `   \\/    Y    \\",
+	"/_______  /\\____|__  /",
+	"        \\/         \\/ ",
 }
 
 // loadingTips rotate beside the spinner. Index 0 doubles as the splash
@@ -72,7 +87,7 @@ var loadingTips = []string{
 	"Tip: </> filters; a leading ! negates the match",
 	"Tip: <s> drops you into a shell inside the selected container",
 	"Tip: <ctrl-d> removes; every destructive key asks first",
-	"Tip: <:ctx> switches docker contexts without leaving dockyard",
+	"Tip: <:ctx> switches docker contexts without leaving dockmaster",
 	"Dangling images are the ones no tag points at any more",
 	"Tip: <f> pauses log follow so you can scroll back",
 }
@@ -147,7 +162,7 @@ type Options struct {
 	// podman, Docker Desktop, ...); empty when there are none.
 	Engines []engines.Provider
 	// Notice is shown as an error flash on the first frame. main sets it
-	// when the daemon did not answer and dockyard started anyway.
+	// when the daemon did not answer and dockmaster started anyway.
 	Notice   string
 	Version  string
 	ReadOnly bool
@@ -213,14 +228,14 @@ func NewApp(client *docker.Client, opts Options) *App {
 
 	chromeCfg := chrome.Config{
 		Theme:         t,
-		InfoPanelRows: 5, // Context, Host, Version, Containers, Dockyard Rev
+		InfoPanelRows: 5, // Context, Host, Version, Containers, Dockmaster Rev
 		// Six view digits, one per row; tuikit would otherwise budget five
 		// when logoless and the sixth would overflow the header.
 		ShortcutRows: 6,
 		MinLogoWidth: 120,
 	}
 	if !opts.Logoless {
-		chromeCfg.Logo = logoLines
+		chromeCfg.Logo = dmLogo
 	}
 	ch := chrome.New(chromeCfg)
 	ch.HeaderHidden = opts.Headless

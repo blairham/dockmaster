@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/blairham/dockyard/internal/colima"
+	"github.com/blairham/dockmaster/internal/colima"
 )
 
 // Env is what detection consults, swappable so tests decide what is
@@ -166,7 +166,7 @@ func quitApp(name string) []string {
 }
 
 // Owner finds the machine that serves a docker endpoint, among every
-// detected runtime — how dockyard knows that a daemon it cannot reach is a
+// detected runtime — how dockmaster knows that a daemon it cannot reach is a
 // machine it could start.
 func Owner(ctx context.Context, providers []Provider, host string) (Machine, bool) {
 	if host == "" {

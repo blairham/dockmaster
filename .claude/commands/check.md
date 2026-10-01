@@ -1,5 +1,5 @@
 ---
-description: Build, vet and test dockyard
+description: Build, vet and test dockmaster
 allowed-tools: Bash(make:*), Bash(go:*)
 ---
 

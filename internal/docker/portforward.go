@@ -19,11 +19,11 @@ import (
 // Port-forward helper labels. Every helper carries them, so the forwards
 // can be listed from the daemon alone and told apart from user containers.
 const (
-	LabelForward           = "dockyard.portforward"
-	LabelForwardTarget     = "dockyard.portforward.target"
-	LabelForwardTargetName = "dockyard.portforward.target-name"
-	LabelForwardLocal      = "dockyard.portforward.local"
-	LabelForwardRemote     = "dockyard.portforward.remote"
+	LabelForward           = "dockmaster.portforward"
+	LabelForwardTarget     = "dockmaster.portforward.target"
+	LabelForwardTargetName = "dockmaster.portforward.target-name"
+	LabelForwardLocal      = "dockmaster.portforward.local"
+	LabelForwardRemote     = "dockmaster.portforward.remote"
 )
 
 // ForwardImage relays one TCP port. socat is the whole program; the image
@@ -99,7 +99,7 @@ func forwardEndpoint(c Container) (Endpoint, error) {
 
 // forwardName is the helper's container name.
 func forwardName(target string, local int) string {
-	return fmt.Sprintf("dockyard-pf-%s-%d", target, local)
+	return fmt.Sprintf("dockmaster-pf-%s-%d", target, local)
 }
 
 // forwardConfig builds the helper container: socat listening on the local

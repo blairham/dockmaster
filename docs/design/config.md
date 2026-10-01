@@ -1,25 +1,25 @@
 # Design: config.yaml
 
 **Status:** Living
-**Code:** `internal/config/config.go`, `internal/config/flags.go` (flag layering, `dockyard config`)
+**Code:** `internal/config/config.go`, `internal/config/flags.go` (flag layering, `dockmaster config`)
 
 ## Shape
 
-The file follows k9s's `config.yaml`: a single top-level key, `dockyard:`
+The file follows k9s's `config.yaml`: a single top-level key, `dockmaster:`
 here and `k9s:` there, with the same camelCase key names where the settings
 match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` — `ui.headless`, `ui.logoless`,
 `ui.crumbsless`, `ui.splashless`, `logger.tail`, `logger.showTime`). Settings
 k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
-spelling. `dockyard config init` writes the commented defaults
+spelling. `dockmaster config init` writes the commented defaults
 (`config.Sample`); `TestSampleIsTheDefaults` keeps that sample in step with
 `config.Default()`.
 
 ## Where it lives
 
-`$DOCKYARD_CONFIG_DIR/config.yaml`, else `$XDG_CONFIG_HOME/dockyard/config.yaml`,
-else `~/.config/dockyard/config.yaml`. `dockyard config path` prints the
+`$DOCKMASTER_CONFIG_DIR/config.yaml`, else `$XDG_CONFIG_HOME/dockmaster/config.yaml`,
+else `~/.config/dockmaster/config.yaml`. `dockmaster config path` prints the
 answer. k9s's own default on macOS is `~/Library/Application Support`;
-dockyard uses `~/.config` on every platform, where command-line tools keep
+dockmaster uses `~/.config` on every platform, where command-line tools keep
 their dotfiles.
 
 ## Precedence
@@ -70,5 +70,5 @@ no threshold colour.
 ## Not yet
 
 k9s's `skin`, `logger.buffer` and `logger.sinceSeconds`, and
-`liveViewAutoRefresh` have no dockyard equivalent yet. Each lands in this
+`liveViewAutoRefresh` have no dockmaster equivalent yet. Each lands in this
 file when its feature does.

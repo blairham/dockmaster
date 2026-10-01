@@ -4,8 +4,8 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // ContextsRefreshMsg carries the docker context store listing.
@@ -14,11 +14,11 @@ type ContextsRefreshMsg struct {
 }
 
 // ContextsView lists the docker contexts from the CLI's context store and
-// lets the user switch dockyard's daemon endpoint to any of them.
+// lets the user switch dockmaster's daemon endpoint to any of them.
 //
 // This exists because the context store is the *only* place the endpoint
 // lives for Colima, Rancher Desktop, Podman, and remote hosts. Without it
-// dockyard would dial /var/run/docker.sock and report a dead daemon on a
+// dockmaster would dial /var/run/docker.sock and report a dead daemon on a
 // machine where `docker ps` works fine.
 type ContextsView struct {
 	current string
@@ -32,7 +32,7 @@ type ContextsView struct {
 }
 
 // NewContextsView builds the context switcher. current is the context
-// dockyard is presently connected through.
+// dockmaster is presently connected through.
 func NewContextsView(current string) *ContextsView {
 	t := table.New(
 		table.WithColumns(contextColumns()),

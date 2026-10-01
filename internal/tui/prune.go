@@ -9,7 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
+	"github.com/blairham/dockmaster/internal/docker"
 )
 
 // pruneStep is one stage of a combined prune: what it removes, and how.

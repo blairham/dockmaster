@@ -42,7 +42,7 @@ func TestDefaultForwardSpec(t *testing.T) {
 
 // TestForwardConfig pins the helper: socat relays the local port to the
 // target's address on the target's network, published on loopback only,
-// labeled so dockyard can list it, and removed when stopped.
+// labeled so dockmaster can list it, and removed when stopped.
 func TestForwardConfig(t *testing.T) {
 	target := Container{
 		ID: "abc123", Name: "web",
@@ -73,7 +73,7 @@ func TestForwardConfig(t *testing.T) {
 			t.Errorf("label %s = %q, want %q", k, cfg.Labels[k], want)
 		}
 	}
-	if forwardName("web", 18080) != "dockyard-pf-web-18080" {
+	if forwardName("web", 18080) != "dockmaster-pf-web-18080" {
 		t.Error("helper name changed")
 	}
 }

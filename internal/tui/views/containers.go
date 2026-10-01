@@ -1,4 +1,4 @@
-// Package views holds dockyard's resource views. Each implements [View]:
+// Package views holds dockmaster's resource views. Each implements [View]:
 // it renders a table or viewport, reports its row count and loading state,
 // and translates keystrokes into (action, param) requests that the app
 // layer — not the view — carries out.
@@ -13,8 +13,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // pending is shown in a column whose value has not arrived yet. It is
@@ -152,7 +152,7 @@ func (v *ContainersView) StatsEnabled() bool { return v.statsOn }
 
 // ToggleStats turns the CPU/MEM poll on or off. Off is worth having: the
 // stats endpoint costs one blocking request per running container per
-// poll, which on a large host is the most expensive thing dockyard does.
+// poll, which on a large host is the most expensive thing dockmaster does.
 func (v *ContainersView) ToggleStats() {
 	v.statsOn = !v.statsOn
 	if !v.statsOn {

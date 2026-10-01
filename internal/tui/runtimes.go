@@ -9,9 +9,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/engines"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // runtimeTimeout bounds a runtime lifecycle call. A first start provisions
@@ -73,7 +73,7 @@ func (a *App) runtimeRun(p engines.Provider, name, busy, verb string, fn func(co
 }
 
 // handleRuntimeDone clears the busy marker and reports. When the machine
-// serves dockyard's daemon, a start or restart reconnects — the old client
+// serves dockmaster's daemon, a start or restart reconnects — the old client
 // negotiated against a daemon that no longer exists.
 func (a *App) handleRuntimeDone(msg runtimeDoneMsg) (tea.Model, tea.Cmd) {
 	rv := a.runtimesView()
@@ -93,7 +93,7 @@ func (a *App) handleRuntimeDone(msg runtimeDoneMsg) (tea.Model, tea.Cmd) {
 	a.flash = msg.verb + " " + label
 
 	m, ok := rv.Machine(msg.provider, msg.name)
-	if !ok || !a.servesDockyard(m) {
+	if !ok || !a.servesDockmaster(m) {
 		return a, refresh
 	}
 	switch msg.verb {
@@ -105,13 +105,13 @@ func (a *App) handleRuntimeDone(msg runtimeDoneMsg) (tea.Model, tea.Cmd) {
 		}
 		return a, tea.Batch(refresh, doSwitchContextKeep(name, m.Host, true))
 	case "stopped", "deleted":
-		a.flash += " — dockyard has no daemon until a machine is started"
+		a.flash += " — dockmaster has no daemon until a machine is started"
 	}
 	return a, refresh
 }
 
-// servesDockyard reports whether m is the machine dockyard's daemon runs on.
-func (a *App) servesDockyard(m engines.Machine) bool {
+// servesDockmaster reports whether m is the machine dockmaster's daemon runs on.
+func (a *App) servesDockmaster(m engines.Machine) bool {
 	return m.Host != "" && a.client != nil && m.Host == a.client.Host
 }
 
@@ -128,7 +128,7 @@ func (a *App) runtimeStart(key string) tea.Cmd {
 }
 
 // runtimeQuestion is the confirm prompt for a destructive verb. It says so
-// when the machine is dockyard's own daemon, since then every other view
+// when the machine is dockmaster's own daemon, since then every other view
 // goes dark too.
 func (a *App) runtimeQuestion(verb, key string) (string, bool) {
 	p, m, ok := a.runtimeTarget(key)
@@ -149,8 +149,8 @@ func (a *App) runtimeQuestion(verb, key string) (string, bool) {
 	case "delete":
 		q = fmt.Sprintf("delete %s? the VM and everything in it is destroyed", label)
 	}
-	if a.servesDockyard(m) {
-		q += " — dockyard is connected to it"
+	if a.servesDockmaster(m) {
+		q += " — dockmaster is connected to it"
 	}
 	return q, true
 }
@@ -183,7 +183,7 @@ func (a *App) runtimeConfirmed(verb, key string) tea.Cmd {
 	return nil
 }
 
-// runtimeConnect points dockyard at a machine's daemon.
+// runtimeConnect points dockmaster at a machine's daemon.
 func (a *App) runtimeConnect(key string) tea.Cmd {
 	_, m, ok := a.runtimeTarget(key)
 	if !ok {
@@ -196,7 +196,7 @@ func (a *App) runtimeConnect(key string) tea.Cmd {
 	case m.Host == "":
 		a.errFlash = "no docker endpoint known for " + m.Name
 		return nil
-	case a.servesDockyard(m):
+	case a.servesDockmaster(m):
 		a.flash = "already connected to " + m.Name
 		return nil
 	}
@@ -316,8 +316,8 @@ func (a *App) runtimeApply(param string) tea.Cmd {
 	}
 	if m.Running {
 		q := fmt.Sprintf("apply to %s? it restarts — every container in it stops", runtimeLabel(p, name))
-		if a.servesDockyard(m) {
-			q += " — dockyard is connected to it"
+		if a.servesDockmaster(m) {
+			q += " — dockmaster is connected to it"
 		}
 		a.openConfirm("runtime_apply", param, q)
 		return nil

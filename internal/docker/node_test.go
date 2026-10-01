@@ -7,7 +7,7 @@ import (
 )
 
 // crictlPS is the shape of `crictl ps -a -o json` from a kind v1.35 node,
-// trimmed to three containers and the fields dockyard reads.
+// trimmed to three containers and the fields dockmaster reads.
 const crictlPS = `{"containers":[
  {"id":"432f5e11b60d","metadata":{"name":"sxbet-rest-oegw","attempt":0},
   "image":{"image":"sha256:86fc","userSpecifiedImage":"legate-sxbet-rest-oegw:a286feffbc32"},

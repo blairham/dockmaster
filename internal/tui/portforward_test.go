@@ -7,9 +7,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/docker"
-	"github.com/blairham/dockyard/internal/tui/style"
-	"github.com/blairham/dockyard/internal/tui/views"
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 func forwardApp(t *testing.T, opts Options) (*App, *[]string) {
@@ -117,7 +117,7 @@ func TestForwardReadonly(t *testing.T) {
 	}
 }
 
-// TestQuitStopsSessionForwards: forwards end with dockyard, as k9s's do —
+// TestQuitStopsSessionForwards: forwards end with dockmaster, as k9s's do —
 // the helpers would otherwise outlive it and keep their ports.
 func TestQuitStopsSessionForwards(t *testing.T) {
 	a, _ := forwardApp(t, Options{})

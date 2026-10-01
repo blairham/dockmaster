@@ -107,7 +107,7 @@ func (p Podman) Pods(ctx context.Context) ([]Pod, error) {
 }
 
 // PodVerb runs a pod lifecycle verb — start, stop, restart, rm — in the
-// pod's machine. rm is forced: dockyard has already asked.
+// pod's machine. rm is forced: dockmaster has already asked.
 func (p Podman) PodVerb(ctx context.Context, machine, pod, verb string) error {
 	m, err := p.machineNamed(ctx, machine)
 	if err != nil {

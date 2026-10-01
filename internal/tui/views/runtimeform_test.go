@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockyard/internal/engines"
+	"github.com/blairham/dockmaster/internal/engines"
 )
 
 var sgrStrip = regexp.MustCompile(`\x1b\[[0-9;]*m`)

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/blairham/dockyard/internal/docker"
+	"github.com/blairham/dockmaster/internal/docker"
 )
 
 func TestFormatDiff(t *testing.T) {

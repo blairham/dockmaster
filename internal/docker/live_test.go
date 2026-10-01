@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blairham/dockyard/internal/docker"
+	"github.com/blairham/dockmaster/internal/docker"
 )
 
 // dial returns a live client, or skips the test when no daemon is

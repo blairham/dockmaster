@@ -1,5 +1,5 @@
-// Package config loads dockyard's config.yaml, shaped after k9s's: one
-// top-level `dockyard:` key, with `ui:` and `logger:` blocks under it.
+// Package config loads dockmaster's config.yaml, shaped after k9s's: one
+// top-level `dockmaster:` key, with `ui:` and `logger:` blocks under it.
 //
 // Precedence is defaults, then the file, then any flag set on the command
 // line — main applies flags over what Load returns. A missing file is not
@@ -23,7 +23,7 @@ import (
 
 // EnvDir names the environment variable that overrides the config
 // directory, as K9S_CONFIG_DIR does for k9s.
-const EnvDir = "DOCKYARD_CONFIG_DIR"
+const EnvDir = "DOCKMASTER_CONFIG_DIR"
 
 // FileName is the config file inside the config directory.
 const FileName = "config.yaml"
@@ -41,7 +41,7 @@ const (
 
 // File is the on-disk shape.
 type File struct {
-	Dockyard Config `yaml:"dockyard"`
+	Dockmaster Config `yaml:"dockmaster"`
 }
 
 // Config is everything config.yaml can set.
@@ -113,20 +113,20 @@ func Default() Config {
 	}
 }
 
-// Dir is the config directory: $DOCKYARD_CONFIG_DIR, else
-// $XDG_CONFIG_HOME/dockyard, else ~/.config/dockyard.
+// Dir is the config directory: $DOCKMASTER_CONFIG_DIR, else
+// $XDG_CONFIG_HOME/dockmaster, else ~/.config/dockmaster.
 func Dir() (string, error) {
 	if d := os.Getenv(EnvDir); d != "" {
 		return d, nil
 	}
 	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "dockyard"), nil
+		return filepath.Join(x, "dockmaster"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("locating the config directory: %w", err)
 	}
-	return filepath.Join(home, ".config", "dockyard"), nil
+	return filepath.Join(home, ".config", "dockmaster"), nil
 }
 
 // Path is the config file's path.
@@ -162,20 +162,20 @@ var unknownField = regexp.MustCompile(`field (\S+) not found in type \S+`)
 
 // Parse decodes a config file over the defaults and validates it.
 func Parse(r io.Reader) (Config, error) {
-	file := File{Dockyard: Default()}
+	file := File{Dockmaster: Default()}
 	dec := yaml.NewDecoder(r)
 	dec.KnownFields(true)
 	if err := dec.Decode(&file); err != nil && !errors.Is(err, io.EOF) {
 		return Config{}, errors.New(unknownField.ReplaceAllString(err.Error(), `unknown key "$1"`))
 	}
-	cfg := file.Dockyard
+	cfg := file.Dockmaster
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil
 }
 
-// Validate rejects values dockyard cannot run with.
+// Validate rejects values dockmaster cannot run with.
 func (c Config) Validate() error {
 	var errs []string
 	if c.RefreshRate < 1 {
@@ -203,10 +203,10 @@ func (c Config) Validate() error {
 }
 
 // Sample is a commented config.yaml holding the defaults, for
-// `dockyard config init` and the docs.
-const Sample = `# dockyard config — see docs/design/config.md. Every key is optional; command-line
+// `dockmaster config init` and the docs.
+const Sample = `# dockmaster config — see docs/design/config.md. Every key is optional; command-line
 # flags override what is set here.
-dockyard:
+dockmaster:
   # Auto-refresh interval, in seconds (minimum 1) (-r).
   refreshRate: 3
   # How long one daemon request may take (--request-timeout), as 30s or 2m.

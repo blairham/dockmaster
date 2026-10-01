@@ -5,7 +5,7 @@
 
 ## Purpose
 
-dockyard is a k9s-style TUI over the Docker Engine API. This note records the
+dockmaster is a k9s-style TUI over the Docker Engine API. This note records the
 layering and the two invariants that keep it from turning into nine views that
 each know how to delete things.
 
@@ -70,5 +70,5 @@ convention expressed through `com.docker.compose.project` labels, so
 `ProjectsView` folds the same container list the containers view uses
 (`docker.Projects`), and drilling into a project is a *filtered containers
 view* rather than a new data source. Containers with no project label form no
-bucket — inventing a "(standalone)" project would make dockyard's count
+bucket — inventing a "(standalone)" project would make dockmaster's count
 disagree with `docker compose ls`.

@@ -5,10 +5,10 @@ import (
 	tktable "github.com/blairham/tuikit/table"
 	"github.com/blairham/tuikit/theme"
 
-	"github.com/blairham/dockyard/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
-// pkgTheme is dockyard's theme. It paints the canvas, so tables render in
+// pkgTheme is dockmaster's theme. It paints the canvas, so tables render in
 // tuikit's full paint mode: every cell carries the background, and
 // FixSelectedRow re-asserts the selection across per-cell resets.
 var pkgTheme = style.Base()

@@ -99,7 +99,7 @@ func (Single) Create(context.Context, string, Config) error { return ErrUnsuppor
 func (Single) Edit(context.Context, string, Config, bool) error { return ErrUnsupported }
 
 // Inspect implements Provider: the runtime's own status report where it has
-// one, else what dockyard knows.
+// one, else what dockmaster knows.
 func (s Single) Inspect(ctx context.Context, _ string) ([]byte, error) {
 	if len(s.StatusC) > 0 && s.Run != nil {
 		if out, err := s.Run(ctx, s.StatusC[0], s.StatusC[1:]...); err == nil {

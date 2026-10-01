@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blairham/dockyard/internal/docker"
+	"github.com/blairham/dockmaster/internal/docker"
 )
 
 var ansiSGR = regexp.MustCompile("\x1b\\[[0-9;]*m")

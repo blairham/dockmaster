@@ -67,7 +67,7 @@ func ApplyFlags(cfg Config, set map[string]bool, v FlagValues) Config {
 	return cfg
 }
 
-// Command runs `dockyard config path|init`; args follow "config".
+// Command runs `dockmaster config path|init`; args follow "config".
 func Command(args []string, out io.Writer) error {
 	path, err := Path()
 	if err != nil {
@@ -84,7 +84,7 @@ func Command(args []string, out io.Writer) error {
 	case "init":
 		return writeSample(path, out)
 	}
-	return errors.New("usage: dockyard config path|init")
+	return errors.New("usage: dockmaster config path|init")
 }
 
 // writeSample writes the commented defaults, refusing to replace a file

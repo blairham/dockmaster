@@ -5,7 +5,7 @@
 
 ## Purpose
 
-To explain why dockyard reimplements a piece of the docker CLI, and what
+To explain why dockmaster reimplements a piece of the docker CLI, and what
 breaks if this file is ever "simplified" back to `client.FromEnv`.
 
 ## The problem
@@ -25,7 +25,7 @@ the Docker daemon. Is the docker daemon running?"* — immediately after
 `docker ps` worked fine in the same shell. The error actively points the user
 at the wrong problem.
 
-This was not hypothetical: it is exactly what dockyard did on the first
+This was not hypothetical: it is exactly what dockmaster did on the first
 machine it was run on.
 
 ## The resolution order
@@ -49,7 +49,7 @@ $DOCKER_CONFIG/contexts/meta/<hex sha256 of the context name>/meta.json
 
 The directory name is the hex SHA-256 of the context name — `colima` hashes to
 `f24fd374…dadd16`. `TestContextDigestMatchesDockerCLI` pins that against a
-real value, because a drift here fails **silently**: dockyard would find no
+real value, because a drift here fails **silently**: dockmaster would find no
 entry, fall back to the default socket, and declare a live daemon dead. That
 is the worst failure shape available, so it gets a test rather than a comment.
 
@@ -63,5 +63,5 @@ follow it:
   its own rows; showing one daemon's containers under another daemon's name,
   even for a single tick, is how the wrong container gets killed.
 - **`s` (shell into a container)** passes `--host` to the `docker` CLI. Without
-  it, switching context inside dockyard and then pressing `s` would exec
+  it, switching context inside dockmaster and then pressing `s` would exec
   against whatever context the *shell* has — possibly a different machine.

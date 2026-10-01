@@ -119,7 +119,7 @@ func parseCrictlPS(out []byte) ([]NodeContainer, error) {
 }
 
 // NodeRemove removes an exited container inside node (`crictl rm`).
-// crictl refuses a running one without --force, and dockyard never passes
+// crictl refuses a running one without --force, and dockmaster never passes
 // it: a running container is the kubelet's, and it would only restart it.
 func (c *Client) NodeRemove(ctx context.Context, node, id string) error {
 	_, err := c.Exec(ctx, node, "crictl", "rm", id)

@@ -165,7 +165,7 @@ func (c *Client) Start(ctx context.Context, profile string) error {
 }
 
 // Config is the resource shape of a profile: the subset of `colima start`
-// flags dockyard can create a profile with or change on an existing one.
+// flags dockmaster can create a profile with or change on an existing one.
 // Zero fields are left to colima's defaults (on create) or to the profile's
 // saved configuration (on edit).
 type Config struct {
@@ -245,7 +245,7 @@ func (c *Client) Restart(ctx context.Context, profile string) error {
 }
 
 // Delete destroys a profile's VM. --force skips colima's own y/n prompt,
-// which has no terminal to ask on; dockyard confirms before calling this.
+// which has no terminal to ask on; dockmaster confirms before calling this.
 func (c *Client) Delete(ctx context.Context, profile string) error {
 	_, err := c.run(ctx, "delete", "--force", profile)
 	return err
@@ -284,7 +284,7 @@ func ContextName(profile string) string {
 }
 
 // ProfileForHost reports which profile serves a docker endpoint, if any.
-// It is the inverse of DockerHost, and how dockyard knows that the daemon
+// It is the inverse of DockerHost, and how dockmaster knows that the daemon
 // it cannot reach is a colima VM it could start.
 func (c *Client) ProfileForHost(host string) (string, bool) {
 	return ProfileForHost(c.home, host)

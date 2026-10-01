@@ -56,7 +56,7 @@ func (i Image) Age() string { return since(i.Created) }
 func (c *Client) Images(ctx context.Context, all bool) ([]Image, error) {
 	raw, err := c.api.ImageList(ctx, image.ListOptions{All: all})
 	if err != nil {
-		// A deadline here is not a dockyard problem and the bare
+		// A deadline here is not a dockmaster problem and the bare
 		// "context deadline exceeded" sends people looking in the wrong
 		// place. Some daemons genuinely cannot enumerate a large local
 		// image store — one here failed to finish in five minutes with

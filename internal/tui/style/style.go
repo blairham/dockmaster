@@ -1,4 +1,4 @@
-// Package style holds dockyard's palette, view enum, and the pre-built
+// Package style holds dockmaster's palette, view enum, and the pre-built
 // lipgloss styles the views share. It is a thin layer over
 // [github.com/blairham/tuikit/theme] — the colors flow from tuikit's
 // [theme.Default], which paints its black canvas behind every cell. The
@@ -6,7 +6,7 @@
 // showing around and between the panes.
 //
 // The [ViewType] enum and its helpers live here rather than in tuikit
-// because they are dockyard's own resource model.
+// because they are dockmaster's own resource model.
 package style
 
 import (
@@ -16,12 +16,12 @@ import (
 	"github.com/blairham/tuikit/theme"
 )
 
-// Base is the theme every dockyard style derives from. Exported so the
+// Base is the theme every dockmaster style derives from. Exported so the
 // app can hand the same value to chrome, table, and loading and be sure
 // they agree.
 func Base() theme.Theme {
 	// tuikit's default is k9s's palette (orange logo and labels, aqua
-	// titles, light-sky-blue focused border), and dockyard keeps it as is so
+	// titles, light-sky-blue focused border), and dockmaster keeps it as is so
 	// the two read the same side by side.
 	return theme.Default()
 }
