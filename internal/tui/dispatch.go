@@ -226,6 +226,8 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewLayers
 	case views.NodeRefreshMsg:
 		return a.view == style.ViewNode
+	case views.TopRefreshMsg:
+		return a.view == style.ViewTop
 	case views.ContextsRefreshMsg:
 		return a.view == style.ViewContexts
 	case views.DiskUsageRefreshMsg:

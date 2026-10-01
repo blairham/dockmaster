@@ -193,6 +193,15 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	case "health":
 		return a.openReport(views.NewHealthView(a.client, param, a.containerName(param)))
+	case "diff":
+		return a.openReport(views.NewDiffView(a.client, param, a.containerName(param)))
+	case "stats":
+		return a.openReport(views.NewStatsView(a.client, param, a.containerName(param)))
+	case "top":
+		a.setView(style.ViewTop, views.NewTopView(a.client, param, a.containerName(param)))
+		a.pushView(style.ViewTop)
+		return a, a.viewMap[style.ViewTop].Init()
+
 	case "node_containers":
 		node, _, name := splitNodeParam(param)
 		a.setView(style.ViewNode, views.NewNodeView(a.client, node, name))

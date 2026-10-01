@@ -415,7 +415,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 		views.ImagesRefreshMsg, views.VolumesRefreshMsg,
 		views.NetworksRefreshMsg, views.ProjectsRefreshMsg,
 		views.InspectRefreshMsg, views.LayersRefreshMsg,
-		views.ContextsRefreshMsg, views.DiskUsageRefreshMsg, views.PortForwardsRefreshMsg, views.NodeRefreshMsg,
+		views.ContextsRefreshMsg, views.DiskUsageRefreshMsg, views.PortForwardsRefreshMsg, views.NodeRefreshMsg, views.TopRefreshMsg,
 		views.LogBatchMsg, views.LogClosedMsg, views.EventsBatchMsg, views.EventsClosedMsg:
 		if !a.splashActive && a.refreshMsgMatchesView(msg) {
 			a.loading = false

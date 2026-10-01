@@ -121,6 +121,7 @@ Digits `0`–`6` switch resources, numbered from 0 as in k9s (`5` is Runtimes: C
 | `a` | toggle stopped/all | `t` | toggle the CPU/MEM poll |
 | `z` | volume sizes (slow, off by default) | `P` | prune |
 | `ctrl-d` | remove (confirms) | `f` | toggle log follow |
+| `H` | health: check, streak, last probes with output | `T` / `D` / `S` | top (processes) / diff (files changed) / full stats |
 | `/` | filter (leading `!` negates) | `:` | command palette |
 | `ctrl-g` | toggle breadcrumbs (k9s) | `ctrl-e` | toggle the header (k9s) |
 | `q` | back out of a drill-in (never quits) | `ctrl-r` | reload, as `r` |

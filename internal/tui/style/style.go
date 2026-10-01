@@ -142,6 +142,7 @@ const (
 	ViewPods
 	ViewEvents
 	ViewNode
+	ViewTop
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -179,6 +180,8 @@ func ViewName(v ViewType) string {
 		return "Events"
 	case ViewNode:
 		return "Node"
+	case ViewTop:
+		return "Top"
 	default:
 		return "Unknown"
 	}
@@ -220,6 +223,8 @@ func ViewResource(v ViewType) string {
 		return "event"
 	case ViewNode:
 		return "container"
+	case ViewTop:
+		return "process"
 	default:
 		return ""
 	}

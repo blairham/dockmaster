@@ -38,6 +38,9 @@ var knownCommands = []string{
 	"logs",
 	"inspect",
 	"describe",
+	"top",
+	"diff",
+	"health",
 	"prune",
 	"prune all",
 	"prune all volumes",
@@ -336,6 +339,10 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return a.rowCommand("logs", func(act string) bool { return act == "logs" }, "l")
 	case "inspect", "describe":
 		return a.rowCommand("inspect", isInspectAction, "o")
+	// :stats stays the CPU/MEM poll toggle below; the stats view is S.
+	case "top", "diff", "health":
+		key := map[string]string{"top": "T", "diff": "D", "health": "H"}[lower]
+		return a.rowCommand(lower, func(act string) bool { return act == lower }, key)
 	case "context", "ctx", "contexts":
 		_, cmd := a.handleAction("contexts", "")
 		return "", cmd
