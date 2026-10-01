@@ -1,0 +1,131 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestParseEmptyIsDefault(t *testing.T) {
+	for _, in := range []string{"", "dockyard:\n", "# only a comment\n"} {
+		got, err := Parse(strings.NewReader(in))
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", in, err)
+		}
+		if got != Default() {
+			t.Errorf("Parse(%q) = %+v, want defaults %+v", in, got, Default())
+		}
+	}
+}
+
+func TestParseOverlaysDefaults(t *testing.T) {
+	got, err := Parse(strings.NewReader(`dockyard:
+  refreshRate: 7
+  requestTimeout: 90s
+  readOnly: true
+  defaultView: images
+  context: colima
+  ui:
+    logoless: true
+  logger:
+    showTime: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Default()
+	want.RequestTimeout = 90 * time.Second
+	want.RefreshRate, want.ReadOnly, want.DefaultView, want.Context = 7, true, "images", "colima"
+	want.UI.Logoless, want.Logger.ShowTime = true, true
+	if got != want {
+		t.Errorf("got %+v\nwant %+v", got, want)
+	}
+	if got.Logger.Tail != DefaultLogTail {
+		t.Errorf("an unset logger.tail lost its default: %d", got.Logger.Tail)
+	}
+}
+
+// TestParseRejectsUnknownKeys pins the strict decode: a misspelled key
+// must fail loudly, not be ignored as though it took effect.
+func TestParseRejectsUnknownKeys(t *testing.T) {
+	for _, in := range []string{
+		"dockyard:\n  readonly: true\n", // k9s spells it readOnly
+		"dockyard:\n  ui:\n    logoLess: true\n",
+		"k9s:\n  refreshRate: 2\n",
+	} {
+		_, err := Parse(strings.NewReader(in))
+		if err == nil {
+			t.Errorf("Parse(%q) accepted an unknown key", in)
+		} else if !strings.Contains(err.Error(), "unknown key") || strings.Contains(err.Error(), "type ") {
+			t.Errorf("Parse(%q) error %q should say unknown key, without Go type names", in, err)
+		}
+	}
+}
+
+func TestParseRejectsBadValues(t *testing.T) {
+	for in, want := range map[string]string{
+		"dockyard:\n  refreshRate: 0\n":         "refreshRate",
+		"dockyard:\n  requestTimeout: -1s\n":    "requestTimeout",
+		"dockyard:\n  requestTimeout: soon\n":   "line 2",
+		"dockyard:\n  logger:\n    tail: 0\n":   "logger.tail",
+		"dockyard:\n  logger:\n    tail: -5\n":  "logger.tail",
+		"dockyard:\n  refreshRate: fast\n":      "line 2",
+		"dockyard:\n  logger:\n    tail: 1e9\n": "tail",
+	} {
+		_, err := Parse(strings.NewReader(in))
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Parse(%q) error = %v, want one naming %s", in, err, want)
+		}
+	}
+}
+
+// TestSampleIsTheDefaults keeps the commented sample honest: it must
+// parse, and every value in it must be the default it documents.
+func TestSampleIsTheDefaults(t *testing.T) {
+	got, err := Parse(strings.NewReader(Sample))
+	if err != nil {
+		t.Fatalf("Sample does not parse: %v", err)
+	}
+	want := Default()
+	want.DefaultView = "containers" // the sample names the view the empty value opens on
+	if got != want {
+		t.Errorf("Sample = %+v\nwant %+v", got, want)
+	}
+}
+
+func TestLoadMissingFileIsDefault(t *testing.T) {
+	got, err := Load(filepath.Join(t.TempDir(), "nope", FileName))
+	if err != nil || got != Default() {
+		t.Errorf("Load(missing) = %+v, %v", got, err)
+	}
+}
+
+func TestLoadNamesTheFileInErrors(t *testing.T) {
+	p := filepath.Join(t.TempDir(), FileName)
+	if err := os.WriteFile(p, []byte("dockyard:\n  bogus: 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(p); err == nil || !strings.Contains(err.Error(), p) {
+		t.Errorf("Load error %v does not name %s", err, p)
+	}
+}
+
+func TestDirPrecedence(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(EnvDir, "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	check := func(want string) {
+		t.Helper()
+		if got, err := Dir(); err != nil || got != want {
+			t.Errorf("Dir() = %q, %v; want %q", got, err, want)
+		}
+	}
+	check(filepath.Join(home, ".config", "dockyard"))
+	t.Setenv("XDG_CONFIG_HOME", "/xdg")
+	check(filepath.Join("/xdg", "dockyard"))
+	t.Setenv(EnvDir, "/explicit")
+	check("/explicit")
+}
