@@ -1,5 +1,8 @@
 # dockyard — a k9s-style TUI for Docker.
 BINARY      := dockyard
+# ALIAS is dockyard's short name — d + 6 letters + d, as k8s is Kubernetes.
+# It is installed as a symlink to the binary, not a second copy.
+ALIAS       := d6d
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE        ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -19,10 +22,14 @@ build: ## Build ./dist/dockyard
 	go build -ldflags '$(LDFLAGS)' -o dist/$(BINARY) .
 
 .PHONY: install
-install: build ## Build and copy to ~/.local/bin
+install: build ## Build, copy to ~/.local/bin, and link the d6d alias
 	@mkdir -p $(INSTALL_DIR)
 	install -m 0755 dist/$(BINARY) $(INSTALL_DIR)/$(BINARY)
-	@echo "installed $(INSTALL_DIR)/$(BINARY)"
+	@if [ -e $(INSTALL_DIR)/$(ALIAS) ] && [ ! -L $(INSTALL_DIR)/$(ALIAS) ]; then \
+		echo "refusing to replace $(INSTALL_DIR)/$(ALIAS): it exists and is not dockyard's symlink" >&2; exit 1; \
+	fi
+	ln -sfn $(BINARY) $(INSTALL_DIR)/$(ALIAS)
+	@echo "installed $(INSTALL_DIR)/$(BINARY) and $(INSTALL_DIR)/$(ALIAS) -> $(BINARY)"
 
 .PHONY: run
 run: ## Run against the active docker context
