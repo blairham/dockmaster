@@ -23,6 +23,13 @@ const (
 	LabelProject = "com.docker.compose.project"
 	LabelService = "com.docker.compose.service"
 	LabelNumber  = "com.docker.compose.container-number"
+
+	// Where the project came from, as the Compose CLI recorded it at `up`:
+	// comma-separated compose files, the project directory, and
+	// comma-separated env files. Paths are on the machine that ran `up`.
+	LabelConfigFiles = "com.docker.compose.project.config_files"
+	LabelWorkingDir  = "com.docker.compose.project.working_dir"
+	LabelEnvFiles    = "com.docker.compose.project.environment_file"
 )
 
 // Client is the Engine API handle plus the daemon metadata the info panel
@@ -38,6 +45,20 @@ type Client struct {
 	OSArch      string
 	Name        string
 	statsMu     sync.RWMutex
+	// RequestTimeout, when non-zero, replaces every per-call deadline
+	// passed to RequestContext (--request-timeout): longer for a daemon
+	// that is slow but honest, shorter to fail fast on one that hangs.
+	RequestTimeout time.Duration
+}
+
+// RequestContext is the context for one daemon request: def, or
+// RequestTimeout when that is set. Safe on a nil client, which the
+// headless tests use.
+func (c *Client) RequestContext(def time.Duration) (context.Context, context.CancelFunc) {
+	if c != nil && c.RequestTimeout > 0 {
+		def = c.RequestTimeout
+	}
+	return context.WithTimeout(context.Background(), def)
 }
 
 // New dials the Docker daemon. host may be empty, in which case the

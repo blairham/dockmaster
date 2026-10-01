@@ -61,12 +61,18 @@ func HumanSize(b int64) string {
 // Project is one row of the compose-projects view: an aggregate over every
 // container carrying the same com.docker.compose.project label.
 type Project struct {
-	Name     string
-	Age      string
-	Services []string
-	Total    int
-	Running  int
-	Stopped  int
+	Name       string
+	Age        string
+	WorkingDir string
+	Services   []string
+	// ConfigFiles and EnvFiles are what `docker compose up` was given, read
+	// back from the labels. Empty when the containers predate the labels
+	// or were not made by the Compose CLI.
+	ConfigFiles []string
+	EnvFiles    []string
+	Total       int
+	Running     int
+	Stopped     int
 }
 
 // Projects folds a container list into compose projects. Containers with no
@@ -83,7 +89,13 @@ func Projects(containers []Container) []Project {
 		}
 		p, ok := byName[c.Project]
 		if !ok {
-			p = &Project{Name: c.Project, Age: c.Age()}
+			p = &Project{
+				Name:        c.Project,
+				Age:         c.Age(),
+				WorkingDir:  c.Labels[LabelWorkingDir],
+				ConfigFiles: splitLabelList(c.Labels[LabelConfigFiles]),
+				EnvFiles:    splitLabelList(c.Labels[LabelEnvFiles]),
+			}
 			byName[c.Project] = p
 			svcSeen[c.Project] = make(map[string]bool)
 		}
@@ -110,6 +122,17 @@ func Projects(containers []Container) []Project {
 
 // Status renders a project's health as "running/total".
 func (p Project) Status() string { return fmt.Sprintf("%d/%d", p.Running, p.Total) }
+
+// splitLabelList splits a comma-separated compose label into its paths.
+func splitLabelList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 // ServiceList is the comma-joined service names, for the table column.
 func (p Project) ServiceList() string { return strings.Join(p.Services, ",") }

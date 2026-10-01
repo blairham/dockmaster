@@ -31,7 +31,26 @@ type Container struct {
 	Project string // compose project, "" when not compose-managed
 	Service string // compose service
 
+	// Endpoints are the networks the container is attached to and its
+	// address on each, sorted by network name. PortList is its port map.
+	Endpoints []Endpoint
+	PortList  []PortMapping
+
 	SizeRw int64
+}
+
+// Endpoint is a container's address on one network.
+type Endpoint struct {
+	Network string
+	IP      string
+}
+
+// PortMapping is one entry of a container's port map. Public is 0 for a
+// port that is exposed but not published.
+type PortMapping struct {
+	Type    string
+	Private uint16
+	Public  uint16
 }
 
 // Running reports whether this container is currently executing. Paused
@@ -76,37 +95,55 @@ func newContainer(s container.Summary) Container {
 	}
 
 	net, ip := "", ""
+	var endpoints []Endpoint
 	if s.NetworkSettings != nil {
 		names := make([]string, 0, len(s.NetworkSettings.Networks))
 		for n, ep := range s.NetworkSettings.Networks {
 			names = append(names, n)
-			if ip == "" && ep != nil {
-				ip = ep.IPAddress
+			e := Endpoint{Network: n}
+			if ep != nil {
+				e.IP = ep.IPAddress
 			}
+			endpoints = append(endpoints, e)
 		}
 		sort.Strings(names)
+		sort.Slice(endpoints, func(i, j int) bool { return endpoints[i].Network < endpoints[j].Network })
 		net = strings.Join(names, ",")
+		// The first network's address, by name — map order would make it
+		// a different network from one refresh to the next.
+		for _, e := range endpoints {
+			if e.IP != "" {
+				ip = e.IP
+				break
+			}
+		}
+	}
+	ports := make([]PortMapping, 0, len(s.Ports))
+	for _, p := range s.Ports {
+		ports = append(ports, PortMapping{Type: p.Type, Private: p.PrivatePort, Public: p.PublicPort})
 	}
 	if net == "" {
 		net = s.HostConfig.NetworkMode
 	}
 
 	return Container{
-		ID:      s.ID,
-		Name:    name,
-		Image:   s.Image,
-		Command: s.Command,
-		Created: time.Unix(s.Created, 0),
-		State:   s.State,
-		Status:  s.Status,
-		Health:  parseHealth(s.Status),
-		Ports:   formatPorts(s.Ports),
-		Network: net,
-		IP:      ip,
-		Labels:  s.Labels,
-		Project: s.Labels[LabelProject],
-		Service: s.Labels[LabelService],
-		SizeRw:  s.SizeRw,
+		ID:        s.ID,
+		Name:      name,
+		Image:     s.Image,
+		Command:   s.Command,
+		Created:   time.Unix(s.Created, 0),
+		State:     s.State,
+		Status:    s.Status,
+		Health:    parseHealth(s.Status),
+		Ports:     formatPorts(s.Ports),
+		Network:   net,
+		IP:        ip,
+		Labels:    s.Labels,
+		Project:   s.Labels[LabelProject],
+		Service:   s.Labels[LabelService],
+		Endpoints: endpoints,
+		PortList:  ports,
+		SizeRw:    s.SizeRw,
 	}
 }
 

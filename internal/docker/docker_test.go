@@ -170,3 +170,29 @@ func TestFormatPortsPrefersPublished(t *testing.T) {
 		t.Errorf("formatPorts = %q, want the exposed ports", got)
 	}
 }
+
+func TestRequestContextOverride(t *testing.T) {
+	remaining := func(c *Client, def time.Duration) time.Duration {
+		ctx, cancel := c.RequestContext(def)
+		defer cancel()
+		dl, ok := ctx.Deadline()
+		if !ok {
+			t.Fatal("RequestContext set no deadline")
+		}
+		return time.Until(dl)
+	}
+	near := func(got, want time.Duration) bool { return got <= want && got > want-time.Second }
+
+	if got := remaining(nil, 20*time.Second); !near(got, 20*time.Second) {
+		t.Errorf("nil client: deadline in %v, want ~20s", got)
+	}
+	if got := remaining(&Client{}, 5*time.Minute); !near(got, 5*time.Minute) {
+		t.Errorf("no override: deadline in %v, want ~5m", got)
+	}
+	c := &Client{RequestTimeout: 7 * time.Second}
+	for _, def := range []time.Duration{20 * time.Second, 5 * time.Minute, time.Second} {
+		if got := remaining(c, def); !near(got, 7*time.Second) {
+			t.Errorf("override 7s, default %v: deadline in %v", def, got)
+		}
+	}
+}
