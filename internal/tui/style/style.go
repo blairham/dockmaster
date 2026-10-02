@@ -184,6 +184,7 @@ const (
 	ViewCopyForm
 	ViewEditForm
 	ViewVolumeBrowse
+	ViewDumps
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -231,6 +232,8 @@ func ViewName(v ViewType) string {
 		return "Edit"
 	case ViewVolumeBrowse:
 		return "Files"
+	case ViewDumps:
+		return "Dumps"
 	default:
 		return "Unknown"
 	}
@@ -278,6 +281,8 @@ func ViewResource(v ViewType) string {
 		return "field"
 	case ViewVolumeBrowse:
 		return "file"
+	case ViewDumps:
+		return "dump"
 	default:
 		return ""
 	}

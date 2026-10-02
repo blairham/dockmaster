@@ -46,6 +46,7 @@ const pluginTimeout = 10 * time.Minute
 var pluginScopes = map[string]style.ViewType{
 	"logs": style.ViewLogs, "log": style.ViewLogs,
 	"files": style.ViewVolumeBrowse, "layers": style.ViewLayers, "node": style.ViewNode,
+	"sd": style.ViewDumps, "dumps": style.ViewDumps,
 }
 
 func scopeView(name string) (style.ViewType, bool) {

@@ -35,6 +35,8 @@ var knownCommands = []string{
 	"context",
 	"ctx",
 	"contexts",
+	"sd",
+	"screendump",
 	"logs",
 	"inspect",
 	"describe",
@@ -405,6 +407,9 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return a.rowCommand(lower, func(act string) bool { return act == lower }, key)
 	case "context", "ctx", "contexts":
 		_, cmd := a.handleAction("contexts", "")
+		return "", cmd
+	case "sd", "screendump", "screendumps", "dumps":
+		_, cmd := a.handleAction("dumps", "")
 		return "", cmd
 	case "prune all":
 		_, cmd := a.handleAction("confirm_prune_all", "")

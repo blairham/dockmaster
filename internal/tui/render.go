@@ -329,6 +329,12 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<enter>", Desc: "Switch"},
 			{Key: "<esc>", Desc: "Back"},
 		}
+	case style.ViewDumps:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "View"},
+			{Key: "<ctrl-d>", Desc: "Delete"},
+			{Key: "<esc>", Desc: "Back"},
+		}
 	default:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Select"},
@@ -550,6 +556,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<u>", Desc: "Run image"},
 					{Key: "<K>", Desc: "Kubernetes on/off"},
 					{Key: "<:ctx>", Desc: "Docker contexts"},
+					{Key: "<:sd>", Desc: "Saved dumps"},
 				},
 			},
 			{

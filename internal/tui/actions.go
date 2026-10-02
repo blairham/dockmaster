@@ -3,12 +3,15 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
@@ -54,6 +57,8 @@ var mutating = map[string]bool{
 	"node_shell": true, "confirm_node_remove": true,
 	"run_image": true, "run_create": true, "copy_into": true,
 	"confirm_runtime_k8s": true, "edit_form": true, "edit_apply": true,
+	// Not daemon state, but a delete all the same: readonly means hands off.
+	"confirm_remove_dump": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -115,6 +120,18 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.setView(style.ViewContexts, views.NewContextsView(ctxName))
 		a.pushView(style.ViewContexts)
 		return a, a.viewMap[style.ViewContexts].Init()
+
+	case "dumps":
+		root, err := config.StateDir()
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		a.setView(style.ViewDumps, views.NewDumpsView(root))
+		a.pushView(style.ViewDumps)
+		return a, a.viewMap[style.ViewDumps].Init()
+	case "open_dump":
+		return a.openReport(views.NewDumpFileView(param))
 
 	case "project_containers":
 		// Drilling into a compose project is a filtered containers view —
@@ -327,6 +344,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "confirm_remove_volume":
 		a.openConfirm("remove_volume", param,
 			fmt.Sprintf("remove volume %s? data in it is gone for good", param))
+		return a, nil
+	case "confirm_remove_dump":
+		a.openConfirm("remove_dump", param, fmt.Sprintf("delete %s?", filepath.Base(param)))
 		return a, nil
 	case "confirm_remove_network":
 		_, name, _ := strings.Cut(param, "\x00")
@@ -578,6 +598,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 		return a.run("removed volume", pa.param, func(ctx context.Context) error {
 			return a.client.RemoveVolume(ctx, pa.param, false)
 		})
+	case "remove_dump":
+		return removeDump(pa.param)
 	case "remove_network":
 		id, name, _ := strings.Cut(pa.param, "\x00")
 		return a.run("removed network", name, func(ctx context.Context) error {
@@ -778,4 +800,20 @@ func (a *App) networkName(id string) string {
 		}
 	}
 	return id
+}
+
+// removeDump deletes a file :sd listed. It refuses anything outside the
+// dump directories, so a confirm can only ever delete a save.
+func removeDump(path string) tea.Cmd {
+	return func() tea.Msg {
+		name := filepath.Base(path)
+		root, err := config.StateDir()
+		if err == nil && !views.IsDumpPath(root, path) {
+			err = fmt.Errorf("%s is not a saved dump", path)
+		}
+		if err == nil {
+			err = os.Remove(path)
+		}
+		return actionDoneMsg{verb: "deleted", subject: name, err: err}
+	}
 }
