@@ -78,7 +78,9 @@ Every destructive action asks first, and `--readonly` refuses them outright.
 | ![Help: every key the view takes](docs/images/help.png) | ![A container's healthcheck, probe by probe](docs/images/health.png) |
 | **`?`** — every key the view takes, by section | **`H`** — a container's healthcheck, newest probe first |
 | ![Tailing a container's log](docs/images/logs.png) | ![Running a container from an image](docs/images/run.png) |
-| **`enter`** — the log, following, with its toggles | **`u`** on an image — `docker run` as a form |
+| **`enter`** — the log, following, with a mark (`m`) | **`u`** on an image — `docker run` as a form |
+| ![Two containers marked for a bulk action](docs/images/marks.png) | ![Browsing a volume's files](docs/images/volume.png) |
+| **`space`** — rows marked; `x`, `R` or `ctrl-d` act on all of them | **`enter`** on a volume — its files, read through a read-only helper |
 
 `make screenshots` regenerates all of them — see [Development](#development).
 
