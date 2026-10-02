@@ -19,6 +19,7 @@ type VolumesRefreshMsg struct {
 
 // VolumesView lists volumes.
 type VolumesView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -103,7 +104,7 @@ func (v *VolumesView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *VolumesView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(volumeColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(volumeColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -204,6 +205,7 @@ func (v *VolumesView) rebuildRows() {
 		})
 		v.visible = append(v.visible, vol)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -212,3 +214,6 @@ func (v *VolumesView) Total() int { return len(v.all) }
 
 // Table is the view's table, for the keys every table shares.
 func (v *VolumesView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *VolumesView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

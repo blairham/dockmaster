@@ -25,6 +25,7 @@ type TopRefreshMsg struct {
 // whatever ps on the daemon's host reports, so they are built from the
 // titles of each listing rather than declared.
 type TopView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -85,7 +86,7 @@ func (v *TopView) Resize(width, height int) {
 	v.table.SetHeight(height)
 	v.table.SetStyles(tableStylesWithWidth(width))
 	if v.cols != nil {
-		v.table.SetColumns(fitColumns(v.cols, width))
+		v.table.SetColumns(v.columns(fitColumns(v.cols, width)))
 	}
 }
 
@@ -155,7 +156,7 @@ func (v *TopView) rebuild() {
 		v.table.SetRows(nil)
 	}
 	v.cols = cols
-	v.table.SetColumns(fitColumns(cols, v.width))
+	v.table.SetColumns(v.columns(fitColumns(cols, v.width)))
 
 	f := parseFilter(v.filter)
 	rows := make([]table.Row, 0, len(v.procs.Rows))
@@ -167,6 +168,7 @@ func (v *TopView) rebuild() {
 		copy(row, r)
 		rows = append(rows, row)
 	}
+	sortRows[struct{}](&v.tableSort, rows, nil)
 	setTableRows(&v.table, rows)
 }
 
@@ -246,3 +248,6 @@ func FormatStats(s docker.Stats) []string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *TopView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *TopView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuild) }

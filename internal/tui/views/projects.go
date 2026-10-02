@@ -25,6 +25,7 @@ type ProjectsRefreshMsg struct {
 // convention expressed entirely through labels — so this view derives its
 // rows from the same container list the containers view uses.
 type ProjectsView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -101,7 +102,7 @@ func (v *ProjectsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ProjectsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(projectColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(projectColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -235,6 +236,7 @@ func (v *ProjectsView) rebuildRows() {
 		})
 		v.visible = append(v.visible, p)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -275,3 +277,6 @@ func truncateLeft(s string, maxLen int) string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *ProjectsView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *ProjectsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

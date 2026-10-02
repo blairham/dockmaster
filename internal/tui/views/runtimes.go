@@ -38,6 +38,7 @@ type RuntimesRefreshMsg struct {
 // the machine dockmaster is connected to takes every other view's data source
 // away, and this is where you start it again.
 type RuntimesView struct {
+	tableSort
 	providers []engines.Provider
 	err       error
 
@@ -178,7 +179,7 @@ func (v *RuntimesView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *RuntimesView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(runtimeColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(runtimeColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -355,6 +356,7 @@ func (v *RuntimesView) rebuildRows() {
 		})
 		v.visible = append(v.visible, m)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -414,3 +416,6 @@ func kubeCell(m engines.Machine) string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *RuntimesView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *RuntimesView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

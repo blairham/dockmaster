@@ -23,6 +23,7 @@ type ImagesRefreshMsg struct {
 
 // ImagesView lists local images.
 type ImagesView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -107,7 +108,7 @@ func (v *ImagesView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ImagesView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(imageColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(imageColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -231,6 +232,7 @@ func (v *ImagesView) rebuildRows() {
 		})
 		v.visible = append(v.visible, im)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -249,3 +251,6 @@ func (v *ImagesView) Total() int { return len(v.all) }
 
 // Table is the view's table, for the keys every table shares.
 func (v *ImagesView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *ImagesView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

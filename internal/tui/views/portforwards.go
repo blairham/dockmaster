@@ -21,6 +21,7 @@ type PortForwardsRefreshMsg struct {
 // PortForwardsView lists port forwards — the relay containers dockmaster runs
 // for them — with b to open one and ctrl-d to stop it.
 type PortForwardsView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -94,7 +95,7 @@ func (v *PortForwardsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *PortForwardsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(portForwardColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(portForwardColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -176,8 +177,12 @@ func (v *PortForwardsView) rebuildRows() {
 		})
 		v.visible = append(v.visible, pf)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
 // Table is the view's table, for the keys every table shares.
 func (v *PortForwardsView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *PortForwardsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

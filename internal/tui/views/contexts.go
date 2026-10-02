@@ -21,6 +21,7 @@ type ContextsRefreshMsg struct {
 // dockmaster would dial /var/run/docker.sock and report a dead daemon on a
 // machine where `docker ps` works fine.
 type ContextsView struct {
+	tableSort
 	current string
 
 	filter  string
@@ -85,7 +86,7 @@ func (v *ContextsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ContextsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(contextColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(contextColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -156,8 +157,12 @@ func (v *ContextsView) rebuildRows() {
 		})
 		v.visible = append(v.visible, c)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
 // Table is the view's table, for the keys every table shares.
 func (v *ContextsView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *ContextsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

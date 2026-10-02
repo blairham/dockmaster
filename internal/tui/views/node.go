@@ -23,6 +23,7 @@ type NodeRefreshMsg struct {
 // pods' workloads, which run in the node's own containerd and never appear
 // in `docker ps`. Read through crictl; see docs/design/kubernetes-nodes.md.
 type NodeView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -134,7 +135,7 @@ func (v *NodeView) Resize(width, height int) {
 	}
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(nodeColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(nodeColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -230,8 +231,12 @@ func (v *NodeView) rebuildRows() {
 		})
 		v.visible = append(v.visible, c)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
 // Table is the view's table, for the keys every table shares.
 func (v *NodeView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *NodeView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

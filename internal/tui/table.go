@@ -12,7 +12,7 @@ import (
 )
 
 // tableKey handles the keys every table view shares, after the view's own
-// keys have passed on them: ctrl+s saves the table. It reports whether the
+// keys have passed on them: ctrl+s saves the table, shift+arrows sort it. It reports whether the
 // key was one of them.
 func (a *App) tableKey(key string) bool {
 	tv, ok := a.activeView().(views.Tabler)
@@ -21,6 +21,9 @@ func (a *App) tableKey(key string) bool {
 	}
 	if key == chrome.KeySave {
 		a.saveTable(tv)
+		return true
+	}
+	if s, ok := tv.(views.SortKeyer); ok && s.SortKey(key) {
 		return true
 	}
 	return false

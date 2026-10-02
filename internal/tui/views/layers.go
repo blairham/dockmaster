@@ -20,6 +20,7 @@ type LayersRefreshMsg struct {
 
 // LayersView shows an image's build history, newest layer first.
 type LayersView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -88,7 +89,7 @@ func (v *LayersView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *LayersView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(layerColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(layerColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -154,6 +155,7 @@ func (v *LayersView) rebuildRows() {
 		})
 		v.visible = append(v.visible, l)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -180,3 +182,6 @@ func since(t time.Time) string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *LayersView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *LayersView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

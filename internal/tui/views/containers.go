@@ -76,6 +76,7 @@ type ContainerStatsMsg struct {
 
 // ContainersView is the root view: `docker ps` with live CPU/memory.
 type ContainersView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -228,7 +229,7 @@ func (v *ContainersView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ContainersView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(containerColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(containerColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -418,6 +419,7 @@ func (v *ContainersView) rebuildRows() {
 		})
 		v.visible = append(v.visible, c)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -575,3 +577,6 @@ func (v *ContainersView) RunningTotal() (running, total int) {
 
 // Table is the view's table, for the keys every table shares.
 func (v *ContainersView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *ContainersView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

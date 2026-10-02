@@ -24,6 +24,7 @@ type PodsRefreshMsg struct {
 // speaks — has no pods, so these come from the podman CLI, across every
 // running podman machine.
 type PodsView struct {
+	tableSort
 	podman *engines.Podman // nil when podman is not installed
 	err    error
 
@@ -105,7 +106,7 @@ func (v *PodsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *PodsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(podColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(podColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -204,6 +205,7 @@ func (v *PodsView) rebuildRows() {
 		})
 		v.visible = append(v.visible, p)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -221,3 +223,6 @@ func podStatusCell(s string) string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *PodsView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *PodsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

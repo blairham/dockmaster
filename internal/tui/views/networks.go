@@ -20,6 +20,7 @@ type NetworksRefreshMsg struct {
 
 // NetworksView lists networks.
 type NetworksView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -95,7 +96,7 @@ func (v *NetworksView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *NetworksView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(networkColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(networkColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -190,6 +191,7 @@ func (v *NetworksView) rebuildRows() {
 		})
 		v.visible = append(v.visible, n)
 	}
+	sortRows(&v.tableSort, rows, v.visible)
 	setTableRows(&v.table, rows)
 }
 
@@ -233,3 +235,6 @@ func networkFlags(n docker.Network) string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *NetworksView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *NetworksView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

@@ -26,3 +26,8 @@ func setTableRows(t *table.Model, rows []table.Row) {
 type Tabler interface {
 	Table() *table.Model
 }
+
+// SortKeyer is a table view that sorts by column on shift+←/→.
+type SortKeyer interface {
+	SortKey(key string) bool
+}

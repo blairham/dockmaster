@@ -26,6 +26,7 @@ type DiskUsageRefreshMsg struct {
 // kind. It loads on open and on r, never on the poll — the volume walk is
 // too expensive to repeat every three seconds.
 type DiskUsageView struct {
+	tableSort
 	client *docker.Client
 	err    error
 
@@ -96,7 +97,7 @@ func (v *DiskUsageView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *DiskUsageView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(fitColumns(diskUsageColumns(), width))
+	v.table.SetColumns(v.columns(fitColumns(diskUsageColumns(), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -165,6 +166,7 @@ func (v *DiskUsageView) rebuildRows() {
 			reclaimableCell(r),
 		})
 	}
+	sortRows(&v.tableSort, rows, v.rows)
 	setTableRows(&v.table, rows)
 }
 
@@ -179,3 +181,6 @@ func reclaimableCell(r docker.DiskUsageRow) string {
 
 // Table is the view's table, for the keys every table shares.
 func (v *DiskUsageView) Table() *table.Model { return &v.table }
+
+// SortKey sorts the table on shift+←/→.
+func (v *DiskUsageView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }

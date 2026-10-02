@@ -615,6 +615,8 @@ func generalHelp() chrome.HelpSection {
 		g.Entries,
 		chrome.HelpEntry{Key: "<r>", Desc: "Reload"},
 		chrome.HelpEntry{Key: "<ctrl-s>", Desc: "Save"},
+		chrome.HelpEntry{Key: "<shift-←/→>", Desc: "Sort column"},
+		chrome.HelpEntry{Key: "<shift-↑/↓>", Desc: "Sort direction"},
 		chrome.HelpEntry{Key: "<:logo>", Desc: "Toggle logo"},
 		chrome.HelpEntry{Key: "<ctrl-c>", Desc: "Quit"},
 	)
