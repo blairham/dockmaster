@@ -95,8 +95,8 @@ type ContainersView struct {
 	visible []docker.Container
 	table   table.Model
 
-	loading  bool
-	showAll  bool
+	loading bool
+	showAll bool
 	// showKube lists the containers a runtime's built-in Kubernetes runs
 	// its pods in; hidden by default, they would otherwise bury the user's
 	// own (Rancher Desktop starts eleven).

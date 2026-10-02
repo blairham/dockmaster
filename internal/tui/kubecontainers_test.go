@@ -56,7 +56,8 @@ func TestKubeContainersHiddenThenShown(t *testing.T) {
 
 	step(a, key("ctrl+k"))
 	out = render(a)
-	if !strings.Contains(out, "coredns coredns-7cfb7bc9c7") || strings.Contains(out, "k8s_") || strings.Contains(out, "POD") {
+	if !strings.Contains(out, "coredns coredns-7cfb7bc9c7") || strings.Contains(out, "k8s_") ||
+		strings.Contains(out, "POD") {
 		t.Errorf("shown:\n%s", out)
 	}
 	if strings.Contains(out, "kube hidden") || a.flash != "Kubernetes containers shown" {

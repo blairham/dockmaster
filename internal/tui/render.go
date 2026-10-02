@@ -494,7 +494,7 @@ func (a *App) renderResourceTitle() string {
 	countStyle := lipgloss.NewStyle().Foreground(style.ColorPapayaWhip).Bold(true)
 
 	name := a.viewName()
-	if v, ok := a.activeView().(views.Statuser); ok {
+	if v, ok := a.activeView().(views.TitleStatus); ok {
 		if s := v.Status(); s != "" {
 			name += " " + s
 		}
