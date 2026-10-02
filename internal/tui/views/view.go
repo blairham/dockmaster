@@ -51,6 +51,12 @@ type DigitClaimer interface {
 	ClaimsDigits() bool
 }
 
+// Backer is a view that handles esc and q itself before the app pops it —
+// the volume browser, which climbs a directory first.
+type Backer interface {
+	Back() (tea.Cmd, bool)
+}
+
 // Stoppable is implemented by views holding background goroutines (the log
 // tail). The app calls Stop on view switch and at shutdown.
 type Stoppable interface {

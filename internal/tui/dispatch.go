@@ -228,6 +228,8 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewInspect
 	case views.LayersRefreshMsg:
 		return a.view == style.ViewLayers
+	case views.VolumeBrowseMsg:
+		return a.view == style.ViewVolumeBrowse
 	case views.NodeRefreshMsg:
 		return a.view == style.ViewNode
 	case views.TopRefreshMsg:

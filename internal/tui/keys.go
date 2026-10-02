@@ -212,6 +212,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			a.setActiveFilter("")
 			return a, nil
 		}
+		if b, ok := a.activeView().(views.Backer); ok {
+			if cmd, ok := b.Back(); ok {
+				return a, cmd
+			}
+		}
 		if len(a.viewStack) > 0 {
 			a.popView()
 			return a, a.refreshActiveView()
@@ -246,6 +251,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// top-level view there is nothing to go back to, and quitting stays
 	// on :q and ctrl+c — a stray q must not end the session.
 	case chrome.KeyBack:
+		if b, ok := a.activeView().(views.Backer); ok {
+			if cmd, ok := b.Back(); ok {
+				return a, cmd
+			}
+		}
 		if len(a.viewStack) > 0 {
 			a.popView()
 			return a, a.refreshActiveView()

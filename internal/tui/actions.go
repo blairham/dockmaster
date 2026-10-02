@@ -84,6 +84,18 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a.openInspect(views.InspectImage, param, a.imageRef(param))
 	case "inspect_volume":
 		return a.openInspect(views.InspectVolume, param, param)
+	case "browse_volume":
+		a.setView(style.ViewVolumeBrowse, views.NewVolumeBrowseView(a.client, param))
+		a.pushView(style.ViewVolumeBrowse)
+		return a, a.viewMap[style.ViewVolumeBrowse].Init()
+	case "volume_dir":
+		if v := typedView[*views.VolumeBrowseView](a, style.ViewVolumeBrowse); v != nil {
+			return a, v.Open(param)
+		}
+		return a, nil
+	case "volume_file":
+		volume, file, _ := strings.Cut(param, "\x00")
+		return a.openReport(views.NewVolumeFileView(a.client, volume, file))
 	case "inspect_network":
 		return a.openInspect(views.InspectNetwork, param, a.networkName(param))
 

@@ -210,7 +210,8 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	case style.ViewVolumes:
 		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Inspect"},
+			{Key: "<enter>", Desc: "Browse"},
+			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<z>", Desc: "Sizes"},
 			{Key: "<P>", Desc: "Prune"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
@@ -317,6 +318,11 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<ctrl-f>", Desc: "PgDn"},
 			{Key: "<ctrl-b>", Desc: "PgUp"},
 			{Key: "<esc>", Desc: "Back"},
+		}
+	case style.ViewVolumeBrowse:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Open"},
+			{Key: "<esc>", Desc: "Up/Back"},
 		}
 	case style.ViewContexts:
 		actions = []chrome.Shortcut{

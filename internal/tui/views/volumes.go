@@ -139,7 +139,9 @@ func (v *VolumesView) HandleKey(key string) (string, string) {
 // keyFor is the action key asks for on one row.
 func (v *VolumesView) keyFor(key string, vol docker.Volume) (string, string) {
 	switch key {
-	case KeyEnter, "o":
+	case KeyEnter:
+		return "browse_volume", vol.Name
+	case "o":
 		return "inspect_volume", vol.Name
 	case "z":
 		return "toggle_size", ""
