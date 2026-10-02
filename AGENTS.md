@@ -10,7 +10,7 @@ Guidance for AI coding agents (Claude Code, Cursor, Copilot, Codex, OpenCode, �
 - Go 1.26 (pinned in `.tool-versions`, kept in sync with `go.mod` by a pre-commit hook)
 - Built on [`github.com/blairham/tuikit`](https://github.com/blairham/tuikit) — the shared Bubble Tea chrome — plus the Docker Engine API client (`github.com/moby/moby/client` and `.../api`).
 
-**This repo is local-only** — there is no GitHub remote, no CI, and no release pipeline. Do not create one without asking.
+**Hosted at `github.com/blairham/dockmaster`**, Apache-2.0. CI (`.github/workflows/ci.yml`) runs pre-commit, `go test -race -short ./...` and a darwin/linux cross-compile; CodeQL and OpenSSF Scorecard run alongside. A signed `v*` tag releases through GoReleaser (`.github/workflows/release.yml`): darwin/linux archives, a cosign-signed `checksums.txt`, and the `dockmaster` formula (with the `dm` symlink) in `blairham/homebrew-tap`, which needs the `HOMEBREW_TAP_TOKEN` secret. Releases start at `v0.0.0`.
 
 ⚠️ **tuikit's module path is `github.com/blairham/tuikit`, and it is public** — it needs no `GOPRIVATE` entry.
 
@@ -75,7 +75,7 @@ docs/                      design notes (see Documentation)
 - goimports local-prefix is `github.com/blairham/dockmaster`; internal imports get their own group.
 - golines max-len 120. misspell locale US.
 - **The lint config carries no adoption-relaxation block.** dockmaster started green at the canonical thresholds and should stay there — a genuinely flat dispatch function takes a targeted `//nolint` naming the reason, not a globally disabled linter.
-- MIT, `LICENSE` in Blair Hamilton's name.
+- Apache-2.0, `LICENSE` and `NOTICE` in Blair Hamilton's name. Every `.go` file starts with the two-line SPDX header; contributions need the CLA (`CLA.md`).
 
 ## The docker context store — the thing that is easy to get wrong
 
@@ -156,6 +156,7 @@ In the runtimes view the same letters act on the machine, where its runtime supp
 - `internal/tui/app_test.go` drives the real root model headlessly: feed messages, render, assert. **Assertions strip ANSI first** — lipgloss emits a separate escape pair around *every character* of an underlined span, so a substring check for the help overlay's `RESOURCE` header can never match the raw frame. `render()` strips; `renderStyled()` is for the few assertions that are genuinely about color.
 - The views are driven through the app rather than unit-tested in isolation, so the tests cover the wiring (key → action → state → frame) that is where the bugs actually are.
 - The colima tests use a fake `Runner` and never touch a VM. `internal/colima/live_test.go` lists the real profiles read-only and is skipped under `-short`. **Never write a test that starts, stops or deletes a real profile** — it is the daemon every other test and the user's own work runs on.
+- Fuzz targets guard what untrusted input reaches: `FuzzSanitizeLogText` (container output — no escape but complete color sequences, no C0 or C1 controls), `FuzzExpandPluginVars` (a value is substituted once, never re-expanded), `FuzzParseShortcut` and `FuzzParse` (config). Their seeds run as ordinary tests; fuzz one with `go test -run '^$' -fuzz '^FuzzSanitizeLogText$' -fuzztime 30s ./internal/tui/views`, and commit any input it finds under `testdata/fuzz/`.
 - `TestEmptyFilterDoesNotWedgeTheCursor` pins a bubbles quirk: `SetRows` clamps the cursor to `-1` on an empty row set and never restores it, silently killing every row action for the rest of the session. `setTableRows` exists solely to repair that, and any filter matching nothing reaches it — including an ordinary `docker ps` right after the last container stops.
 
 ## Documentation

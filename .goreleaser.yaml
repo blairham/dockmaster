@@ -1,0 +1,111 @@
+version: 2
+
+# GoReleaser configuration for dockmaster
+# See: https://goreleaser.com
+project_name: dockmaster
+
+builds:
+  - id: dockmaster
+    binary: dockmaster
+    main: .
+    env:
+      - CGO_ENABLED=0
+    # darwin and linux, where Docker contexts, Colima and the other runtimes
+    # live. CI cross-compiles both on every change.
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/blairham/dockmaster/internal/version.Version={{ .Version }}
+      - -X github.com/blairham/dockmaster/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/blairham/dockmaster/internal/version.Date={{ .Date }}
+
+archives:
+  - id: default
+    ids:
+      - dockmaster
+    formats:
+      - tar.gz
+    # this name template makes the OS and Arch compatible with the results of uname.
+    name_template: >-
+      {{ .ProjectName }}_ {{- title .Os }}_ {{- if eq .Arch "amd64" }}x86_64 {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+
+# macOS signing + notarization, matching stevedore and localiam. Gated on
+# isEnvSet, so releases still succeed unsigned when the secrets are absent.
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids:
+        - dockmaster
+      sign:
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
+      notarize:
+        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+        key: "{{.Env.MACOS_NOTARY_KEY}}"
+        wait: true
+
+checksum:
+  name_template: 'checksums.txt'
+
+# Keyless cosign signatures, from the release workflow's own GitHub identity:
+# no key to store or leak, and the certificate names the exact workflow and tag
+# that produced the release. Signing checksums.txt covers every archive, since
+# it lists each one's digest. See SECURITY.md for how to verify.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
+# The formula installs dockmaster and its short name, dm, as a symlink — the
+# same pair `make install` sets up.
+brews:
+  - name: dockmaster
+    repository:
+      owner: blairham
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/blairham/dockmaster"
+    description: "k9s-style terminal UI for Docker"
+    license: "Apache-2.0"
+    install: |
+      bin.install "dockmaster"
+      bin.install_symlink "dockmaster" => "dm"
+    test: |
+      system "#{bin}/dockmaster", "--version"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+
+release:
+  draft: false
+  replace_existing_draft: true
+  target_commitish: "{{ .Commit }}"
+  prerelease: auto
+  mode: replace
+  footer: |
+    **Full Changelog**: https://github.com/blairham/dockmaster/compare/{{ .PreviousTag }}...{{ .Tag }}

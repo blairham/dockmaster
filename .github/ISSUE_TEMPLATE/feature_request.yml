@@ -1,0 +1,16 @@
+name: Feature request
+description: Something dockmaster should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like to do?
+      description: The task, not the implementation. If k9s or the docker CLI already does it, say how.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why?
+      description: What you do today instead, and what it costs.

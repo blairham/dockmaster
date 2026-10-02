@@ -1,0 +1,55 @@
+name: Bug report
+description: Something dockmaster did that it should not have
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **If dockmaster changed anything while
+        `--readonly` was on, that is a security issue** — report it privately
+        through Security → Report a vulnerability, not here.
+  - type: input
+    id: version
+    attributes:
+      label: dockmaster version
+      description: The output of `dockmaster --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Docker runtime
+      options:
+        - Docker Desktop
+        - Colima
+        - Rancher Desktop
+        - OrbStack
+        - Podman
+        - Docker Engine on Linux
+        - Remote host (ssh:// or tcp://)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: engine
+    attributes:
+      label: Engine version and OS
+      description: From dockmaster's header, or `docker version`.
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: e.g. Ghostty 1.2, iTerm2 3.6, kitty 0.43, inside tmux or not.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect instead?
+      description: Which view, which key. A screenshot helps for anything drawn wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config
+      description: Any config.yaml, aliases.yaml, hotkeys.yaml or plugins.yaml entries involved (`dockmaster config path` shows where they live).
+      render: yaml

@@ -1,5 +1,12 @@
 # dockmaster
 
+[![CI](https://github.com/blairham/dockmaster/actions/workflows/ci.yml/badge.svg)](https://github.com/blairham/dockmaster/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/blairham/dockmaster?sort=semver)](https://github.com/blairham/dockmaster/releases/latest)
+[![CodeQL](https://github.com/blairham/dockmaster/actions/workflows/codeql.yml/badge.svg)](https://github.com/blairham/dockmaster/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/blairham/dockmaster/badge)](https://scorecard.dev/viewer/?uri=github.com/blairham/dockmaster)
+[![Go version](https://img.shields.io/github/go-mod/go-version/blairham/dockmaster)](go.mod)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 A [k9s](https://k9scli.io)-style terminal UI for Docker — containers, images, volumes, networks and Compose projects in one navigable frame, with live log tailing, inspect, and the whole container lifecycle on the keyboard. On a Colima host it manages the VMs under the daemon too.
 
 Built on [tuikit](https://github.com/blairham/tuikit), a shared Bubble Tea chrome.
@@ -9,11 +16,18 @@ Built on [tuikit](https://github.com/blairham/tuikit), a shared Bubble Tea chrom
 ## Install
 
 ```bash
-make install          # builds, copies to ~/.local/bin, and links the dm alias
+brew install blairham/tap/dockmaster   # installs dockmaster and the dm short name
 ```
 
-This repo is local-only — no remote, no published release — so `make install`
-is the install.
+Or download an archive from [Releases](https://github.com/blairham/dockmaster/releases)
+— `checksums.txt` is signed with cosign; [SECURITY.md](SECURITY.md#verifying-a-release)
+shows how to verify it. From source:
+
+```bash
+go install github.com/blairham/dockmaster@latest
+# or, from a clone, with the version stamped and the dm alias linked:
+make install          # builds, copies to ~/.local/bin, and links dm
+```
 
 ## Run
 
@@ -114,3 +128,12 @@ Linting is a pre-commit hook (`pre-commit install`), not a make target — a
 failing lint fails the commit, which is the only lint output worth reading.
 
 `AGENTS.md` is the working agreement for this repo — read it before changing anything, especially the note on `fieldalignment` reordering struct fields.
+
+## Contributing
+
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Report security issues privately, as [SECURITY.md](SECURITY.md) describes.
+
+## License
+
+[Apache-2.0](LICENSE). Copyright 2026 Blair Hamilton.
