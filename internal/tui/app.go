@@ -385,6 +385,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 	case actionDoneMsg:
 		return a.handleActionDone(msg)
 
+	case runDoneMsg:
+		return a.handleRunDone(msg)
+
 	case execDoneMsg:
 		if msg.err != nil {
 			a.errFlash = msg.err.Error()

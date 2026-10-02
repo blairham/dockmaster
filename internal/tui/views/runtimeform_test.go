@@ -74,3 +74,24 @@ func TestFormRefusesMoreMemoryThanTheHost(t *testing.T) {
 		t.Errorf("96 GiB on a 64 GiB host: action %q\n%s", action, sgrStrip.ReplaceAllString(f.View(), ""))
 	}
 }
+
+// TestChangingTheProviderRelaysTheForm: the provider picks which fields
+// apply — colima's runtime choice, podman's rootful and user-mode toggles —
+// so changing it must re-lay the form. The shared form machinery tells the
+// runtime form a choice changed through onChoice; this pins that it still
+// does.
+func TestChangingTheProviderRelaysTheForm(t *testing.T) {
+	v := NewRuntimeCreateForm("colima", []engines.Provider{engines.Colima{}, engines.Podman{}}, nil)
+	has := func(key string) bool { return v.indexOf(key) >= 0 }
+	if !has(keyRuntime) || has(keyRootful) {
+		t.Fatalf("colima form: runtime %v rootful %v", has(keyRuntime), has(keyRootful))
+	}
+	v.focusField(v.indexOf(keyProvider))
+	v.UpdateTable(tea.KeyPressMsg{Code: tea.KeyRight})
+	if v.provider() != "podman" {
+		t.Fatalf("→ on the provider gave %q", v.provider())
+	}
+	if has(keyRuntime) || !has(keyRootful) || !has(keyUserNet) {
+		t.Errorf("podman form: runtime %v rootful %v usernet %v", has(keyRuntime), has(keyRootful), has(keyUserNet))
+	}
+}

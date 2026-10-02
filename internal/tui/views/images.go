@@ -140,6 +140,12 @@ func (v *ImagesView) HandleKey(key string) (string, string) {
 		return "layers", im.ID
 	case "o":
 		return "inspect_image", im.ID
+	case "u":
+		// Run it: by reference, or by ID for a dangling image.
+		if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
+			return "run_image", im.ID
+		}
+		return "run_image", im.Ref()
 	case "a":
 		return "toggle_all", ""
 	case "P":

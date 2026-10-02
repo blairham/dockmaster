@@ -202,6 +202,7 @@ func (a *App) renderShortcuts(info []string) []string {
 	case style.ViewImages:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Layers"},
+			{Key: "<u>", Desc: "Run"},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<a>", Desc: "All"},
 			{Key: "<P>", Desc: "Prune"},
@@ -265,6 +266,12 @@ func (a *App) renderShortcuts(info []string) []string {
 	case style.ViewRuntimeForm:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Save"},
+			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<esc>", Desc: "Cancel"},
+		}
+	case style.ViewRunForm:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Run"},
 			{Key: "<tab>", Desc: "Next field"},
 			{Key: "<esc>", Desc: "Cancel"},
 		}
@@ -511,6 +518,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<o>", Desc: "Inspect"},
 					{Key: "<a>", Desc: "Toggle stopped/all"},
 					{Key: "<z>", Desc: "Volume sizes"},
+					{Key: "<u>", Desc: "Run image"},
 					{Key: "<:ctx>", Desc: "Docker contexts"},
 				},
 			},

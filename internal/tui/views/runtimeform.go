@@ -10,10 +10,8 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/blairham/dockmaster/internal/engines"
-	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // InputCapturer is implemented by views that take typed input. While one
@@ -67,13 +65,11 @@ func (f *formField) value() string {
 // machine's resources. It is a drill-in from the runtimes view; esc
 // abandons it.
 type RuntimeFormView struct {
+	form
 	caps      map[string]engines.Caps
-	err       string
 	creatable []string
 	existing  []engines.Machine
-	fields    []formField
 	machine   engines.Machine
-	focus     int
 	editing   bool
 }
 
@@ -83,6 +79,11 @@ type RuntimeFormView struct {
 // within the chosen runtime.
 func NewRuntimeCreateForm(provider string, creatable []engines.Provider, existing []engines.Machine) *RuntimeFormView {
 	v := &RuntimeFormView{existing: existing, caps: map[string]engines.Caps{}}
+	v.onChoice = func(key string) {
+		if key == keyProvider {
+			v.applyProviderFields()
+		}
+	}
 	start := 0
 	for i, p := range creatable {
 		v.creatable = append(v.creatable, p.Name())
@@ -217,22 +218,6 @@ func (v *RuntimeFormView) provider() string {
 	return ""
 }
 
-func (v *RuntimeFormView) indexOf(key string) int {
-	for i := range v.fields {
-		if v.fields[i].key == key {
-			return i
-		}
-	}
-	return -1
-}
-
-func (v *RuntimeFormView) field(key string) *formField {
-	if i := v.indexOf(key); i >= 0 {
-		return &v.fields[i]
-	}
-	return nil
-}
-
 // formInputWidth is every input box's width, so the brackets line up down
 // the form whatever each field's own limit is; a longer name scrolls.
 const formInputWidth = 12
@@ -285,80 +270,6 @@ func (v *RuntimeFormView) Init() tea.Cmd { return nil }
 
 // Update has no messages of its own.
 func (v *RuntimeFormView) Update(tea.Msg) tea.Cmd { return nil }
-
-// cycleChoice steps the focused choice field with ←/→ (h/l, space); a
-// locked field and any other key leave it alone.
-func (v *RuntimeFormView) cycleChoice(key string) {
-	f := &v.fields[v.focus]
-	if f.locked {
-		return
-	}
-	switch key {
-	case "left", "h":
-		f.choice = (f.choice + len(f.choices) - 1) % len(f.choices)
-	case "right", "l", "space", " ":
-		f.choice = (f.choice + 1) % len(f.choices)
-	default:
-		return
-	}
-	if f.key == keyProvider {
-		v.applyProviderFields()
-	}
-	v.err = ""
-}
-
-// UpdateTable takes every key the app does not: field navigation, cycling
-// a choice, and typing into the focused field.
-func (v *RuntimeFormView) UpdateTable(msg tea.Msg) tea.Cmd {
-	if km, ok := msg.(tea.KeyMsg); ok {
-		switch km.String() {
-		case "tab", "down":
-			v.moveFocus(1)
-			return nil
-		case "shift+tab", "up":
-			v.moveFocus(-1)
-			return nil
-		case KeyEnter:
-			return nil
-		}
-		if v.fields[v.focus].choices != nil {
-			v.cycleChoice(km.String())
-			return nil
-		}
-	}
-	f := &v.fields[v.focus]
-	if f.choices != nil || f.locked {
-		return nil
-	}
-	var cmd tea.Cmd
-	f.input, cmd = f.input.Update(msg)
-	v.err = ""
-	return cmd
-}
-
-func (v *RuntimeFormView) moveFocus(delta int) {
-	i := v.focus
-	for range v.fields {
-		i = (i + delta + len(v.fields)) % len(v.fields)
-		if !v.fields[i].locked {
-			v.focusField(i)
-			return
-		}
-	}
-}
-
-func (v *RuntimeFormView) focusField(i int) {
-	if i < 0 {
-		i = 0
-	}
-	for j := range v.fields {
-		v.fields[j].input.Blur()
-	}
-	v.focus = i
-	if v.fields[i].choices == nil {
-		v.fields[i].input.Focus()
-	}
-}
 
 // Resize — the form lays itself out by content.
 func (v *RuntimeFormView) Resize(int, int) {}
@@ -467,48 +378,7 @@ func (v *RuntimeFormView) validate() (RuntimeSpec, string) {
 }
 
 // View renders the form.
-func (v *RuntimeFormView) View() string {
-	label := lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Width(10)
-	focused := lipgloss.NewStyle().Foreground(style.ColorCyan).Bold(true).Width(10)
-	box := lipgloss.NewStyle().Foreground(style.ColorWhite).Bold(true)
-
-	var b strings.Builder
-	b.WriteString("\n")
-	for i := range v.fields {
-		f := &v.fields[i]
-		marker, l := "   ", label
-		if i == v.focus {
-			marker, l = style.Success.Render(" ▸ "), focused
-		}
-
-		var val string
-		switch {
-		case f.choices != nil && f.locked:
-			val = style.Muted.Render(f.value())
-		case f.choices != nil:
-			val = box.Render("‹ " + f.value() + " ›")
-		case f.locked:
-			val = style.Muted.Render(f.value())
-		default:
-			val = "[" + f.input.View() + "]"
-		}
-		if f.unit != "" {
-			val += " " + f.unit
-		}
-
-		line := marker + l.Render(f.label) + lipgloss.NewStyle().Width(22).Render(val)
-		if f.hint != "" {
-			line += style.Muted.Render(f.hint)
-		}
-		b.WriteString(line + "\n")
-	}
-
-	b.WriteString("\n   " + style.Muted.Render(v.footer()) + "\n")
-	if v.err != "" {
-		b.WriteString("\n   " + style.Error.Render(v.err) + "\n")
-	}
-	return b.String()
-}
+func (v *RuntimeFormView) View() string { return v.render(v.footer()) }
 
 func (v *RuntimeFormView) footer() string {
 	switch {
