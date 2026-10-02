@@ -76,6 +76,7 @@ type ContainerStatsMsg struct {
 
 // ContainersView is the root view: `docker ps` with live CPU/memory.
 type ContainersView struct {
+	tableMarks
 	tableSort
 	client *docker.Client
 	err    error
@@ -260,7 +261,11 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 		}
 		return "", ""
 	}
+	return v.keyFor(key, c)
+}
 
+// keyFor is the action key asks for on one row.
+func (v *ContainersView) keyFor(key string, c docker.Container) (string, string) {
 	// A Kubernetes node's workloads are inside it, not in this daemon: c
 	// opens them. enter stays logs on every row, so the key for logs never
 	// depends on what is selected.
@@ -420,6 +425,7 @@ func (v *ContainersView) rebuildRows() {
 		v.visible = append(v.visible, c)
 	}
 	sortRows(&v.tableSort, rows, v.visible)
+	rows = markRows(&v.tableMarks, rows, v.visible, v.all, containerMarkKey)
 	setTableRows(&v.table, rows)
 }
 
@@ -580,3 +586,31 @@ func (v *ContainersView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *ContainersView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// containerMarkKey identifies a row for marks.
+func containerMarkKey(c docker.Container) string { return c.ID }
+
+// MarkKey marks rows on space, ctrl+space and ctrl+\.
+func (v *ContainersView) MarkKey(key string) bool {
+	if !markKey(&v.tableMarks, key, v.visible, v.table.Cursor(), containerMarkKey) {
+		return false
+	}
+	v.rebuildRows()
+	return true
+}
+
+// ClearMarks unmarks every row.
+func (v *ContainersView) ClearMarks() {
+	if v.marks != nil {
+		v.marks.Clear()
+		v.rebuildRows()
+	}
+}
+
+// BulkKey is key's action on every marked row; nil when none is marked.
+func (v *ContainersView) BulkKey(key string) []Action {
+	return bulk(&v.tableMarks, v.visible, containerMarkKey, func(c docker.Container) Action {
+		name, param := v.keyFor(key, c)
+		return Action{Name: name, Param: param, Label: c.Name}
+	})
+}

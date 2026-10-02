@@ -31,3 +31,11 @@ type Tabler interface {
 type SortKeyer interface {
 	SortKey(key string) bool
 }
+
+// Marker is a table view whose rows can be marked for bulk actions.
+type Marker interface {
+	MarkKey(key string) bool
+	MarkCount() int
+	ClearMarks()
+	BulkKey(key string) []Action
+}

@@ -272,6 +272,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
+	// With rows marked, lifecycle and remove keys act on all of them.
+	if cmd, ok := a.bulkKey(key); ok {
+		return a, cmd
+	}
+
 	// View-specific keys next, then table navigation.
 	if action, param := a.activeViewHandleKey(key); action != "" {
 		return a.handleAction(action, param)

@@ -20,6 +20,7 @@ type NetworksRefreshMsg struct {
 
 // NetworksView lists networks.
 type NetworksView struct {
+	tableMarks
 	tableSort
 	client *docker.Client
 	err    error
@@ -121,6 +122,11 @@ func (v *NetworksView) HandleKey(key string) (string, string) {
 		}
 		return "", ""
 	}
+	return v.keyFor(key, n)
+}
+
+// keyFor is the action key asks for on one row.
+func (v *NetworksView) keyFor(key string, n docker.Network) (string, string) {
 	switch key {
 	case KeyEnter, "o":
 		return "inspect_network", n.ID
@@ -192,6 +198,7 @@ func (v *NetworksView) rebuildRows() {
 		v.visible = append(v.visible, n)
 	}
 	sortRows(&v.tableSort, rows, v.visible)
+	rows = markRows(&v.tableMarks, rows, v.visible, v.all, networkMarkKey)
 	setTableRows(&v.table, rows)
 }
 
@@ -238,3 +245,31 @@ func (v *NetworksView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *NetworksView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// networkMarkKey identifies a row for marks.
+func networkMarkKey(n docker.Network) string { return n.ID }
+
+// MarkKey marks rows on space, ctrl+space and ctrl+\.
+func (v *NetworksView) MarkKey(key string) bool {
+	if !markKey(&v.tableMarks, key, v.visible, v.table.Cursor(), networkMarkKey) {
+		return false
+	}
+	v.rebuildRows()
+	return true
+}
+
+// ClearMarks unmarks every row.
+func (v *NetworksView) ClearMarks() {
+	if v.marks != nil {
+		v.marks.Clear()
+		v.rebuildRows()
+	}
+}
+
+// BulkKey is key's action on every marked row; nil when none is marked.
+func (v *NetworksView) BulkKey(key string) []Action {
+	return bulk(&v.tableMarks, v.visible, networkMarkKey, func(n docker.Network) Action {
+		name, param := v.keyFor(key, n)
+		return Action{Name: name, Param: param, Label: n.Name}
+	})
+}

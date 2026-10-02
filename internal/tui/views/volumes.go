@@ -19,6 +19,7 @@ type VolumesRefreshMsg struct {
 
 // VolumesView lists volumes.
 type VolumesView struct {
+	tableMarks
 	tableSort
 	client *docker.Client
 	err    error
@@ -132,6 +133,11 @@ func (v *VolumesView) HandleKey(key string) (string, string) {
 		}
 		return "", ""
 	}
+	return v.keyFor(key, vol)
+}
+
+// keyFor is the action key asks for on one row.
+func (v *VolumesView) keyFor(key string, vol docker.Volume) (string, string) {
 	switch key {
 	case KeyEnter, "o":
 		return "inspect_volume", vol.Name
@@ -206,6 +212,7 @@ func (v *VolumesView) rebuildRows() {
 		v.visible = append(v.visible, vol)
 	}
 	sortRows(&v.tableSort, rows, v.visible)
+	rows = markRows(&v.tableMarks, rows, v.visible, v.all, volumeMarkKey)
 	setTableRows(&v.table, rows)
 }
 
@@ -217,3 +224,31 @@ func (v *VolumesView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *VolumesView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// volumeMarkKey identifies a row for marks.
+func volumeMarkKey(vol docker.Volume) string { return vol.Name }
+
+// MarkKey marks rows on space, ctrl+space and ctrl+\.
+func (v *VolumesView) MarkKey(key string) bool {
+	if !markKey(&v.tableMarks, key, v.visible, v.table.Cursor(), volumeMarkKey) {
+		return false
+	}
+	v.rebuildRows()
+	return true
+}
+
+// ClearMarks unmarks every row.
+func (v *VolumesView) ClearMarks() {
+	if v.marks != nil {
+		v.marks.Clear()
+		v.rebuildRows()
+	}
+}
+
+// BulkKey is key's action on every marked row; nil when none is marked.
+func (v *VolumesView) BulkKey(key string) []Action {
+	return bulk(&v.tableMarks, v.visible, volumeMarkKey, func(vol docker.Volume) Action {
+		name, param := v.keyFor(key, vol)
+		return Action{Name: name, Param: param, Label: vol.Name}
+	})
+}

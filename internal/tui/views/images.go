@@ -23,6 +23,7 @@ type ImagesRefreshMsg struct {
 
 // ImagesView lists local images.
 type ImagesView struct {
+	tableMarks
 	tableSort
 	client *docker.Client
 	err    error
@@ -136,6 +137,11 @@ func (v *ImagesView) HandleKey(key string) (string, string) {
 		}
 		return "", ""
 	}
+	return v.keyFor(key, im)
+}
+
+// keyFor is the action key asks for on one row.
+func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 	switch key {
 	case KeyEnter, "L":
 		return "layers", im.ID
@@ -233,6 +239,7 @@ func (v *ImagesView) rebuildRows() {
 		v.visible = append(v.visible, im)
 	}
 	sortRows(&v.tableSort, rows, v.visible)
+	rows = markRows(&v.tableMarks, rows, v.visible, v.all, imageMarkKey)
 	setTableRows(&v.table, rows)
 }
 
@@ -254,3 +261,31 @@ func (v *ImagesView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *ImagesView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// imageMarkKey identifies a row for marks.
+func imageMarkKey(im docker.Image) string { return im.ID + "\x00" + im.Ref() }
+
+// MarkKey marks rows on space, ctrl+space and ctrl+\.
+func (v *ImagesView) MarkKey(key string) bool {
+	if !markKey(&v.tableMarks, key, v.visible, v.table.Cursor(), imageMarkKey) {
+		return false
+	}
+	v.rebuildRows()
+	return true
+}
+
+// ClearMarks unmarks every row.
+func (v *ImagesView) ClearMarks() {
+	if v.marks != nil {
+		v.marks.Clear()
+		v.rebuildRows()
+	}
+}
+
+// BulkKey is key's action on every marked row; nil when none is marked.
+func (v *ImagesView) BulkKey(key string) []Action {
+	return bulk(&v.tableMarks, v.visible, imageMarkKey, func(im docker.Image) Action {
+		name, param := v.keyFor(key, im)
+		return Action{Name: name, Param: param, Label: im.Ref()}
+	})
+}
