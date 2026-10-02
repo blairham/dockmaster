@@ -139,6 +139,8 @@ In the runtimes view the same letters act on the machine, where its runtime supp
 
 `C` on a container is `docker cp` either way (`views.CopyFormView`): the archive handling is moby/go-archive, the docker CLI's own, so directory-versus-contents and missing-destination rules match `docker cp` — checked against the real CLI on the same input. Copying in changes the container and is gated by `--readonly`; copying out is not. A local path takes `~` and is relative to where dockmaster was started.
 
+`e` on a container edits it in place (`views.EditFormView`, `docker.Edit`): CPU and memory limits and restart policy via `docker update`, the name via `docker rename` — no restart. The form opens on the container's current settings. A memory change always carries a swap value: the daemon refuses memory above the existing memory+swap limit ("update the memoryswap at the same time"), so `docker.EditUpdate` keeps the swap headroom the container had (unlimited stays unlimited; no limit before gets docker run's 2×). Checked live.
+
 `K` and every `ctrl-d` are uppercase or modified on purpose: the violent operations should not share a keystroke shape with navigation.
 
 `s` shells out to the `docker` CLI via `tea.ExecProcess` rather than driving the SDK's hijacked-stream exec. Interactive sessions need raw-mode TTY handling, window-resize propagation, and signal forwarding; the CLI already does all three correctly. It passes `--host` so an exec always lands on the daemon dockmaster is showing, not whatever context the user's shell happens to have.

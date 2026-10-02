@@ -270,6 +270,12 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<tab>", Desc: "Next field"},
 			{Key: "<esc>", Desc: "Cancel"},
 		}
+	case style.ViewEditForm:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Apply"},
+			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<esc>", Desc: "Cancel"},
+		}
 	case style.ViewCopyForm:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Copy"},
@@ -543,6 +549,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<D>", Desc: "Diff (files)"},
 					{Key: "<S>", Desc: "Stats"},
 					{Key: "<C>", Desc: "Copy files"},
+					{Key: "<e>", Desc: "Edit limits, name"},
 					{Key: "<b>", Desc: "Browse port"},
 					{Key: "<p>", Desc: "Pause/unpause"},
 					{Key: "<s>", Desc: "Shell into it"},

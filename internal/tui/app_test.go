@@ -634,7 +634,7 @@ func TestShellAndStartKeys(t *testing.T) {
 	}{
 		{name: "containers s", v: cv, key: "s", want: "exec"},
 		{name: "containers u", v: cv, key: "u", want: "start"},
-		{name: "containers e", v: cv, key: "e", want: ""},
+		{name: "containers e", v: cv, key: "e", want: "edit_form"}, // edit — not the old shell
 	} {
 		if got, _ := tc.v.HandleKey(tc.key); got != tc.want {
 			t.Errorf("%s: action %q, want %q", tc.name, got, tc.want)

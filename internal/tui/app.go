@@ -391,6 +391,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 	case copyDoneMsg:
 		return a.handleCopyDone(msg)
 
+	case editStateMsg:
+		return a.handleEditState(msg)
+
+	case editDoneMsg:
+		return a.handleEditDone(msg)
+
 	case execDoneMsg:
 		if msg.err != nil {
 			a.errFlash = msg.err.Error()

@@ -287,6 +287,8 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 		return "stats", c.ID
 	case "C":
 		return "copy_form", c.ID
+	case "e":
+		return "edit_form", c.ID
 	case "u":
 		return "start", c.ID
 	case "x":
