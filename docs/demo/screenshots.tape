@@ -21,17 +21,34 @@ Show
 Sleep 3s
 Screenshot docs/images/containers.png
 
-# Two rows marked for a bulk action, then unmarked again.
-Down
+# Two rows marked for a bulk action — the cursor moved off them, since its
+# highlight covers a mark — then unmarked again.
 Space
 Down
 Space
+Down
 Sleep 1s
 Screenshot docs/images/marks.png
-Space
 Up
 Space
 Up
+Space
+Sleep 500ms
+
+# The worker's log, early (a long one is over the large-file hook's
+# limit), with a mark partway down.
+Type "/worker"
+Enter
+Sleep 500ms
+Enter
+Sleep 2s
+Type "m"
+Sleep 3s
+Screenshot docs/images/logs.png
+# Paused apart: an ESC followed at once by a key reads as Alt+key.
+Escape
+Sleep 500ms
+Escape
 Sleep 500ms
 
 # Help.
@@ -48,19 +65,6 @@ Sleep 500ms
 Type "H"
 Sleep 2s
 Screenshot docs/images/health.png
-# Paused apart: an ESC followed at once by a key reads as Alt+key.
-Escape
-Sleep 500ms
-Escape
-Sleep 500ms
-
-# The worker's log, with the indicator line.
-Type "/worker"
-Enter
-Sleep 500ms
-Enter
-Sleep 4s
-Screenshot docs/images/logs.png
 # Paused apart: an ESC followed at once by a key reads as Alt+key.
 Escape
 Sleep 500ms
