@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/blairham/tuikit/chrome"
 )
 
 // TestCtrlGAndCtrlEToggleTheChrome pins k9s's chrome keys: ctrl+g hides and
@@ -16,7 +17,7 @@ func TestCtrlGAndCtrlEToggleTheChrome(t *testing.T) {
 	ctrl := func(r rune) tea.KeyMsg { return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl} }
 	frame := func() []string { return strings.Split(strings.TrimRight(render(a), "\n"), "\n") }
 	hasCrumbs := func(lines []string) bool {
-		return strings.Contains(strings.Join(lines[len(lines)-2:], ""), "Containers")
+		return strings.Contains(strings.Join(lines[len(lines)-2:], ""), chrome.CrumbText("Containers"))
 	}
 	hasHeader := func(lines []string) bool { return strings.Contains(lines[0], "Context:") }
 

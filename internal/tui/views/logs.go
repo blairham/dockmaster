@@ -65,7 +65,14 @@ type LogsView struct {
 	// since, when non-zero, starts the stream that long ago instead of at
 	// the last tailLines lines (the 1–5 keys).
 	since time.Duration
+	width int
+	// fullscreen mirrors the app's, for the indicator line.
+	fullscreen bool
 }
+
+// SetFullscreen tells the view whether the app has hidden header and
+// crumbs for it, so the indicator line can say so.
+func (v *LogsView) SetFullscreen(on bool) { v.fullscreen = on }
 
 // LogRanges are the time ranges the digit keys pick, as k9s's log view:
 // 0 is the usual backlog, 1–5 everything from that long ago.
@@ -334,8 +341,31 @@ func (v *LogsView) drain() tea.Cmd {
 // UpdateTable forwards scroll keys to the viewport.
 func (v *LogsView) UpdateTable(msg tea.Msg) tea.Cmd { return scrollTail(v.tail, msg) }
 
-// Resize re-lays the viewport.
-func (v *LogsView) Resize(width, height int) { v.tail.Resize(width, height) }
+// Resize re-lays the viewport, one row under the indicator line.
+func (v *LogsView) Resize(width, height int) {
+	v.width = width
+	v.tail.Resize(width, max(height-1, 1))
+}
+
+// Indicator is the toggle line k9s draws at the top of a log —
+// Autoscroll, FullScreen, Timestamps, Wrap, each On or Off — so the state
+// of every toggle is on screen, not only in help.
+func (v *LogsView) Indicator() string {
+	label := lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Bold(true)
+	state := func(on bool) string {
+		if on {
+			return style.Success.Render("On")
+		}
+		return style.Muted.Render("Off")
+	}
+	parts := []string{
+		label.Render("Autoscroll:") + state(v.tail.Follow()),
+		label.Render("FullScreen:") + state(v.fullscreen),
+		label.Render("Timestamps:") + state(v.timestamps),
+		label.Render("Wrap:") + state(v.tail.Wrap()),
+	}
+	return lipgloss.PlaceHorizontal(v.width, lipgloss.Center, strings.Join(parts, "      "))
+}
 
 // Count is the number of lines currently visible under the filter.
 func (v *LogsView) Count() int { return v.tail.VisibleCount() }
@@ -424,10 +454,11 @@ func (v *LogsView) View() string {
 	if !v.tail.Ready() {
 		return ""
 	}
+	body := v.tail.View()
 	if v.tail.LineCount() == 0 && !v.loading {
-		return style.Muted.Render("  (no output)")
+		body = style.Muted.Render("  (no output)")
 	}
-	return v.tail.View()
+	return v.Indicator() + "\n" + body
 }
 
 // Refresh restarts the stream from scratch. `r` on a log tail means "start
@@ -437,19 +468,13 @@ func (v *LogsView) Refresh() tea.Cmd { return v.start() }
 // Status is the extra detail the app puts in the border title: follow
 // state and the active filter.
 func (v *LogsView) Status() string {
-	parts := make([]string, 0, 4)
-	if v.tail.Follow() {
-		parts = append(parts, "follow")
-	} else {
-		parts = append(parts, "paused")
-	}
+	// The toggles are on the indicator line; the title carries the range
+	// and filter, as k9s's "[1m]".
+	parts := make([]string, 0, 2)
 	for _, r := range LogRanges {
 		if r.Since != 0 && r.Since == v.since {
 			parts = append(parts, "last "+r.Label)
 		}
-	}
-	if v.tail.Wrap() {
-		parts = append(parts, "wrap")
 	}
 	if v.filter != "" {
 		parts = append(parts, "/"+v.filter)

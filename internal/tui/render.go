@@ -172,6 +172,15 @@ func (a *App) renderShortcuts(info []string) []string {
 		{Key: "<6>", Desc: "Events"},
 	}
 
+	// In a log the digits pick a time range (k9s), so the digit column
+	// says so instead of listing views the keys no longer switch to.
+	if a.view == style.ViewLogs {
+		viewKeys = viewKeys[:0]
+		for _, r := range views.LogRanges {
+			viewKeys = append(viewKeys, chrome.Shortcut{Key: "<" + r.Key + ">", Desc: r.Label})
+		}
+	}
+
 	var actions []chrome.Shortcut //nolint:prealloc // each case assigns a fresh literal
 	switch a.view {
 	case style.ViewContainers:
@@ -265,7 +274,9 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<T>", Desc: "Timestamps"},
 			{Key: "<w>", Desc: "Wrap"},
 			{Key: "<F>", Desc: "Fullscreen"},
+			{Key: "<c>", Desc: "Copy"},
 			{Key: "<ctrl-s>", Desc: "Save"},
+			{Key: "<ctrl-k>", Desc: "Clear"},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<s>", Desc: "Shell"},
 			{Key: "<esc>", Desc: "Back"},

@@ -58,8 +58,8 @@ func TestLogWrapAndClear(t *testing.T) {
 		t.Fatal("setup: the long line already fits")
 	}
 	step(a, key("w"))
-	if !lv.Wrap() || !strings.Contains(render(a), "END") || !strings.Contains(lv.Status(), "wrap") {
-		t.Errorf("w did not wrap the long line (wrap %v, status %q)", lv.Wrap(), lv.Status())
+	if !lv.Wrap() || !strings.Contains(render(a), "END") || !strings.Contains(render(a), "Wrap:On") {
+		t.Errorf("w did not wrap the long line, or the indicator does not say so (wrap %v)", lv.Wrap())
 	}
 	step(a, key("ctrl+k"))
 	if lv.Count() != 0 {
@@ -138,5 +138,40 @@ func TestLogsHelpShowsTheLogKeys(t *testing.T) {
 	}
 	if strings.Contains(out, "CONTAINER") {
 		t.Error("help over a log still shows the CONTAINER column")
+	}
+}
+
+// TestLogHeaderAndIndicatorFollowTheLog: in a log the header's digit column
+// lists the time ranges the digits now pick, not views they no longer
+// reach, and the indicator line tracks every toggle.
+func TestLogHeaderAndIndicatorFollowTheLog(t *testing.T) {
+	a, _ := openLogs(t)
+	header := strings.Join(strings.Split(render(a), "\n")[:6], "\n")
+	for _, want := range []string{"<0>", "tail", "<2>", "5m", "<5>", "1h", "Copy", "Clear"} {
+		if !strings.Contains(header, want) {
+			t.Errorf("log header is missing %q:\n%s", want, header)
+		}
+	}
+	for _, gone := range []string{"Images", "Volumes", "Runtimes"} {
+		if strings.Contains(header, gone) {
+			t.Errorf("log header still lists the view %q", gone)
+		}
+	}
+	indicator := func() string {
+		for _, l := range strings.Split(render(a), "\n") {
+			if strings.Contains(l, "Autoscroll:") {
+				return strings.Join(strings.Fields(l), " ")
+			}
+		}
+		return ""
+	}
+	if got := indicator(); !strings.Contains(got, "Autoscroll:On FullScreen:Off Timestamps:Off Wrap:Off") {
+		t.Fatalf("indicator = %q", got)
+	}
+	step(a, key("w"))
+	step(a, key("F"))
+	step(a, key("k"))
+	if got := indicator(); !strings.Contains(got, "Autoscroll:Off FullScreen:On Timestamps:Off Wrap:On") {
+		t.Errorf("after w, F, k: indicator = %q", got)
 	}
 }

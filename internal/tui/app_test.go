@@ -777,8 +777,9 @@ func assertFrameFits(t *testing.T, a *App, what string) {
 	if bottom != want {
 		t.Errorf("%s: bottom border at line %d of %d, want %d", what, bottom, len(lines), want)
 	}
-	if crumb := strings.Join(lines[max(0, len(lines)-2):], "\n"); !strings.Contains(crumb, style.ViewName(a.view)) {
-		t.Errorf("%s: breadcrumb %q missing from the last lines %q", what, style.ViewName(a.view), crumb)
+	wantCrumb := chrome.CrumbText(style.ViewName(a.view))
+	if crumb := strings.Join(lines[max(0, len(lines)-2):], "\n"); !strings.Contains(crumb, wantCrumb) {
+		t.Errorf("%s: breadcrumb %q missing from the last lines %q", what, wantCrumb, crumb)
 	}
 }
 
@@ -1038,7 +1039,7 @@ func TestHeadlessAndCrumbsless(t *testing.T) {
 				if !strings.Contains(last, "╰") {
 					t.Errorf("%s %s: last line is not the box bottom: %q", tc.name, what, last)
 				}
-			} else if !strings.Contains(strings.Join(lines[len(lines)-2:], ""), "Containers") {
+			} else if !strings.Contains(strings.Join(lines[len(lines)-2:], ""), chrome.CrumbText("Containers")) {
 				t.Errorf("%s %s: breadcrumb missing", tc.name, what)
 			}
 			if tc.headless && !strings.Contains(lines[0], "╭") && !strings.Contains(lines[0], "remove container") {

@@ -95,5 +95,8 @@ func (a *App) setFullscreen(on bool) {
 		a.chrome.HeaderHidden, a.chrome.CrumbsHidden = a.preFullscreen[0], a.preFullscreen[1]
 	}
 	a.fullscreen = on
+	if lv := typedView[*views.LogsView](a, style.ViewLogs); lv != nil {
+		lv.SetFullscreen(on)
+	}
 	a.resizeActiveView()
 }

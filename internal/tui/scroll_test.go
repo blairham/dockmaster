@@ -45,8 +45,8 @@ func TestScrollingPausesTheLogTail(t *testing.T) {
 			}
 
 			step(a, scroll.msg)
-			if lv.Follow() || lv.Status() != "paused" {
-				t.Fatalf("%s did not pause follow (status %q)", scroll.name, lv.Status())
+			if lv.Follow() || !strings.Contains(render(a), "Autoscroll:Off") {
+				t.Fatalf("%s did not pause follow, or the indicator does not say so", scroll.name)
 			}
 			step(a, views.LogBatchMsg{Lines: logLines(200, 5)})
 			if strings.Contains(render(a), "line-0204") {
