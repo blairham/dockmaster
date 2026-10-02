@@ -124,6 +124,13 @@ restarting the machine dockmaster is connected to, and the create/edit form — 
   `ctrl+k` lists them by container and pod, filterable by namespace;
   pause containers never. They are recognised by the
   `io.kubernetes.pod.*` labels (`Container.Kube`), not by name.
+- **Their images are named, not IDs.** cri-dockerd creates pod containers
+  from an image ID, so docker reports their image as a bare `sha256:`.
+  `Containers` asks the daemon what each such ID is called — its tag, else
+  `repository@sha256:<12>` from a digest — once per ID for the session
+  (an ID names one image for good), never by listing every image, which
+  can take minutes on a large host. A failed lookup is asked again on the
+  next refresh; an image with no name keeps its ID.
 
 ## Listing must stay fast
 

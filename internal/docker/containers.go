@@ -74,7 +74,16 @@ func (c *Client) Containers(ctx context.Context, all bool) ([]Container, error) 
 
 	out := make([]Container, 0, len(raw))
 	for _, s := range raw {
-		out = append(out, newContainer(s))
+		ctr := newContainer(s)
+		// Created from an image ID — as Kubernetes's cri-dockerd creates
+		// every pod container — the container's image reads as a bare
+		// sha256. Show the image's name instead, where it has one.
+		if strings.HasPrefix(ctr.Image, "sha256:") {
+			if name := c.imageName(ctx, ctr.Image); name != "" {
+				ctr.Image = name
+			}
+		}
+		out = append(out, ctr)
 	}
 	// Running first, then by name — the same ordering k9s uses for pods, so
 	// the thing you are most likely to act on never sorts below the debris.
@@ -294,4 +303,48 @@ func (c Container) Kube() (KubeRef, bool) {
 		Container: c.Labels["io.kubernetes.container.name"],
 		Sandbox:   c.Labels["io.kubernetes.docker.type"] == "podsandbox",
 	}, true
+}
+
+// imageName is what image id is called: its first tag, else its repository
+// from a digest ("rancher/mirrored-coredns-coredns@sha256:…"), else "".
+// Each ID is inspected once, ever — listing every image to find it can
+// take minutes on a large host, and an ID's name does not change.
+func (c *Client) imageName(ctx context.Context, id string) string {
+	c.imageMu.Lock()
+	name, ok := c.imageNames[id]
+	c.imageMu.Unlock()
+	if ok {
+		return name
+	}
+	insp, err := c.api.ImageInspect(ctx, id)
+	if err != nil {
+		return "" // not cached: the next refresh asks again
+	}
+	for _, t := range insp.RepoTags {
+		if t != "" && t != "<none>:<none>" {
+			name = t
+			break
+		}
+	}
+	if name == "" && len(insp.RepoDigests) > 0 {
+		if repo, digest, ok := strings.Cut(insp.RepoDigests[0], "@"); ok {
+			name = repo + "@" + shortDigest(digest)
+		}
+	}
+	c.imageMu.Lock()
+	if c.imageNames == nil {
+		c.imageNames = map[string]string{}
+	}
+	c.imageNames[id] = name
+	c.imageMu.Unlock()
+	return name
+}
+
+// shortDigest is "sha256:" and the first twelve hex digits of a digest.
+func shortDigest(d string) string {
+	algo, hex, ok := strings.Cut(d, ":")
+	if !ok || len(hex) <= 12 {
+		return d
+	}
+	return algo + ":" + hex[:12]
 }

@@ -45,6 +45,10 @@ type Client struct {
 	OSArch      string
 	Name        string
 	statsMu     sync.RWMutex
+	// imageNames caches what an image ID is called (imageName); an ID
+	// names one image for good, so an entry never goes stale.
+	imageNames map[string]string
+	imageMu    sync.Mutex
 	// RequestTimeout, when non-zero, replaces every per-call deadline
 	// passed to RequestContext (--request-timeout): longer for a daemon
 	// that is slow but honest, shorter to fail fast on one that hangs.
