@@ -336,6 +336,7 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	}
 
+	actions = append(actions, a.pluginShortcuts()...)
 	actions = append(
 		actions,
 		chrome.Shortcut{Key: "</>", Desc: "Filter"},
@@ -580,6 +581,9 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	// k9s's help follows the view it is opened over.
 	if a.view == style.ViewLogs {
 		panel.Sections[1] = logsHelp()
+	}
+	if pl, ok := a.pluginsHelp(); ok {
+		panel.Sections = append(panel.Sections, pl)
 	}
 	if hk, ok := a.hotKeysHelp(); ok {
 		panel.Sections = append(panel.Sections, hk)

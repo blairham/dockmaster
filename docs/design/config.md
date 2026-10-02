@@ -162,3 +162,57 @@ chrome and table keys) or that would take navigation away (`j`/`k`, arrows,
 page keys) are refused at startup, as are a key taken twice and a command
 that does not resolve. Help lists hotkeys in a HOTKEYS column, the
 description or else the command.
+
+## Plugins
+
+`plugins.yaml`, beside `config.yaml`, is k9s's plugins file: a key, in the
+views you name, that runs a command on the selected row.
+
+```yaml
+plugins:
+  dive:
+    shortCut: Shift-D
+    description: Dive image
+    scopes: [images]
+    command: dive
+    args: [$IMAGE]
+  ctop:
+    shortCut: Ctrl-T
+    description: Stats in ctop
+    scopes: [containers]
+    command: sh
+    args: [-c, 'DOCKER_HOST=$DOCKER_HOST ctop -f $NAME']
+```
+
+`scopes` are view names as the palette spells them (`containers`, `images`,
+`volumes`, `networks`, `projects`, `runtimes`, `pods`, `events`, …), plus
+`logs`, `files` (the volume browser), `layers` and `node`, or `all`.
+
+`$VAR`s in `args` are filled in by dockmaster, as k9s fills its own, from
+the view: `$DOCKER_HOST` (so a plugin's `docker` reaches the daemon on
+screen), `$CONTEXT` and `$FILTER` everywhere; the selected row's own
+fields — `$NAME`, `$ID`, `$IMAGE`, `$CONTAINER`, `$PROJECT`, `$SERVICE`,
+`$STATE`, `$VOLUME`, `$NETWORK`, `$DRIVER`, `$MOUNTPOINT`, `$WORKING_DIR`,
+`$CONFIG_FILES`, `$PROVIDER`, by view; and every column of it as
+`$COL-<HEADER>` (k9s's spelling) and `$COL_<HEADER>`. Anything else comes
+from dockmaster's own environment; a name found nowhere is empty. The same
+values are in the command's environment. A table view with no row selected
+runs nothing.
+
+- A plugin hands the terminal over, as `s` does; `background: true` runs it
+  detached and flashes its outcome — the exit code and last line on
+  failure.
+- `confirm: true` asks first, showing the command line.
+- `dangerous: true` is refused under `--readonly`; other plugins run there,
+  being the user's own.
+- A plugin's key is asked after the view's own keys, so the view keeps a
+  key it binds — unless `override: true`, which puts the plugin first.
+- The active view's plugins join its header shortcuts and a PLUGINS column
+  in help.
+
+Checked at startup: the key parses, is not one dockmaster keeps and is not
+taken by a hotkey or by another plugin in a view they share; there is a
+command and at least one scope, and every scope is a view. k9s's `pipes`
+and `inputs` are refused rather than ignored, which would run a different
+command than the one written; `overwriteOutput` is accepted and does
+nothing, as dockmaster does not capture output.

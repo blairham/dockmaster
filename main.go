@@ -98,6 +98,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	pluginFile, err := config.LoadPlugins()
+	if err != nil {
+		return err
+	}
+	plugins, err := tui.Plugins(pluginFile, hotKeys)
+	if err != nil {
+		return err
+	}
 
 	// The skin goes in before anything is built: every style derives from
 	// the base theme.
@@ -192,6 +200,7 @@ func run() error {
 		LiveRefresh:     cfg.LiveViewAutoRefresh,
 		Aliases:         aliases,
 		HotKeys:         hotKeys,
+		Plugins:         plugins,
 		RequestTimeout:  cfg.RequestTimeout,
 		Thresholds:      tui.ThresholdsFrom(cfg.Thresholds),
 		Engines:         providers,

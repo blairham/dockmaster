@@ -283,6 +283,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
+	// A plugin that overrides a view's own key goes first.
+	if cmd, ok := a.pluginKey(key, true); ok {
+		return a, cmd
+	}
+
 	// With rows marked, lifecycle and remove keys act on all of them.
 	if cmd, ok := a.bulkKey(key); ok {
 		return a, cmd
@@ -296,8 +301,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if a.tableKey(key) {
 		return a, nil
 	}
-	// Then the user's hotkeys — after the view's own keys, so a view that
-	// binds the same key keeps it.
+	// Then the user's plugins and hotkeys — after the view's own keys, so a
+	// view that binds the same key keeps it.
+	if cmd, ok := a.pluginKey(key, false); ok {
+		return a, cmd
+	}
 	if cmd, ok := a.hotKey(key); ok {
 		return a, cmd
 	}

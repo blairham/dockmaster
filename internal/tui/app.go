@@ -113,6 +113,7 @@ type App struct {
 	liveRefresh bool
 	aliases     map[string]string
 	hotKeys     []HotKey
+	plugins     []Plugin
 	// requestTimeout is --request-timeout, carried onto each client a
 	// context switch dials.
 	requestTimeout time.Duration
@@ -211,6 +212,8 @@ type Options struct {
 	Aliases map[string]string
 	// HotKeys are the user's hotkeys (hotkeys.yaml), validated by HotKeys.
 	HotKeys []HotKey
+	// Plugins are the user's plugins (plugins.yaml), validated by Plugins.
+	Plugins []Plugin
 	// RequestTimeout overrides every daemon request's own deadline when
 	// non-zero (--request-timeout).
 	RequestTimeout time.Duration
@@ -320,6 +323,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		liveRefresh:    opts.LiveRefresh,
 		aliases:        opts.Aliases,
 		hotKeys:        opts.HotKeys,
+		plugins:        opts.Plugins,
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 	}
@@ -438,6 +442,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 
 	case composeDoneMsg:
 		return a.handleComposeDone(msg)
+
+	case pluginDoneMsg:
+		return a.handlePluginDone(msg)
 
 	case composeEditedMsg:
 		return a.handleComposeEdited(msg)
