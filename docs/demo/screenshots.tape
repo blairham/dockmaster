@@ -1,7 +1,7 @@
 # Renders the README screenshots into docs/images. Run through
 # `make screenshots`, which stages docs/demo/compose.yaml and sets
 # DOCKMASTER_DEMO_HOST and DOCKMASTER_CONFIG_DIR.
-Output /tmp/dockmaster-demo/tour.gif
+Output "/tmp/dockmaster-demo/tour.gif"
 
 Set Shell "bash"
 Set FontSize 14
