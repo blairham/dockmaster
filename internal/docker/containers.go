@@ -268,3 +268,30 @@ func (c *Client) PruneContainers(ctx context.Context) (deleted int, reclaimed ui
 	}
 	return len(rep.ContainersDeleted), rep.SpaceReclaimed, nil
 }
+
+// KubeRef is a Kubernetes container's identity, from the labels
+// cri-dockerd puts on the docker containers it runs pods as — what a
+// runtime's built-in Kubernetes (Rancher Desktop, Docker Desktop) shows
+// on its docker daemon.
+type KubeRef struct {
+	Namespace string
+	Pod       string
+	Container string
+	// Sandbox is the pod's pause container, holding its namespaces: pure
+	// plumbing, with nothing to act on.
+	Sandbox bool
+}
+
+// Kube reports whether c runs part of a Kubernetes pod, and which.
+func (c Container) Kube() (KubeRef, bool) {
+	pod := c.Labels["io.kubernetes.pod.name"]
+	if pod == "" {
+		return KubeRef{}, false
+	}
+	return KubeRef{
+		Namespace: c.Labels["io.kubernetes.pod.namespace"],
+		Pod:       pod,
+		Container: c.Labels["io.kubernetes.container.name"],
+		Sandbox:   c.Labels["io.kubernetes.docker.type"] == "podsandbox",
+	}, true
+}

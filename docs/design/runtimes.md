@@ -104,7 +104,26 @@ restarting the machine dockmaster is connected to, and the create/edit form — 
 | podman 6.1.3 | create (`init --now`), Docker API on the machine socket, stop, edit (cpus/memory, rootful), restart, delete; pods: list, stop/start/restart, inspect, rm, and pods behind the `-root` connection after going rootful |
 | Docker Desktop 4.x | status (incl. a running engine), stop, start |
 | OrbStack 2.2.3 | status, start, stop |
-| Rancher Desktop | not yet — it cannot be installed alongside Docker Desktop |
+| Rancher Desktop 1.24 (moby, Kubernetes on) | 2026-10-02: detection before first launch, status, VM size, built-in Kubernetes (`own`), connect, stop (13 s), start (25 s) |
+
+### Rancher Desktop
+
+- **rdctl before first launch.** Rancher adds `~/.rd/bin` to PATH only
+  during its first-run setup, but `rdctl` ships inside the app from the
+  start. Detection looks on PATH, then in `~/.rd/bin`, then in the bundle,
+  so start/stop go through `rdctl start` / `shutdown` (which quits and
+  relaunches the app) and Kubernetes state is read from the beginning.
+- **VM size** comes from `rdctl list-settings` (`virtualMachine.numberCPUs`,
+  `memoryInGB`, `experimental.virtualMachine.diskSize`), asked only while
+  it runs — `rdctl` cannot answer while the app is down.
+- **Its Kubernetes runs as docker containers.** With the moby engine,
+  cri-dockerd runs every pod as `k8s_<container>_<pod>_<namespace>_…`
+  containers, a pause container per pod. The containers view hides them
+  by default — Rancher alone starts eleven — and says how many in the
+  border title and, on an otherwise empty list, how to show them:
+  `ctrl+k` lists them by container and pod, filterable by namespace;
+  pause containers never. They are recognised by the
+  `io.kubernetes.pod.*` labels (`Container.Kube`), not by name.
 
 ## Listing must stay fast
 

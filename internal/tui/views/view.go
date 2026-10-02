@@ -57,6 +57,12 @@ type Backer interface {
 	Back() (tea.Cmd, bool)
 }
 
+// Statuser is a view with a note for its border title, after its name —
+// a log's time range, the containers hidden from a list.
+type Statuser interface {
+	Status() string
+}
+
 // Stoppable is implemented by views holding background goroutines (the log
 // tail). The app calls Stop on view switch and at shutdown.
 type Stoppable interface {

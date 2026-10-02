@@ -54,6 +54,7 @@ Digits pick the resource; `?` shows everything.
 | `K` | kill (SIGKILL — confirms) | `p` | pause / unpause |
 | `s` | shell into the container | `ctrl-d` | remove (confirms) |
 | `a` | toggle stopped containers / all images | `P` | prune (confirms) |
+| `ctrl-k` | show the containers a runtime's built-in Kubernetes runs pods in (hidden by default) | | |
 | `t` | toggle the CPU/MEM poll | `z` | volume sizes (slow) |
 | on a volume: `enter` | browse its files (`enter` opens, `esc` goes up) | `o` | inspect |
 | `f` | toggle log follow (scrolling pauses it, `G` resumes) | `T` | toggle log timestamps |

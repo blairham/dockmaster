@@ -134,6 +134,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- view toggles ---------------------------------------------------
 
+	case "toggle_kube":
+		if v := typedView[*views.ContainersView](a, style.ViewContainers); v != nil {
+			v.ToggleKube()
+			a.flash = "Kubernetes containers " + map[bool]string{true: "shown", false: "hidden"}[v.ShowKube()]
+		}
+		return a, nil
 	case "toggle_all":
 		switch v := a.activeView().(type) {
 		case *views.ContainersView:

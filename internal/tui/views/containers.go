@@ -55,6 +55,11 @@ const nodeMarker = "⎈ "
 // containerName is the NAME cell: the name, marked when it is part of a
 // kind/k3d cluster — a node, or the cluster's local registry.
 func containerName(c docker.Container) string {
+	// A Kubernetes container by what it is — container, then its pod —
+	// not cri-dockerd's k8s_<container>_<pod>_<namespace>_<uid>_<n>.
+	if k, ok := c.Kube(); ok {
+		return truncate(k.Container+style.Muted.Render(" "+k.Pod), 28)
+	}
 	if _, node := docker.NodeRole(c); node || docker.IsClusterRegistry(c) {
 		return lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Render(nodeMarker) +
 			truncate(c.Name, 28-lipgloss.Width(nodeMarker))
@@ -92,6 +97,10 @@ type ContainersView struct {
 
 	loading  bool
 	showAll  bool
+	// showKube lists the containers a runtime's built-in Kubernetes runs
+	// its pods in; hidden by default, they would otherwise bury the user's
+	// own (Rancher Desktop starts eleven).
+	showKube bool
 	statsOn  bool
 	inFlight bool
 }
@@ -134,6 +143,40 @@ func (v *ContainersView) Init() tea.Cmd { return v.refresh() }
 
 // ShowAll reports whether stopped containers are included.
 func (v *ContainersView) ShowAll() bool { return v.showAll }
+
+// ToggleKube shows or hides the containers Kubernetes runs pods in.
+func (v *ContainersView) ToggleKube() {
+	v.showKube = !v.showKube
+	v.rebuildRows()
+}
+
+// ShowKube reports whether Kubernetes containers are listed.
+func (v *ContainersView) ShowKube() bool { return v.showKube }
+
+// Status notes the Kubernetes containers hidden from the list, for the
+// border title — so a daemon running only Kubernetes does not read as
+// empty.
+func (v *ContainersView) Status() string {
+	if n := v.hiddenKube(); n > 0 {
+		return fmt.Sprintf("+%d kube hidden", n)
+	}
+	return ""
+}
+
+// hiddenKube counts the Kubernetes containers ctrl+k would show; 0 while
+// they are shown.
+func (v *ContainersView) hiddenKube() int {
+	if v.showKube {
+		return 0
+	}
+	n := 0
+	for _, c := range v.all {
+		if k, ok := c.Kube(); ok && !k.Sandbox {
+			n++
+		}
+	}
+	return n
+}
 
 // ToggleAll flips between `docker ps` and `docker ps -a` and refetches.
 func (v *ContainersView) ToggleAll() tea.Cmd {
@@ -258,6 +301,8 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 			return "toggle_all", ""
 		case "t":
 			return "toggle_stats", ""
+		case "ctrl+k":
+			return "toggle_kube", ""
 		}
 		return "", ""
 	}
@@ -312,6 +357,8 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "exec", c.ID
 	case "a":
 		return "toggle_all", ""
+	case "ctrl+k":
+		return "toggle_kube", ""
 	case "t":
 		return "toggle_stats", ""
 	case "F":
@@ -333,6 +380,9 @@ func (v *ContainersView) View() string {
 		hint := "no running containers — press <a> to include stopped ones"
 		if v.showAll {
 			hint = "no containers on this daemon"
+		}
+		if n := v.hiddenKube(); n > 0 {
+			hint = fmt.Sprintf("only Kubernetes's containers here (%d) — press <ctrl-k> to show them", n)
 		}
 		if v.filter != "" {
 			hint = fmt.Sprintf("no containers match /%s", v.filter)
@@ -390,7 +440,13 @@ func (v *ContainersView) rebuildRows() {
 	v.visible = v.visible[:0]
 
 	for _, c := range v.all {
-		if !f.Empty() && !f.MatchesAny(c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short()) {
+		k, kube := c.Kube()
+		// A pod's pause container is never listed; the rest only on ctrl+k.
+		if kube && (k.Sandbox || !v.showKube) {
+			continue
+		}
+		if !f.Empty() && !f.MatchesAny(c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),
+			k.Namespace, k.Pod, k.Container) {
 			continue
 		}
 

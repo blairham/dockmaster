@@ -494,7 +494,7 @@ func (a *App) renderResourceTitle() string {
 	countStyle := lipgloss.NewStyle().Foreground(style.ColorPapayaWhip).Bold(true)
 
 	name := a.viewName()
-	if v := typedView[*views.LogsView](a, style.ViewLogs); v != nil && a.view == style.ViewLogs {
+	if v, ok := a.activeView().(views.Statuser); ok {
 		if s := v.Status(); s != "" {
 			name += " " + s
 		}
@@ -542,6 +542,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<enter>", Desc: "Drill in"},
 					{Key: "<o>", Desc: "Inspect"},
 					{Key: "<a>", Desc: "Toggle stopped/all"},
+					{Key: "<ctrl-k>", Desc: "K8s containers"},
 					{Key: "<z>", Desc: "Volume sizes"},
 					{Key: "<u>", Desc: "Run image"},
 					{Key: "<K>", Desc: "Kubernetes on/off"},
