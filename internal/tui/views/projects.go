@@ -142,6 +142,8 @@ func (v *ProjectsView) HandleKey(key string) (string, string) {
 	switch key {
 	case KeyEnter:
 		return "project_containers", p.Name
+	case "l":
+		return "project_logs", p.Name
 	case "x":
 		return "confirm_stop_project", p.Name
 	case "u":

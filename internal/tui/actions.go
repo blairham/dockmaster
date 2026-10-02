@@ -89,6 +89,14 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.pushView(style.ViewLogs)
 		return a, a.viewMap[style.ViewLogs].Init()
 
+	case "project_logs":
+		a.setView(
+			style.ViewLogs,
+			views.NewProjectLogsView(a.client, param).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
+		)
+		a.pushView(style.ViewLogs)
+		return a, a.viewMap[style.ViewLogs].Init()
+
 	case "inspect_container":
 		return a.openInspect(views.InspectContainer, param, a.containerName(param))
 	case "inspect_image":

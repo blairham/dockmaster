@@ -228,6 +228,7 @@ func (a *App) renderShortcuts(info []string) []string {
 	case style.ViewProjects:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Containers"},
+			{Key: "<l>", Desc: "Logs"},
 			{Key: "<u>", Desc: "Up"},
 			{Key: "<e>", Desc: "Edit"},
 			{Key: "<x>", Desc: "Stop"},
