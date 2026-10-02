@@ -84,6 +84,8 @@ func Detect(ctx context.Context, env Env) []Provider {
 			s.StopC = append(append([]string(nil), ddCmd...), "stop")
 			s.StatusC = append(append([]string(nil), ddCmd...), "status", "--format", "json")
 			s.ParseStatus = DockerDesktopStatus
+			kube := append(append([]string(nil), ddCmd...), "kubernetes", "status", "--format", "json")
+			s.K8sStatus = kubeStatus(env.Run, kube, DockerDesktopKubeStatus)
 		} else {
 			s.StartC, s.StopC = openApp("Docker"), quitApp("Docker")
 		}
@@ -94,6 +96,7 @@ func Detect(ctx context.Context, env Env) []Provider {
 		s := single(env, RancherDesktopName, "rancher-desktop", ".rd/docker.sock")
 		if has("rdctl") {
 			s.StartC, s.StopC = []string{"rdctl", "start"}, []string{"rdctl", "shutdown"}
+			s.K8sStatus = kubeStatus(env.Run, []string{"rdctl", "list-settings"}, RancherKubeStatus)
 		} else {
 			s.StartC, s.StopC = openApp("Rancher Desktop"), quitApp("Rancher Desktop")
 		}
@@ -105,6 +108,7 @@ func Detect(ctx context.Context, env Env) []Provider {
 		if has("orb") {
 			s.StartC, s.StopC = []string{"orb", "start"}, []string{"orb", "stop"}
 			s.StatusC, s.ParseStatus = []string{"orb", "status"}, OrbStackStatus
+			s.K8sStatus = kubeStatus(env.Run, []string{"orb", "config", "get", "k8s.enable"}, OrbStackKubeStatus)
 		} else {
 			s.StartC, s.StopC = openApp("OrbStack"), quitApp("OrbStack")
 		}

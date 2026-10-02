@@ -240,6 +240,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<u>", Desc: "Start"},
 			{Key: "<x>", Desc: "Stop"},
 			{Key: "<R>", Desc: "Restart"},
+			{Key: "<K>", Desc: "Kubernetes"},
 			{Key: "<ctrl-d>", Desc: "Delete"},
 		}
 	case style.ViewEvents:
@@ -525,6 +526,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<a>", Desc: "Toggle stopped/all"},
 					{Key: "<z>", Desc: "Volume sizes"},
 					{Key: "<u>", Desc: "Run image"},
+					{Key: "<K>", Desc: "Kubernetes on/off"},
 					{Key: "<:ctx>", Desc: "Docker contexts"},
 				},
 			},

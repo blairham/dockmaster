@@ -18,7 +18,7 @@ func kindNodes() []docker.Container {
 			ID: "node0000worker", Name: "k8s-worker", Image: "kindest/node:v1.35.0", State: "running",
 			Created: now, Labels: map[string]string{"io.x-k8s.kind.role": "worker", "io.x-k8s.kind.cluster": "k8s"},
 		},
-		{ID: "reg000000000000", Name: "kind-registry", Image: "registry:2", State: "running", Created: now},
+		{ID: "web000000000000", Name: "nginx", Image: "nginx:1.27", State: "running", Created: now},
 	}
 }
 
@@ -92,7 +92,7 @@ func TestKindNodeDrillIn(t *testing.T) {
 		t.Fatalf("esc did not unwind to containers: %v", a.view)
 	}
 
-	for c, _ := cv.Selected(); c.Name != "kind-registry"; c, _ = cv.Selected() {
+	for c, _ := cv.Selected(); c.Name != "nginx"; c, _ = cv.Selected() {
 		step(a, key("j"))
 	}
 	step(a, key("c"))
@@ -240,7 +240,7 @@ func TestShortcutsHoldStillAcrossRows(t *testing.T) {
 	step(a, key("g"))
 	node := header() // k8s-worker
 	step(a, key("j"))
-	plain := header() // kind-registry
+	plain := header() // nginx
 
 	if node != plain {
 		t.Errorf("the bar changed with the selected row:\nnode:\n%s\nplain:\n%s", node, plain)
@@ -275,7 +275,7 @@ func TestNodeRowsAreMarked(t *testing.T) {
 	if !strings.Contains(out, "⎈ k8s-worker") {
 		t.Errorf("node row is not marked:\n%s", out)
 	}
-	if strings.Contains(out, "⎈ kind-registry") || !strings.Contains(out, "kind-registry") {
+	if strings.Contains(out, "⎈ nginx") || !strings.Contains(out, "nginx") {
 		t.Errorf("plain container is marked, or missing:\n%s", out)
 	}
 	assertFrameFits(t, a, "containers with a marked node")

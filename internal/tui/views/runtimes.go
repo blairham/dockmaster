@@ -11,7 +11,9 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
+	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/engines"
 	"github.com/blairham/dockmaster/internal/tui/style"
 )
@@ -82,6 +84,7 @@ func runtimeColumns() []table.Column {
 		{Title: "MEMORY", Width: 8},
 		{Title: "DISK", Width: 8},
 		{Title: "RUNTIME", Width: 11},
+		{Title: "K8S", Width: 4},
 		{Title: "CONTEXT", Width: 16},
 	}
 }
@@ -211,7 +214,7 @@ func (v *RuntimesView) HandleKey(key string) (string, string) {
 	}
 	k := MachineKey(m.Provider, m.Name)
 	switch key {
-	case KeyEnter, "u", "x", "R", "e", KeyCtrlD:
+	case KeyEnter, "u", "x", "R", "e", "K", KeyCtrlD:
 		if op := v.busy[k]; op != "" {
 			return "runtime_busy", k + "\x00" + op
 		}
@@ -233,6 +236,8 @@ func (v *RuntimesView) HandleKey(key string) (string, string) {
 		return "confirm_runtime_restart", k
 	case KeyCtrlD:
 		return "confirm_runtime_delete", k
+	case "K":
+		return "confirm_runtime_k8s", k
 	}
 	return "", ""
 }
@@ -301,6 +306,14 @@ func (v *RuntimesView) refresh() tea.Cmd {
 			}
 			all = append(all, r.ms...)
 		}
+		// A machine's own Kubernetes is not the only kind: kind and k3d run
+		// clusters as containers on its daemon. Starting the runtime's own
+		// on top of one adds a second cluster and takes kubectl's context.
+		for i := range all {
+			if all[i].Running && all[i].Host != "" {
+				all[i].Clusters = ClusterProbe(ctx, all[i].Host)
+			}
+		}
 		return RuntimesRefreshMsg{Machines: all, Err: errors.Join(errs...)}
 	}
 }
@@ -337,6 +350,7 @@ func (v *RuntimesView) rebuildRows() {
 			gib(m.Memory),
 			gib(m.Disk),
 			m.Runtime,
+			kubeCell(m),
 			truncate(ctx, 16),
 		})
 		v.visible = append(v.visible, m)
@@ -365,4 +379,35 @@ func gib(n int64) string {
 		return fmt.Sprintf("%dGiB", n/g)
 	}
 	return fmt.Sprintf("%.1fGiB", float64(n)/g)
+}
+
+// ClusterProbe lists the kind/k3d clusters on the daemon at host. A var so
+// tests can answer for a daemon that is not there.
+var ClusterProbe = func(ctx context.Context, host string) []engines.Cluster {
+	cs, err := docker.Clusters(ctx, host)
+	if err != nil {
+		return nil
+	}
+	out := make([]engines.Cluster, 0, len(cs))
+	for _, c := range cs {
+		out = append(out, engines.Cluster{Tool: c.Tool, Name: c.Name, Registry: c.Registry, Running: c.Running})
+	}
+	return out
+}
+
+// kubeCell is the K8S column: the kind/k3d cluster on the machine's daemon
+// — bright when running, dim when stopped — else the runtime's own built-in
+// cluster when it is on (orange: K manages kind, not that), else a dash.
+func kubeCell(m engines.Machine) string {
+	if len(m.Clusters) > 0 {
+		c := m.Clusters[0]
+		if c.Running {
+			return style.Success.Render(c.Tool)
+		}
+		return style.Muted.Render(c.Tool)
+	}
+	if m.K8s == engines.KubeOn {
+		return lipgloss.NewStyle().Foreground(style.ColorOrange).Render("own")
+	}
+	return style.Muted.Render("—")
 }

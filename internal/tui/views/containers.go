@@ -52,9 +52,10 @@ func thresholdText(text string, pct, warn, critical float64) string {
 // Kubernetes helm.
 const nodeMarker = "⎈ "
 
-// containerName is the NAME cell: the name, marked when it is a node.
+// containerName is the NAME cell: the name, marked when it is part of a
+// kind/k3d cluster — a node, or the cluster's local registry.
 func containerName(c docker.Container) string {
-	if _, node := docker.NodeRole(c); node {
+	if _, node := docker.NodeRole(c); node || docker.IsClusterRegistry(c) {
 		return lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Render(nodeMarker) +
 			truncate(c.Name, 28-lipgloss.Width(nodeMarker))
 	}
@@ -137,6 +138,9 @@ func (v *ContainersView) ToggleAll() tea.Cmd {
 	v.showAll = !v.showAll
 	return v.refresh()
 }
+
+// All is the last listing, unfiltered.
+func (v *ContainersView) All() []docker.Container { return v.all }
 
 // SetThresholds replaces the CPU/MEM colour thresholds; zero keeps the
 // defaults.
@@ -262,6 +266,9 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 	if key == "c" {
 		if _, node := docker.NodeRole(c); node {
 			return "node_containers", NodeParam(c.ID, "", c.Name)
+		}
+		if docker.IsClusterRegistry(c) {
+			return "registry_not_node", c.Name
 		}
 		return "not_a_node", c.Name
 	}

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -22,7 +23,10 @@ const colimaListJSON = `{"name":"default","status":"Running","arch":"aarch64","c
 // fakeColima answers `colima list` from a fixture and records every other
 // verb, so no test here starts or stops a real VM.
 type fakeColima struct {
-	fail  map[string]error
+	fail map[string]error
+	// k8s, keyed by profile, is what `colima status --json` reports for
+	// kubernetes; absent profiles answer nothing.
+	k8s   map[string]bool
 	calls []string
 	mu    sync.Mutex
 }
@@ -37,6 +41,11 @@ func (f *fakeColima) run(_ context.Context, args ...string) ([]byte, error) {
 	}
 	if key == "list --json" {
 		return []byte(colimaListJSON), nil
+	}
+	if profile, ok := strings.CutPrefix(key, "status --json --profile "); ok {
+		if on, known := f.k8s[profile]; known {
+			return []byte(fmt.Sprintf(`{"kubernetes":%t}`, on)), nil
+		}
 	}
 	return nil, nil
 }
@@ -228,7 +237,7 @@ func TestColimaDestructiveVerbsConfirm(t *testing.T) {
 
 func TestColimaReadonlyRefusesLifecycle(t *testing.T) {
 	a, f := newColimaApp(t, Options{ReadOnly: true})
-	for _, k := range []string{"u", "x", "R", "ctrl+d", "s"} {
+	for _, k := range []string{"u", "x", "R", "ctrl+d", "s", "K"} {
 		a.errFlash = ""
 		runCmd(a, step(a, key(k)))
 		if !strings.Contains(a.errFlash, "readonly") {
@@ -240,7 +249,7 @@ func TestColimaReadonlyRefusesLifecycle(t *testing.T) {
 		}
 	}
 	for _, c := range f.calls {
-		if c != "list --json" {
+		if !colimaReadOnly(c) {
 			t.Errorf("readonly reached colima %q", c)
 		}
 	}
@@ -414,7 +423,7 @@ func TestColimaFormEscCancels(t *testing.T) {
 		t.Errorf("esc left the view at %v", a.view)
 	}
 	for _, c := range f.calls {
-		if c != "list --json" {
+		if !colimaReadOnly(c) {
 			t.Errorf("canceled form reached colima: %q", c)
 		}
 	}
@@ -524,4 +533,10 @@ func TestColimaSpecRoundTrip(t *testing.T) {
 	if _, err := views.DecodeRuntimeSpec("colima\x00x"); err == nil {
 		t.Error("malformed spec decoded")
 	}
+}
+
+// colimaReadOnly reports whether a colima call only reads: listing the
+// profiles, or a running one's status (where the K8S column comes from).
+func colimaReadOnly(call string) bool {
+	return call == "list --json" || strings.HasPrefix(call, "status --json ")
 }

@@ -29,7 +29,12 @@ type Single struct {
 	StartC       []string
 	StopC        []string
 	StatusC      []string
+	K8sStatus    func(ctx context.Context) (on, ok bool)
 }
+
+// K8sStatus — documented here, not on the field, because the linter's
+// fieldalignment fix reorders fields and drops their comments — when set,
+// reports the runtime's built-in Kubernetes: on, and ok when it answered.
 
 // socketGone reports whether Host is a unix socket that is not on disk.
 func (s Single) socketGone() bool {
@@ -57,7 +62,13 @@ func (s Single) List(ctx context.Context) ([]Machine, error) {
 			status = "Running"
 		}
 	}
-	return []Machine{s.machine(status, up)}, nil
+	m := s.machine(status, up)
+	if up && s.K8sStatus != nil {
+		if on, ok := s.K8sStatus(ctx); ok {
+			m.K8s = kubeState(on)
+		}
+	}
+	return []Machine{m}, nil
 }
 
 func (s Single) machine(status string, up bool) Machine {

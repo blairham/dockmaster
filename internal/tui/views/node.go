@@ -34,6 +34,10 @@ type NodeView struct {
 	visible []docker.NodeContainer
 	table   table.Model
 
+	// registry is a line about the cluster's local registry, shown above
+	// the containers ("" when it has none).
+	registry string
+	height   int
 	loading  bool
 	inFlight bool
 	// showAll lists exited containers too. Off by default: most exited
@@ -67,6 +71,12 @@ func nodeColumns() []table.Column {
 
 // Title is the node's name, for the border title.
 func (v *NodeView) Title() string { return v.name }
+
+// SetRegistry gives the node view a line about its cluster's registry.
+func (v *NodeView) SetRegistry(line string) {
+	v.registry = line
+	v.Resize(v.table.Width(), v.height)
+}
 
 // ShowAll reports whether exited containers are listed.
 func (v *NodeView) ShowAll() bool { return v.showAll }
@@ -118,6 +128,10 @@ func (v *NodeView) UpdateTable(msg tea.Msg) tea.Cmd {
 
 // Resize re-lays the table.
 func (v *NodeView) Resize(width, height int) {
+	v.height = height
+	if v.registry != "" {
+		height = max(height-1, 1)
+	}
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
 	v.table.SetColumns(fitColumns(nodeColumns(), width))
@@ -171,6 +185,9 @@ func (v *NodeView) HandleKey(key string) (string, string) {
 func (v *NodeView) View() string {
 	if v.err != nil {
 		return style.Error.Render(fmt.Sprintf("  %v", v.err))
+	}
+	if v.registry != "" {
+		return v.registry + "\n" + fixSelectedRow(v.table.View())
 	}
 	return fixSelectedRow(v.table.View())
 }

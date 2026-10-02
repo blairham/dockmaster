@@ -120,3 +120,51 @@ slowest one sets the pace. Two measures keep it under a second:
   instead of over 16 (`TestSingleSocketGoneSkipsStatus`). A socket that
   is present but unanswerable — Resource Saver — still goes to the
   runtime's own status.
+
+## Kubernetes
+
+`K` manages a **kind** cluster on the machine's Docker daemon — the setup a
+kind user already has, and one mechanism for every runtime with a daemon:
+
+| On a machine with | `K` (after a confirm) |
+|---|---|
+| a running kind/k3d cluster | stops its node containers, and its registry with the last kind cluster using it |
+| a stopped one | starts them again, the registry first (a node coming up may pull from it) |
+| none | creates one: `kind create cluster` against the machine's daemon (`DOCKER_HOST`), control-plane + worker, then `kind-registry` (`registry:2` on `127.0.0.1:5001`, restart unless-stopped) wired into each node's `/etc/containerd/certs.d/localhost:5001/hosts.toml` and joined to the `kind` network |
+
+That is kind's documented local-registry recipe, and what was checked
+against a working cluster: the containerd patch is the same setting its
+nodes' `config.toml` carries, and the `hosts.toml` dockmaster writes is
+byte-identical to theirs. The cluster is `k8s` (kubectl context `kind-k8s`)
+unless that context already exists — another machine's — and then
+`k8s-<machine>`, so a second cluster never overwrites the first's context.
+
+**The registry is part of the cluster, but outlives it.** It stays a
+separate container — kind's recipe, and the only way images survive a
+`kind delete cluster`, pushing to `localhost:5001` keeps working from the
+host, and containerd (outside Kubernetes networking) can reach it — but
+dockmaster treats it as the cluster's: `K` starts and stops it with the
+nodes (kind clusters on a daemon share it, so it stops only with the last
+one running), the containers list marks it ⎈, and the node view shows where
+to push and whether it is up. It is recognised as kind's recipe makes it:
+named `kind-registry`, or a `registry` image on the `kind` network.
+
+Clusters are found by label (`io.x-k8s.kind.cluster`, `k3d.cluster`),
+running or stopped (`docker.Clusters`), for every running machine on each
+refresh. The K8S column shows the tool — bright running, dim stopped — and
+`own` where the runtime's built-in Kubernetes is on (read from `colima
+status`, `orb config`, `rdctl list-settings`, `docker desktop kubernetes
+status`). `K` refuses there, and on a stopped machine.
+
+**Why not the runtimes' own switches.** The first version of `K` turned on
+the runtime's built-in cluster. On a Colima VM already running a kind
+cluster it started Colima's k3s too — a second cluster in the same VM, which
+also took kubectl's current context — and it read only the runtime's own
+switch, so it never saw the kind cluster dockmaster itself marked ⎈. The
+native toggles were removed; their status readers stay, for the column.
+
+The kind and daemon operations sit behind seams (`dialCluster`, `kindRun`,
+`kubeconfigs`) so tests drive every case — stop, start, create in order,
+naming around a taken context, and each refusal — without a daemon. No test
+creates a real cluster: that would pull node images onto, and collide with,
+the developer's own.

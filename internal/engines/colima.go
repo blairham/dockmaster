@@ -30,7 +30,14 @@ func (p Colima) List(ctx context.Context) ([]Machine, error) {
 	}
 	out := make([]Machine, 0, len(profiles))
 	for _, pr := range profiles {
+		k8s := ""
+		if pr.Running() {
+			if on, ok := p.C.Kubernetes(ctx, pr.Name); ok {
+				k8s = kubeState(on)
+			}
+		}
 		out = append(out, Machine{
+			K8s:      k8s,
 			Provider: ColimaName,
 			Name:     pr.Name,
 			Status:   pr.Status,
@@ -45,6 +52,13 @@ func (p Colima) List(ctx context.Context) ([]Machine, error) {
 		})
 	}
 	return out, nil
+}
+
+func kubeState(on bool) string {
+	if on {
+		return KubeOn
+	}
+	return KubeOff
 }
 
 // Start implements Provider.

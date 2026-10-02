@@ -53,6 +53,7 @@ var mutating = map[string]bool{
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
 	"node_shell": true, "confirm_node_remove": true,
 	"run_image": true, "run_create": true, "copy_into": true,
+	"confirm_runtime_k8s": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -228,12 +229,18 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.pushView(style.ViewTop)
 		return a, a.viewMap[style.ViewTop].Init()
 
+	case "registry_not_node":
+		a.errFlash = param + " is the kind clusters' local registry, not a node — push to it at localhost:" +
+			docker.DefaultRegistry.Port + "; nodes pull from it by name"
+		return a, nil
 	case "not_a_node":
 		a.errFlash = param + " is not a kind/k3d node — c opens the containers inside a ⎈ node"
 		return a, nil
 	case "node_containers":
 		node, _, name := splitNodeParam(param)
-		a.setView(style.ViewNode, views.NewNodeView(a.client, node, name))
+		nv := views.NewNodeView(a.client, node, name)
+		nv.SetRegistry(a.registryLine(node))
+		a.setView(style.ViewNode, nv)
 		a.pushView(style.ViewNode)
 		return a, a.viewMap[style.ViewNode].Init()
 	case "node_logs":
@@ -385,6 +392,13 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.runtimeCreate(param)
 	case "runtime_apply":
 		return a, a.runtimeApply(param)
+	case "confirm_runtime_k8s":
+		if q, op, ok := a.kubeQuestion(param); ok {
+			// op goes first: a machine key itself holds a \x00.
+			a.openConfirm("runtime_k8s", op.encode()+"\x00"+param, q)
+		}
+		return a, nil
+
 	case "confirm_runtime_stop", "confirm_runtime_restart", "confirm_runtime_delete":
 		verb := strings.TrimPrefix(action, "confirm_runtime_")
 		if q, ok := a.runtimeQuestion(verb, param); ok {
@@ -564,6 +578,9 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 		return a.runtimeConfirmed(strings.TrimPrefix(pa.action, "runtime_"), pa.param)
 	case "runtime_apply":
 		return a.runtimeApplyNow(pa.param)
+	case "runtime_k8s":
+		op, key := decodeKubeOp(pa.param)
+		return a.runtimeKube(key, op)
 	}
 	return nil
 }

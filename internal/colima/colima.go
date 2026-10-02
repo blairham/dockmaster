@@ -232,6 +232,23 @@ func (c *Client) Status(ctx context.Context, profile string) ([]byte, error) {
 	return c.run(ctx, "status", "--json", "--profile", profile)
 }
 
+// Kubernetes reports whether profile's Kubernetes cluster is running, from
+// `colima status --json`. ok is false when the profile is not running (it
+// has no status) or the answer could not be read.
+func (c *Client) Kubernetes(ctx context.Context, profile string) (on, ok bool) {
+	out, err := c.Status(ctx, profile)
+	if err != nil {
+		return false, false
+	}
+	var st struct {
+		Kubernetes *bool `json:"kubernetes"`
+	}
+	if json.Unmarshal(out, &st) != nil || st.Kubernetes == nil {
+		return false, false
+	}
+	return *st.Kubernetes, true
+}
+
 // Stop shuts a profile's VM down. Its state persists for the next start.
 func (c *Client) Stop(ctx context.Context, profile string) error {
 	_, err := c.run(ctx, "stop", profile)

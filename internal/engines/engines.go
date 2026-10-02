@@ -29,7 +29,32 @@ type Machine struct {
 	// stack (for VPNs that break the default one).
 	Rootful bool
 	UserNet bool
+	// K8s is the machine's built-in Kubernetes cluster: KubeOn, KubeOff,
+	// or "" where the runtime has none or the machine cannot say.
+	K8s string
+	// Clusters are the kind and k3d clusters on the machine's daemon,
+	// running or stopped. Filled in by the runtimes view, which can reach
+	// the daemon.
+	Clusters []Cluster
 }
+
+// Cluster is a kind or k3d cluster whose nodes are containers on a
+// machine's daemon.
+type Cluster struct {
+	Tool     string // "kind" or "k3d"
+	Name     string
+	Registry string // its local registry container, "" when none
+	Running  bool   // any of its nodes is running
+}
+
+// String is "kind k8s".
+func (c Cluster) String() string { return c.Tool + " " + c.Name }
+
+// Machine.K8s values.
+const (
+	KubeOn  = "on"
+	KubeOff = "off"
+)
 
 // Config is the resource shape a machine is created or resized with. Zero
 // fields keep the provider's default or the machine's current value.

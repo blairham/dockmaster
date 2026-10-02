@@ -358,3 +358,46 @@ func asSingle(t *testing.T, p Provider) Single {
 	}
 	return s
 }
+
+func TestKubernetesParsers(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		parse  func([]byte) (bool, bool)
+		out    string
+		on, ok bool
+	}{
+		{name: "orb true", parse: OrbStackKubeStatus, out: "true\n", on: true, ok: true},
+		{name: "orb false", parse: OrbStackKubeStatus, out: "false\n", ok: true},
+		{name: "orb junk", parse: OrbStackKubeStatus, out: "error: not running"},
+		{name: "rancher on", parse: RancherKubeStatus, out: `{"kubernetes":{"enabled":true,"version":"1.30"}}`, on: true, ok: true},
+		{name: "rancher off", parse: RancherKubeStatus, out: `{"kubernetes":{"enabled":false}}`, ok: true},
+		{name: "rancher missing", parse: RancherKubeStatus, out: `{"version":1}`},
+		{name: "dd running", parse: DockerDesktopKubeStatus, out: `{"status":"running"}`, on: true, ok: true},
+		{name: "dd stopped", parse: DockerDesktopKubeStatus, out: `{"Status":"stopped"}`, ok: true},
+		{name: "dd unknown shape", parse: DockerDesktopKubeStatus, out: `{"state":{"x":1}}`},
+	} {
+		if on, ok := tc.parse([]byte(tc.out)); on != tc.on || ok != tc.ok {
+			t.Errorf("%s: (%v, %v), want (%v, %v)", tc.name, on, ok, tc.on, tc.ok)
+		}
+	}
+}
+
+// TestRuntimeKubernetesStatus: a single-engine runtime reports its own
+// built-in cluster when it is up — read only; dockmaster does not switch it.
+func TestRuntimeKubernetesStatus(t *testing.T) {
+	f := &fake{out: map[string]string{"orb config get k8s.enable": "true\n"}}
+	orb := Single{
+		Engine: OrbStackName, Run: f.run, Host: "tcp://orb",
+		Ping:      func(context.Context, string) bool { return true },
+		K8sStatus: kubeStatus(f.run, []string{"orb", "config", "get", "k8s.enable"}, OrbStackKubeStatus),
+	}
+	ms, _ := orb.List(context.Background())
+	if ms[0].K8s != KubeOn {
+		t.Errorf("orbstack K8s = %q", ms[0].K8s)
+	}
+	down := orb
+	down.Ping = func(context.Context, string) bool { return false }
+	if ms, _ := down.List(context.Background()); ms[0].K8s != "" {
+		t.Errorf("a stopped engine reports K8s %q", ms[0].K8s)
+	}
+}
