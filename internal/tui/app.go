@@ -111,6 +111,7 @@ type App struct {
 	logBuffer   int
 	logSince    time.Duration
 	liveRefresh bool
+	aliases     map[string]string
 	// requestTimeout is --request-timeout, carried onto each client a
 	// context switch dials.
 	requestTimeout time.Duration
@@ -204,6 +205,9 @@ type Options struct {
 	LogSince  time.Duration
 	// LiveRefresh refreshes inspect views on the tick.
 	LiveRefresh bool
+	// Aliases are the user's `:` command names (aliases.yaml), validated by
+	// ValidateAliases.
+	Aliases map[string]string
 	// RequestTimeout overrides every daemon request's own deadline when
 	// non-zero (--request-timeout).
 	RequestTimeout time.Duration
@@ -235,7 +239,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		Prompt:    "🐳:",
 		CharLimit: 128,
 		SuggestFn: func(value string) []string {
-			if best := fuzzyMatch(value); best != "" {
+			if best := fuzzyMatch(value, aliasNames(opts.Aliases)...); best != "" {
 				return []string{best}
 			}
 			return nil
@@ -311,6 +315,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logBuffer:      opts.LogBuffer,
 		logSince:       opts.LogSince,
 		liveRefresh:    opts.LiveRefresh,
+		aliases:        opts.Aliases,
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 	}

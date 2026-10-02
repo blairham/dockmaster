@@ -109,3 +109,25 @@ replaces the document in place (`tail.ReplaceLines`), keeping the reader's
 scroll position and filter — before, any refresh, manual `r` included,
 jumped to the top and silently dropped the filter. Refreshes are
 single-flight, so a slow daemon is never asked twice at once.
+
+## Aliases
+
+`aliases.yaml`, beside `config.yaml`, is k9s's aliases file: each name under
+`aliases:` stands for a `:` command line.
+
+```yaml
+aliases:
+  pg: containers /postgres   # a view, filtered
+  img: images
+  p: pg                      # through another alias
+```
+
+Words typed after an alias go along (`:img /node`). A view command can carry
+a filter itself — `:containers /postgres` — which is what makes the first
+example work; the filter keeps its case. Aliases join the palette's
+suggestions, and `:aliases` lists them.
+
+Like `config.yaml`, the file is checked at startup and a mistake stops it,
+naming the alias: a name is one word that is not already a dockmaster
+command (an alias cannot take over `ps`), and what it stands for has to
+reach a command, through at most five aliases and without a loop.

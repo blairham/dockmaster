@@ -80,6 +80,9 @@ func NewInspectView(client *docker.Client, kind InspectKind, id, name string) *I
 	return &InspectView{client: client, tail: t, kind: kind, id: id, name: name, loading: true}
 }
 
+// SetPlain shows the body as text, not colorized JSON.
+func (v *InspectView) SetPlain() { v.plain = true }
+
 // NewInspectFetchView shows what fetch returns, indented when it is JSON.
 func NewInspectFetchView(name string, fetch func(context.Context) ([]byte, error)) *InspectView {
 	v := NewInspectView(nil, InspectContainer, "", name)

@@ -86,14 +86,15 @@ func ViewCommandNames() []string {
 
 // fuzzyMatch picks the best command for a partial input: exact prefixes
 // first, then subsequence matches, shortest winning ties.
-func fuzzyMatch(input string) string {
+func fuzzyMatch(input string, aliases ...string) string {
 	if input == "" {
 		return ""
 	}
 	lower := strings.ToLower(input)
+	candidates := append(append([]string{"aliases"}, knownCommands...), aliases...)
 
 	var best string
-	for _, cmd := range knownCommands {
+	for _, cmd := range candidates {
 		if strings.HasPrefix(cmd, lower) && (best == "" || len(cmd) < len(best)) {
 			best = cmd
 		}
@@ -101,7 +102,7 @@ func fuzzyMatch(input string) string {
 	if best != "" {
 		return best
 	}
-	for _, cmd := range knownCommands {
+	for _, cmd := range candidates {
 		if isSubsequence(lower, cmd) && (best == "" || len(cmd) < len(best)) {
 			best = cmd
 		}
@@ -341,8 +342,23 @@ func (a *App) onFilterChange(value string) {
 //
 //nolint:gocyclo // flat command table
 func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
-	raw := strings.TrimSpace(input)
+	raw, err := expand(a.aliases, strings.TrimSpace(input))
+	if err != nil {
+		// Validated at startup, so only a command typed at the palette.
+		raw = strings.TrimSpace(input)
+	}
 	lower := strings.ToLower(raw)
+
+	// A view with a filter: `:containers /postgres`, what an alias such as
+	// `pg: containers /postgres` stands for. The filter keeps its case.
+	if name, filter, ok := strings.Cut(raw, " /"); ok {
+		if vt, ok := ViewForCommand(name); ok {
+			cmd := a.switchView(vt)
+			a.filter = strings.TrimSpace(filter)
+			a.setActiveFilter(a.filter)
+			return "", cmd
+		}
+	}
 
 	// Commands taking an argument.
 	if rest, ok := strings.CutPrefix(lower, "pull "); ok {
@@ -361,6 +377,8 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	}
 
 	switch lower {
+	case "aliases", "alias":
+		return "", a.showAliases()
 	case "q", "q!", "quit", "exit":
 		a.shutdown()
 		return "", tea.Quit

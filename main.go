@@ -83,6 +83,14 @@ func run() error {
 	if verr := cfg.Validate(); verr != nil {
 		return verr
 	}
+	aliases, err := config.LoadAliases()
+	if err != nil {
+		return err
+	}
+	if aerr := tui.ValidateAliases(aliases); aerr != nil {
+		return aerr
+	}
+
 	// The skin goes in before anything is built: every style derives from
 	// the base theme.
 	th, err := cfg.Theme(style.Base())
@@ -174,6 +182,7 @@ func run() error {
 		LogBuffer:       cfg.Logger.Buffer,
 		LogSince:        time.Duration(max(cfg.Logger.SinceSeconds, 0)) * time.Second,
 		LiveRefresh:     cfg.LiveViewAutoRefresh,
+		Aliases:         aliases,
 		RequestTimeout:  cfg.RequestTimeout,
 		Thresholds:      tui.ThresholdsFrom(cfg.Thresholds),
 		Engines:         providers,
