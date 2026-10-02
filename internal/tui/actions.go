@@ -74,7 +74,10 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	case "logs":
 		name := a.containerName(param)
-		a.setView(style.ViewLogs, views.NewLogsView(a.client, param, name).Configure(a.logTail, a.logShowTime))
+		a.setView(
+			style.ViewLogs,
+			views.NewLogsView(a.client, param, name).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
+		)
 		a.pushView(style.ViewLogs)
 		return a, a.viewMap[style.ViewLogs].Init()
 
@@ -273,7 +276,10 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.viewMap[style.ViewNode].Init()
 	case "node_logs":
 		node, id, name := splitNodeParam(param)
-		a.setView(style.ViewLogs, views.NewNodeLogsView(a.client, node, id, name).Configure(a.logTail, a.logShowTime))
+		a.setView(
+			style.ViewLogs,
+			views.NewNodeLogsView(a.client, node, id, name).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
+		)
 		a.pushView(style.ViewLogs)
 		return a, a.viewMap[style.ViewLogs].Init()
 	case "node_inspect":

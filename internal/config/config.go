@@ -34,6 +34,10 @@ const FileName = "config.yaml"
 const (
 	DefaultRefreshRate = 3
 	DefaultLogTail     = 500
+	// DefaultLogBuffer is k9s's logger.buffer: the lines a log view keeps.
+	DefaultLogBuffer = 5000
+	// DefaultLogSince is k9s's logger.sinceSeconds default, -1: tail.
+	DefaultLogSince = -1
 	// MaxLogTail caps logger.tail: the backlog is fetched in one request
 	// and held in memory.
 	MaxLogTail = 100_000
@@ -57,6 +61,9 @@ type File struct {
 //   - RefreshRate: the auto-refresh interval in seconds.
 //   - ShowAll: start with stopped containers listed (docker ps -a).
 //   - NoStats: disable the CPU/MEM poll.
+//   - LiveViewAutoRefresh: refresh inspect views on the tick, as k9s's
+//     liveViewAutoRefresh does its describe views; they keep the reader's
+//     scroll position and filter.
 type Config struct {
 	DefaultView    string        `yaml:"defaultView"`
 	Context        string        `yaml:"context"`
@@ -68,6 +75,8 @@ type Config struct {
 	ReadOnly       bool          `yaml:"readOnly"`
 	ShowAll        bool          `yaml:"showAll"`
 	NoStats        bool          `yaml:"noStats"`
+
+	LiveViewAutoRefresh bool `yaml:"liveViewAutoRefresh"`
 }
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
@@ -102,6 +111,11 @@ type Threshold struct {
 type Logger struct {
 	// Tail is how many lines of backlog a log view opens with.
 	Tail int `yaml:"tail"`
+	// Buffer is how many lines a log view keeps; the oldest go first.
+	Buffer int `yaml:"buffer"`
+	// SinceSeconds is how far back a log view opens: -1 tails (the last
+	// Tail lines), a positive number is that many seconds of log.
+	SinceSeconds int `yaml:"sinceSeconds"`
 	// ShowTime starts log views with timestamps on.
 	ShowTime bool `yaml:"showTime"`
 }
@@ -110,7 +124,7 @@ type Logger struct {
 func Default() Config {
 	return Config{
 		RefreshRate: DefaultRefreshRate,
-		Logger:      Logger{Tail: DefaultLogTail},
+		Logger:      Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
 			Memory: Threshold{Warn: 70, Critical: 90},
@@ -201,6 +215,16 @@ func (c Config) Validate() error {
 	if strings.ContainsAny(c.UI.Skin, `/\`) {
 		errs = append(errs, fmt.Sprintf("ui.skin is a skin's name in %s, not a path, got %q", SkinsDirName, c.UI.Skin))
 	}
+	if c.Logger.Buffer < c.Logger.Tail || c.Logger.Buffer > MaxLogTail {
+		errs = append(errs, fmt.Sprintf("logger.buffer must be between logger.tail (%d) and %d, got %d",
+			c.Logger.Tail, MaxLogTail, c.Logger.Buffer))
+	}
+	if c.Logger.SinceSeconds != -1 && c.Logger.SinceSeconds < 1 {
+		errs = append(
+			errs,
+			fmt.Sprintf("logger.sinceSeconds is -1 (tail) or a number of seconds, got %d", c.Logger.SinceSeconds),
+		)
+	}
 	if c.Logger.Tail < 1 || c.Logger.Tail > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.tail must be between 1 and %d, got %d", MaxLogTail, c.Logger.Tail))
 	}
@@ -222,6 +246,8 @@ dockmaster:
   requestTimeout: 0s
   # Refuse every mutating action (--readonly).
   readOnly: false
+  # Refresh inspect views on the tick, keeping their scroll and filter.
+  liveViewAutoRefresh: false
   # View to open on (-c): containers, images, volumes, networks, projects,
   # runtimes, events, ...
   defaultView: containers
@@ -245,6 +271,10 @@ dockmaster:
   logger:
     # Lines of backlog a log view opens with.
     tail: 500
+    # Lines a log view keeps; the oldest are dropped past it.
+    buffer: 5000
+    # How far back a log view opens: -1 tails, else that many seconds.
+    sinceSeconds: -1
     # Start log views with timestamps on.
     showTime: false
   # CPU% and MEM turn orange at warn and red at critical (percent). CPU is

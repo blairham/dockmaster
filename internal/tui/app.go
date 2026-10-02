@@ -108,6 +108,9 @@ type App struct {
 	// logTail and logShowTime configure new log views (config logger).
 	logTail     int
 	logShowTime bool
+	logBuffer   int
+	logSince    time.Duration
+	liveRefresh bool
 	// requestTimeout is --request-timeout, carried onto each client a
 	// context switch dials.
 	requestTimeout time.Duration
@@ -195,6 +198,12 @@ type Options struct {
 	// default. LogShowTime starts log views with timestamps on.
 	LogTail     int
 	LogShowTime bool
+	// LogBuffer caps the lines a log view keeps (0: no cap); LogSince is
+	// how far back one opens (0: the last LogTail lines).
+	LogBuffer int
+	LogSince  time.Duration
+	// LiveRefresh refreshes inspect views on the tick.
+	LiveRefresh bool
 	// RequestTimeout overrides every daemon request's own deadline when
 	// non-zero (--request-timeout).
 	RequestTimeout time.Duration
@@ -299,6 +308,9 @@ func NewApp(client *docker.Client, opts Options) *App {
 		refresh:        refresh,
 		logTail:        opts.LogTail,
 		logShowTime:    opts.LogShowTime,
+		logBuffer:      opts.LogBuffer,
+		logSince:       opts.LogSince,
+		liveRefresh:    opts.LiveRefresh,
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 	}

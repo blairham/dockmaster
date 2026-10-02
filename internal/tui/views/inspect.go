@@ -62,10 +62,8 @@ type InspectView struct {
 	kind  InspectKind
 	lines int
 
-	width  int
-	height int
-
-	loading bool
+	loading  bool
+	inFlight bool
 
 	// fetch, when set, replaces the daemon call: the view shows whatever
 	// it returns — a runtime's own description of a machine, say.
@@ -109,7 +107,7 @@ func (v *InspectView) Update(msg tea.Msg) tea.Cmd {
 	if !ok || m.ID != v.id || m.Kind != v.kind {
 		return nil
 	}
-	v.loading = false
+	v.loading, v.inFlight = false, false
 	if m.Err != nil {
 		v.err = docker.FormatUserError(m.Err)
 		return nil
@@ -127,28 +125,18 @@ func (v *InspectView) Update(msg tea.Msg) tea.Cmd {
 	v.lines = len(styled)
 
 	// Replace rather than append: this is a document that gets refetched,
-	// so appending would stack N copies of the same JSON in the buffer.
-	v.tail.SetFilter("")
-	fresh := tail.New()
-	fresh.SetFollow(false)
-	paintTailBackground(fresh)
-	w, h := v.dims()
-	fresh.Resize(w, h)
-	fresh.AppendLines(styled)
-	v.tail = fresh
+	// so appending would stack N copies of the same JSON in the buffer. In
+	// place, so a refresh — manual, or liveViewAutoRefresh's on the tick —
+	// keeps the reader's scroll position and filter.
+	v.tail.ReplaceLines(styled)
 	return nil
 }
-
-// dims remembers the last size so a rebuilt viewport keeps it. tail.Model
-// exposes no getter, so the view tracks it alongside.
-func (v *InspectView) dims() (int, int) { return v.width, v.height }
 
 // UpdateTable forwards scroll keys.
 func (v *InspectView) UpdateTable(msg tea.Msg) tea.Cmd { return v.tail.Update(msg) }
 
 // Resize re-lays the viewport.
 func (v *InspectView) Resize(width, height int) {
-	v.width, v.height = width, height
 	v.tail.Resize(width, height)
 }
 
@@ -187,6 +175,12 @@ func (v *InspectView) View() string {
 
 // Refresh refetches the inspect body.
 func (v *InspectView) Refresh() tea.Cmd {
+	// Single-flight: a live view refreshes on every tick, and a fetch that
+	// outlasts one must not be joined by a second.
+	if v.inFlight {
+		return nil
+	}
+	v.inFlight = true
 	kind, id, client := v.kind, v.id, v.client
 	if fetch := v.fetch; fetch != nil {
 		return func() tea.Msg {

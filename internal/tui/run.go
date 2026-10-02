@@ -52,7 +52,10 @@ func (a *App) handleRunDone(msg runDoneMsg) (tea.Model, tea.Cmd) {
 		name = msg.spec.Image
 	}
 	refresh := a.switchView(style.ViewContainers)
-	a.setView(style.ViewLogs, views.NewLogsView(a.client, msg.id, name).Configure(a.logTail, a.logShowTime))
+	a.setView(
+		style.ViewLogs,
+		views.NewLogsView(a.client, msg.id, name).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
+	)
 	a.pushView(style.ViewLogs)
 	a.flash = "started " + name
 	return a, tea.Batch(refresh, a.viewMap[style.ViewLogs].Init())

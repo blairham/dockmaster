@@ -8,7 +8,8 @@
 The file follows k9s's `config.yaml`: a single top-level key, `dockmaster:`
 here and `k9s:` there, with the same camelCase key names where the settings
 match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` — `ui.headless`, `ui.logoless`,
-`ui.crumbsless`, `ui.splashless`, `logger.tail`, `logger.showTime`). Settings
+`ui.crumbsless`, `ui.splashless`, `ui.skin`, `ui.invert`, `logger.tail`, `logger.buffer`,
+`logger.sinceSeconds`, `logger.showTime`, `liveViewAutoRefresh`). Settings
 k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
 spelling. `dockmaster config init` writes the commented defaults
 (`config.Sample`); `TestSampleIsTheDefaults` keeps that sample in step with
@@ -89,8 +90,22 @@ colors for good. Tables repaint with `tktable.FixRows` in the theme's own
 colors — the old fixed light-sky-blue and black left blocks of the
 terminal's background behind every styled cell on any other canvas.
 
-## Not yet
+## Log buffer, log window, live views
 
-k9s's `logger.buffer` and `logger.sinceSeconds`, and
-`liveViewAutoRefresh` have no dockmaster equivalent yet. Each lands in this
-file when its feature does.
+`logger.buffer` (5000, k9s's default) is how many lines a log view keeps;
+past it the oldest are dropped, through tuikit's `tail.SetMaxLines`. Without
+it a log left following a chatty container grew without limit. It must be
+at least `logger.tail`, or the opening backlog would be cut short, and at
+most 100000.
+
+`logger.sinceSeconds` is how far back a log opens: `-1` (the default) tails
+the last `logger.tail` lines, a positive number opens that many seconds of
+log. The border title names the window — `last 2m` — as the `1`–`5` keys'
+ranges are named; `0` still returns to the tail.
+
+`liveViewAutoRefresh` refreshes inspect views (inspect, health, diff,
+stats) on the tick, as k9s's does its describe views. An inspect refresh now
+replaces the document in place (`tail.ReplaceLines`), keeping the reader's
+scroll position and filter — before, any refresh, manual `r` included,
+jumped to the top and silently dropped the filter. Refreshes are
+single-flight, so a slow daemon is never asked twice at once.

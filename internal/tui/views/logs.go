@@ -175,6 +175,15 @@ func (v *LogsView) Configure(tailLines int, timestamps bool) *LogsView {
 	return v
 }
 
+// Limits caps the lines the view keeps (0: no cap) and sets how far back
+// it opens (0: the last tailLines lines) — config logger.buffer and
+// logger.sinceSeconds.
+func (v *LogsView) Limits(buffer int, since time.Duration) *LogsView {
+	v.tail.SetMaxLines(buffer)
+	v.since = since
+	return v
+}
+
 // Title is the container name, for the border title.
 func (v *LogsView) Title() string { return v.containerName }
 
@@ -486,10 +495,8 @@ func (v *LogsView) Status() string {
 	// The toggles are on the indicator line; the title carries the range
 	// and filter, as k9s's "[1m]".
 	parts := make([]string, 0, 2)
-	for _, r := range LogRanges {
-		if r.Since != 0 && r.Since == v.since {
-			parts = append(parts, "last "+r.Label)
-		}
+	if v.since > 0 {
+		parts = append(parts, "last "+rangeLabel(v.since))
 	}
 	if v.filter != "" {
 		parts = append(parts, "/"+v.filter)
@@ -660,4 +667,21 @@ func leavesDefaultForeground(params string) bool {
 		}
 	}
 	return touched && isDefault
+}
+
+// rangeLabel names a log's time range: a digit key's own label (5m, 1h),
+// else the duration without its zero units (90s, 2m30s, 1h30m).
+func rangeLabel(d time.Duration) string {
+	for _, r := range LogRanges {
+		if r.Since == d {
+			return r.Label
+		}
+	}
+	s := d.String()
+	for _, zero := range []string{"m0s", "h0m"} {
+		if strings.HasSuffix(s, zero) {
+			s = strings.TrimSuffix(s, zero[1:])
+		}
+	}
+	return s
 }
