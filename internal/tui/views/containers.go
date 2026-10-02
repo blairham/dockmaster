@@ -86,6 +86,11 @@ type ContainersView struct {
 	client *docker.Client
 	err    error
 
+	// wide shows the ID, command, networks and address columns (ctrl+w);
+	// width is the last width, to refit the columns when they change.
+	wide  bool
+	width int
+
 	stats map[string]docker.Stats
 	// thresholds colour CPU% and MEM (config thresholds:).
 	thresholds Thresholds
@@ -112,7 +117,7 @@ type ContainersView struct {
 // `docker ps -a` mode; statsOn enables the background CPU/MEM poll.
 func NewContainersView(client *docker.Client, showAll, statsOn bool) *ContainersView {
 	t := table.New(
-		table.WithColumns(containerColumns()),
+		table.WithColumns(containerColumns(false)),
 		table.WithFocused(true),
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
@@ -128,18 +133,53 @@ func NewContainersView(client *docker.Client, showAll, statsOn bool) *Containers
 	}
 }
 
-func containerColumns() []table.Column {
+// containerColumns are the containers view's columns; wide adds the ID,
+// command, networks and address — k9s's ctrl+w.
+func containerColumns(wide bool) []table.Column {
+	if !wide {
+		return []table.Column{
+			{Title: "NAME", Width: 28},
+			{Title: "IMAGE", Width: 30},
+			{Title: "STATE", Width: 10},
+			{Title: "HEALTH", Width: 9},
+			{Title: "CPU%", Width: 7},
+			{Title: "MEM", Width: 11},
+			{Title: "PORTS", Width: 22},
+			{Title: "AGE", Width: 6},
+		}
+	}
 	return []table.Column{
 		{Title: "NAME", Width: 28},
+		{Title: "ID", Width: 12},
 		{Title: "IMAGE", Width: 30},
+		{Title: "COMMAND", Width: 24},
 		{Title: "STATE", Width: 10},
 		{Title: "HEALTH", Width: 9},
 		{Title: "CPU%", Width: 7},
 		{Title: "MEM", Width: 11},
 		{Title: "PORTS", Width: 22},
+		{Title: "NETWORKS", Width: 14},
+		{Title: "IP", Width: 15},
 		{Title: "AGE", Width: 6},
 	}
 }
+
+// ToggleWide shows the wide columns, or the usual ones again. The sort
+// follows its column by name; a sort on a column that goes away falls back
+// to the first.
+func (v *ContainersView) ToggleWide() {
+	before := containerColumns(v.wide)
+	v.wide = !v.wide
+	v.remapSort(before, containerColumns(v.wide))
+	// Rows are never wider than the columns: clear them, set the new
+	// columns, then rebuild the rows to match.
+	v.table.SetRows(nil)
+	v.table.SetColumns(v.columns(fitColumns(containerColumns(v.wide), v.width)))
+	v.rebuildRows()
+}
+
+// Wide reports whether the wide columns are shown.
+func (v *ContainersView) Wide() bool { return v.wide }
 
 // Init kicks off the first fetch.
 func (v *ContainersView) Init() tea.Cmd { return v.refresh() }
@@ -292,7 +332,8 @@ func (v *ContainersView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ContainersView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(containerColumns(), width)))
+	v.width = width
+	v.table.SetColumns(v.columns(fitColumns(containerColumns(v.wide), width)))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -324,6 +365,8 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 			return "toggle_kube", ""
 		case "ctrl+z":
 			return "toggle_faults", ""
+		case "ctrl+w":
+			return "toggle_wide", ""
 		}
 		return "", ""
 	}
@@ -382,6 +425,8 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "toggle_kube", ""
 	case "ctrl+z":
 		return "toggle_faults", ""
+	case "ctrl+w":
+		return "toggle_wide", ""
 	case "t":
 		return "toggle_stats", ""
 	case "F":
@@ -497,16 +542,20 @@ func (v *ContainersView) rebuildRows() {
 			health = "—"
 		}
 
-		rows = append(rows, table.Row{
-			containerName(c),
-			truncate(c.Image, 30),
-			style.StateStyle(c.State).Render(c.State),
-			style.HealthStyle(c.Health).Render(health),
-			cpu,
-			mem,
-			truncate(c.Ports, 22),
-			c.Age(),
-		})
+		state := style.StateStyle(c.State).Render(c.State)
+		healthCell := style.HealthStyle(c.Health).Render(health)
+		if v.wide {
+			rows = append(rows, table.Row{
+				containerName(c), c.Short(), truncate(c.Image, 30), truncate(c.Command, 40),
+				state, healthCell, cpu, mem, truncate(c.Ports, 22),
+				truncate(c.Network, 24), c.IP, c.Age(),
+			})
+		} else {
+			rows = append(rows, table.Row{
+				containerName(c), truncate(c.Image, 30), state, healthCell,
+				cpu, mem, truncate(c.Ports, 22), c.Age(),
+			})
+		}
 		v.visible = append(v.visible, c)
 	}
 	sortRows(&v.tableSort, rows, v.visible)

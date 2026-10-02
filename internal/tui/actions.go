@@ -137,6 +137,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- view toggles ---------------------------------------------------
 
+	case "toggle_wide":
+		if v := typedView[*views.ContainersView](a, style.ViewContainers); v != nil {
+			v.ToggleWide()
+			a.flash = "wide columns " + onOff(v.Wide())
+		}
+		return a, nil
 	case "toggle_faults":
 		if v := typedView[*views.ContainersView](a, style.ViewContainers); v != nil {
 			cmd := v.ToggleFaults()

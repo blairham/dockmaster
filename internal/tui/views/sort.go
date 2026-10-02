@@ -126,3 +126,25 @@ func cellCompare(_ int, a, b string) int {
 	}
 	return tktable.NaturalCompare(a, b)
 }
+
+// remapSort moves the sort to the same-named column in after, keeping its
+// direction, when a view swaps its column set; a column that went away
+// sorts by the first.
+func (s *tableSort) remapSort(before, after []table.Column) {
+	if s.sorter == nil {
+		return
+	}
+	title := ""
+	if c := s.sorter.Column(); c < len(before) {
+		title = before[c].Title
+	}
+	col := 0
+	for i, c := range after {
+		if c.Title == title {
+			col = i
+		}
+	}
+	desc := s.sorter.Descending()
+	s.sorter = tktable.NewSorter(col, desc)
+	s.sorter.SetCompare(cellCompare)
+}

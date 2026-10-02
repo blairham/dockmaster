@@ -545,6 +545,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<a>", Desc: "Toggle stopped/all"},
 					{Key: "<ctrl-k>", Desc: "K8s containers"},
 					{Key: "<ctrl-z>", Desc: "Faults"},
+					{Key: "<ctrl-w>", Desc: "Wide columns"},
 					{Key: "<z>", Desc: "Volume sizes"},
 					{Key: "<u>", Desc: "Run image"},
 					{Key: "<K>", Desc: "Kubernetes on/off"},
