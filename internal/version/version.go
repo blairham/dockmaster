@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package version carries the build stamp. Values are injected at link
 // time by the Makefile; the defaults are what a plain `go build` gets.
 package version

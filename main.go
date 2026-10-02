@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Command dockmaster is a k9s-style terminal UI for Docker: containers,
 // images, volumes, networks, and Compose projects in one navigable frame,
 // with live logs, inspect, and the full lifecycle keymap.

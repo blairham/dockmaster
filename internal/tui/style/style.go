@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package style holds dockmaster's palette, view enum, and the pre-built
 // lipgloss styles the views share. It is a thin layer over
 // [github.com/blairham/tuikit/theme] — the colors flow from tuikit's

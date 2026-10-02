@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package config loads dockmaster's config.yaml, shaped after k9s's: one
 // top-level `dockmaster:` key, with `ui:` and `logger:` blocks under it.
 //

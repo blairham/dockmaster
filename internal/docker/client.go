@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package docker wraps the Docker Engine API in the narrow, TUI-shaped
 // surface dockmaster needs: flat value types with pre-formatted fields, and
 // one method per thing a view can show or a keystroke can do.

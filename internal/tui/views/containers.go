@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package views holds dockmaster's resource views. Each implements [View]:
 // it renders a table or viewport, reports its row count and loading state,
 // and translates keystrokes into (action, param) requests that the app

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package colima drives the colima CLI: list profiles, start, stop,
 // restart and delete them, and map a profile to the docker endpoint it
 // serves.

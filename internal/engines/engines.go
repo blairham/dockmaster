@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package engines finds the container runtimes installed on this machine —
 // Colima, Podman machines, Docker Desktop, Rancher Desktop, OrbStack — and
 // drives each through its own CLI, behind one Provider interface so the

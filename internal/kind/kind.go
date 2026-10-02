@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package kind creates kind clusters the way the user's own was set up:
 // a control-plane and a worker, with containerd reading per-registry
 // config from /etc/containerd/certs.d so kind's local-registry recipe

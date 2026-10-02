@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 // Package tui is dockmaster's bubbletea layer: one root App model, a map of
 // views keyed by [style.ViewType], and the tuikit chrome around them.
 //
