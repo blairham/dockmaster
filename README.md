@@ -4,22 +4,7 @@ A [k9s](https://k9scli.io)-style terminal UI for Docker — containers, images, 
 
 Built on [tuikit](https://github.com/blairham/tuikit), a shared Bubble Tea chrome.
 
-```
- Context:  —                                            <1>      Containers  <a>      All         <r>      Refresh
- Endpoint: —                                            <2>      Images      </>      Filter      <ctrl-d> Remove
- Engine:   —                                            <3>      Volumes     <?>      Help        <R>      Restart
- Counts:   2/4 ctr                                      <4>      Networks    <o>      Inspect     <s>      Shell
- Dockmaster: v0.1.0                                       <5>      Projects    <enter>  Logs        <u>      Start
-                                                                             <:q>     Quit        <x>      Stop
-╭──────────────────────────────────────────────── containers(all)[4] ────────────────────────────────────────────────╮
-│ NAME              IMAGE              STATE       HEALTH     CPU%     MEM          PORTS                   AGE      │
-│ web               nginx:1.27         running     healthy    0.42     24.1MB       8080→80/tcp             3h       │
-│ api               ghcr.io/acme/api…  running     —          12.80    311MB                                3h       │
-│ migrate           ghcr.io/acme/api…  exited      —                                                        3h       │
-│ standalone        redis:7            paused      —                                                        3h       │
-│                                                                                                                    │
-│                                                                                                                    │
-```
+![dockmaster's containers view](docs/images/containers.png)
 
 ## Install
 
@@ -82,6 +67,17 @@ Every destructive action asks first, and `--readonly` refuses them outright.
 
 `:containers` `:images` `:volumes` `:networks` `:projects` `:colima` · `:pf` (port forwards — `shift-f` on a container starts one, `b` opens a published port in the browser; see [`docs/design/port-forward.md`](docs/design/port-forward.md)) · `:events` (the daemon's live event feed — the last 10 minutes, then as it happens, colored by what each event means; `/` filters, `f` follows) · `:df` (disk usage, like `docker system df`; `P` on a row prunes that kind) · `:logs` / `:inspect` (`:describe`) (the selected row, as `l` / `o`) · `:top` / `:diff` / `:health` (the selected container) · `:ctx` (docker contexts, or `:ctx <name>` to switch directly) · `:pull <ref>` · `:prune` (stopped containers) · `:prune all` (like `docker system prune`: stopped containers, unused networks, dangling images, build cache — volumes kept) · `:prune all volumes` (and every unused volume) · `:prune cache` (build cache) · `:readonly` · `:logo` · `:q`
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Help: every key the view takes](docs/images/help.png) | ![A container's healthcheck, probe by probe](docs/images/health.png) |
+| **`?`** — every key the view takes, by section | **`H`** — a container's healthcheck, newest probe first |
+| ![Tailing a container's log](docs/images/logs.png) | ![Running a container from an image](docs/images/run.png) |
+| **`enter`** — the log, following, with its toggles | **`u`** on an image — `docker run` as a form |
+
+`make screenshots` regenerates all of them — see [Development](#development).
+
 ## Notes
 
 - **Compose projects are labels**, folded from `com.docker.compose.project`. In the projects view `u` is `docker compose up -d`, `R` restart, `p` pull, `ctrl-d` `compose down` (confirms; volumes kept), run against the compose files the labels record. When those files are not on this machine — a remote daemon, a moved checkout — the keys fall back to acting on the containers directly. See [`docs/design/compose.md`](docs/design/compose.md).
@@ -95,6 +91,12 @@ Every destructive action asks first, and `--readonly` refuses them outright.
 make check              # fmt + vet + test
 go test -short ./...    # skip the live-daemon tests
 ```
+
+`make screenshots` re-renders `docs/images/` with [VHS](https://github.com/charmbracelet/vhs)
+(`brew install vhs`). It stages the five-container `shop` project from
+`docs/demo/compose.yaml` on `DEMO_HOST` (OrbStack's socket by default — pick a
+daemon with nothing of yours on it, since the shots show every container),
+plays `docs/demo/screenshots.tape`, and takes the project down again.
 
 Linting is a pre-commit hook (`pre-commit install`), not a make target — a
 failing lint fails the commit, which is the only lint output worth reading.

@@ -3,6 +3,8 @@
 | Dir | What |
 |---|---|
 | [`design/`](design/) | Per-subsystem living documents. One per area, each with a `Status:` and `Code:` header. |
+| [`images/`](images/) | The README screenshots. Generated — `make screenshots` re-renders them; never hand-edit. |
+| [`demo/`](demo/) | What `make screenshots` stages (`compose.yaml`) and plays (`screenshots.tape`). |
 
 Current design notes:
 

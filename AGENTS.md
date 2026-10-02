@@ -21,6 +21,7 @@ make help                 # list targets
 make build                # ./dist/dockmaster
 make install              # build + copy to ~/.local/bin, plus a dm -> dockmaster symlink
 make run ARGS='--readonly'
+make screenshots          # re-render docs/images with VHS on a staged demo daemon (DEMO_HOST=...)
 
 make check                # fmt + vet + test
 make test                 # go test -race ./...

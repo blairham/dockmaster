@@ -60,3 +60,16 @@ tidy: ## go mod tidy
 .PHONY: clean
 clean: ## Remove build output
 	rm -rf dist
+
+# DEMO_HOST is the daemon the screenshots are staged on — an empty one, so
+# nothing of the developer's own appears. OrbStack's by default.
+DEMO_HOST ?= unix://$(HOME)/.orbstack/run/docker.sock
+DEMO_SOCK := /tmp/dockmaster-demo/docker.sock
+
+.PHONY: screenshots
+screenshots: build ## Render docs/images with VHS on a staged demo daemon
+	@command -v vhs >/dev/null || { echo "needs vhs: brew install vhs" >&2; exit 1; }
+	@mkdir -p $(dir $(DEMO_SOCK)) && ln -sfn $(patsubst unix://%,%,$(DEMO_HOST)) $(DEMO_SOCK)
+	DOCKER_HOST=$(DEMO_HOST) docker compose -f docs/demo/compose.yaml up -d --wait
+	DOCKMASTER_DEMO_HOST=unix://$(DEMO_SOCK) DOCKMASTER_CONFIG_DIR=$$(mktemp -d) vhs docs/demo/screenshots.tape; \
+		status=$$?; DOCKER_HOST=$(DEMO_HOST) docker compose -f docs/demo/compose.yaml down; exit $$status
