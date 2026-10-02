@@ -19,9 +19,15 @@ import (
 // LogLine is one line of container output, tagged with the stream it came
 // from so the view can color stderr differently.
 type LogLine struct {
-	Time   time.Time
-	Text   string
+	Time time.Time
+	Text string
+	// Source names the container a line came from in a merged stream — a
+	// compose project's logs — and is empty in a single container's.
+	Source string
 	Stderr bool
+	// Note marks a line dockmaster wrote, not the container: a member of a
+	// merged stream stopping, or failing to open.
+	Note bool
 }
 
 // LogStream is a live tail of a container's output. Lines arrives
@@ -31,6 +37,10 @@ type LogLine struct {
 type LogStream struct {
 	Lines <-chan LogLine
 	Err   <-chan error
+	// Sources are the labels a merged stream's members carry, as known
+	// when it opened, so a view can align their prefixes from the first
+	// line. Empty for one container's stream.
+	Sources []string
 }
 
 // StreamLogs opens a follow-mode log tail. tail is how many historical

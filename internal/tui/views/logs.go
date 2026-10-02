@@ -56,6 +56,11 @@ type LogsView struct {
 
 	containerID   string
 	containerName string
+	// project is set for a compose project's merged logs, which have no
+	// one container to act on; containerName then holds the project name.
+	project string
+	// sourceWidth is the widest source label seen, so prefixes line up.
+	sourceWidth int
 	// node, when set, is the Kubernetes node container this one runs in:
 	// the stream is read through crictl inside it, and the docker
 	// lifecycle keys do not apply.
@@ -157,6 +162,26 @@ func NewLogsView(client *docker.Client, id, name string) *LogsView {
 }
 
 // NewNodeLogsView tails container id inside Kubernetes node node.
+// NewProjectLogsView follows every container of a compose project as one
+// stream, each line prefixed with the container it came from (#4).
+func NewProjectLogsView(client *docker.Client, project string) *LogsView {
+	v := NewLogsView(client, "", project)
+	v.project = project
+	return v
+}
+
+// OpenProjectLogs opens a project's merged stream. A var so tests can feed
+// the view without a daemon.
+var OpenProjectLogs = func(
+	ctx context.Context, c *docker.Client, project string, tail int, ts bool, since time.Time,
+) (*docker.LogStream, error) {
+	return c.StreamProjectLogs(ctx, project, tail, ts, since)
+}
+
+// Project is the compose project whose logs these are, "" for one
+// container's.
+func (v *LogsView) Project() string { return v.project }
+
 func NewNodeLogsView(client *docker.Client, node, id, name string) *LogsView {
 	v := NewLogsView(client, id, name)
 	v.node = node
@@ -217,7 +242,7 @@ func (v *LogsView) start() tea.Cmd {
 	ctx, cancel := context.WithCancel(context.Background())
 	v.cancel = cancel
 
-	id, ts, n, node := v.containerID, v.timestamps, v.tailLines, v.node
+	id, ts, n, node, project := v.containerID, v.timestamps, v.tailLines, v.node, v.project
 	var since time.Time
 	if v.since > 0 {
 		since = time.Now().Add(-v.since)
@@ -225,7 +250,12 @@ func (v *LogsView) start() tea.Cmd {
 	client := v.client
 	return func() tea.Msg {
 		open := client.StreamLogs
-		if node != "" {
+		switch {
+		case project != "":
+			open = func(ctx context.Context, _ string, n int, ts bool, since time.Time) (*docker.LogStream, error) {
+				return OpenProjectLogs(ctx, client, project, n, ts, since)
+			}
+		case node != "":
 			open = func(ctx context.Context, id string, n int, ts bool, since time.Time) (*docker.LogStream, error) {
 				return client.StreamNodeLogs(ctx, node, id, n, ts, since)
 			}
@@ -277,6 +307,9 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 		}
 		v.stream = m.Stream
 		v.loading = false
+		for _, s := range m.Stream.Sources {
+			v.sourceWidth = max(v.sourceWidth, lipgloss.Width(sanitizeLogText(s)))
+		}
 		return v.drain()
 
 	case LogBatchMsg:
@@ -316,10 +349,36 @@ func (v *LogsView) Update(msg tea.Msg) tea.Cmd {
 // either.
 func (v *LogsView) render(l docker.LogLine) string {
 	text := logTextColor(sanitizeLogText(l.Text))
+	if l.Note {
+		text = style.Muted.Render(sanitizeLogText(l.Text))
+	}
+	if l.Source != "" {
+		text = v.sourcePrefix(l.Source) + text
+	}
 	if v.timestamps && !l.Time.IsZero() {
 		return style.Muted.Render(l.Time.Local().Format("15:04:05.000")) + " " + text
 	}
 	return text
+}
+
+// sourcePrefix is "web-1  | ", padded to the widest label seen so far and
+// colored by the label, so one container keeps one color.
+func (v *LogsView) sourcePrefix(src string) string {
+	src = sanitizeLogText(src)
+	v.sourceWidth = max(v.sourceWidth, lipgloss.Width(src))
+	var h uint32
+	for _, r := range src {
+		h = h*31 + uint32(r)
+	}
+	// Indexes into the terminal's own palette, so the colors follow the
+	// user's terminal theme, as compose's prefixes do.
+	palette := [...]color.Color{
+		lipgloss.ANSIColor(6), lipgloss.ANSIColor(3), lipgloss.ANSIColor(2), lipgloss.ANSIColor(5),
+		lipgloss.ANSIColor(4), lipgloss.ANSIColor(14), lipgloss.ANSIColor(11), lipgloss.ANSIColor(13),
+	}
+	c := palette[h%uint32(len(palette))]
+	pad := strings.Repeat(" ", v.sourceWidth-lipgloss.Width(src))
+	return lipgloss.NewStyle().Foreground(c).Render(src+pad+" |") + " "
 }
 
 // drain returns a command that collects whatever the stream has produced
@@ -411,6 +470,10 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 	}
 	if v.node != "" {
 		return v.nodeKey(key)
+	}
+	if v.project != "" {
+		// A merged log has no one container to inspect, stop or restart.
+		return "", ""
 	}
 	switch key {
 	case "o":

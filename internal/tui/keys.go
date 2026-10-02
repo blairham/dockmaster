@@ -401,7 +401,7 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		a.shutdown()
 		return "", tea.Quit
 	case "logs", "log":
-		return a.rowCommand("logs", func(act string) bool { return act == "logs" }, "l")
+		return a.rowCommand("logs", func(act string) bool { return act == "logs" || act == "project_logs" }, "l")
 	case "inspect", "describe":
 		return a.rowCommand("inspect", isInspectAction, "o")
 	// :stats stays the CPU/MEM poll toggle below; the stats view is S.
