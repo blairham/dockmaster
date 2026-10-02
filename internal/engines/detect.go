@@ -92,11 +92,19 @@ func Detect(ctx context.Context, env Env) []Provider {
 		out = append(out, s)
 	}
 
-	if has("rdctl") || env.AppExists("Rancher Desktop") {
+	// Rancher Desktop: rdctl when it can be found — on PATH only once the
+	// app's first-run setup has added ~/.rd/bin, but shipped inside the app
+	// from the start — else the app.
+	rdctl := env.bundledRdctl()
+	if has("rdctl") {
+		rdctl = "rdctl"
+	}
+	if rdctl != "" || env.AppExists("Rancher Desktop") {
 		s := single(env, RancherDesktopName, "rancher-desktop", ".rd/docker.sock")
-		if has("rdctl") {
-			s.StartC, s.StopC = []string{"rdctl", "start"}, []string{"rdctl", "shutdown"}
-			s.K8sStatus = kubeStatus(env.Run, []string{"rdctl", "list-settings"}, RancherKubeStatus)
+		if rdctl != "" {
+			s.StartC, s.StopC = []string{rdctl, "start"}, []string{rdctl, "shutdown"}
+			s.K8sStatus = kubeStatus(env.Run, []string{rdctl, "list-settings"}, RancherKubeStatus)
+			s.Resources = resources(env.Run, []string{rdctl, "list-settings"}, RancherResources)
 		} else {
 			s.StartC, s.StopC = openApp("Rancher Desktop"), quitApp("Rancher Desktop")
 		}
@@ -132,6 +140,29 @@ func (env Env) desktopPlugin() string {
 		candidates = append([]string{
 			filepath.Join(env.Home, ".docker/cli-plugins/docker-desktop"),
 			filepath.Join(env.Home, "Applications/Docker.app/Contents/Resources/cli-plugins/docker-desktop"),
+		}, candidates...)
+	}
+	for _, p := range candidates {
+		if env.FileExists(p) {
+			return p
+		}
+	}
+	return ""
+}
+
+// bundledRdctl is Rancher Desktop's rdctl where the app installs it: in
+// ~/.rd/bin once first-run setup has run, and inside the app bundle always.
+// "" when there is none.
+func (env Env) bundledRdctl() string {
+	if env.FileExists == nil {
+		return ""
+	}
+	const inApp = "Rancher Desktop.app/Contents/Resources/resources/darwin/bin/rdctl"
+	candidates := []string{filepath.Join("/Applications", inApp)}
+	if env.Home != "" {
+		candidates = append([]string{
+			filepath.Join(env.Home, ".rd/bin/rdctl"),
+			filepath.Join(env.Home, "Applications", inApp),
 		}, candidates...)
 	}
 	for _, p := range candidates {

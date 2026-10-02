@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+
+	"github.com/docker/go-units"
 )
 
 // kubeStatus runs argv and reads the cluster's state from its output.
@@ -26,6 +28,45 @@ func OrbStackKubeStatus(out []byte) (on, ok bool) {
 		return false, true
 	}
 	return false, false
+}
+
+// RancherResources reads `rdctl list-settings`: virtualMachine.numberCPUs
+// and memoryInGB, and experimental.virtualMachine.diskSize ("100GiB").
+func RancherResources(out []byte) (Resources, bool) {
+	var s struct {
+		Experimental struct {
+			VM struct {
+				Disk string `json:"diskSize"`
+			} `json:"virtualMachine"`
+		} `json:"experimental"`
+		VM struct {
+			CPUs   int     `json:"numberCPUs"`
+			Memory float64 `json:"memoryInGB"`
+		} `json:"virtualMachine"`
+	}
+	if json.Unmarshal(out, &s) != nil || s.VM.CPUs == 0 {
+		return Resources{}, false
+	}
+	r := Resources{CPUs: s.VM.CPUs, Memory: int64(s.VM.Memory * (1 << 30))}
+	if d, err := units.RAMInBytes(s.Experimental.VM.Disk); err == nil {
+		r.Disk = d
+	}
+	return r, true
+}
+
+// resources runs a settings command and reads a VM's size from it.
+func resources(
+	run Runner,
+	argv []string,
+	parse func([]byte) (Resources, bool),
+) func(context.Context) (Resources, bool) {
+	return func(ctx context.Context) (Resources, bool) {
+		out, err := run(ctx, argv[0], argv[1:]...)
+		if err != nil {
+			return Resources{}, false
+		}
+		return parse(out)
+	}
 }
 
 // RancherKubeStatus reads `rdctl list-settings`: kubernetes.enabled.

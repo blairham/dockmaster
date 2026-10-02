@@ -30,11 +30,22 @@ type Single struct {
 	StopC        []string
 	StatusC      []string
 	K8sStatus    func(ctx context.Context) (on, ok bool)
+	Resources    func(ctx context.Context) (Resources, bool)
 }
 
 // K8sStatus — documented here, not on the field, because the linter's
 // fieldalignment fix reorders fields and drops their comments — when set,
 // reports the runtime's built-in Kubernetes: on, and ok when it answered.
+// Resources, likewise, when set reads the VM's size from the runtime's own
+// settings, so a single-engine row shows CPUs, memory and disk as a
+// machine's does.
+
+// Resources is a runtime VM's size.
+type Resources struct {
+	CPUs   int
+	Memory int64 // bytes
+	Disk   int64 // bytes
+}
 
 // socketGone reports whether Host is a unix socket that is not on disk.
 func (s Single) socketGone() bool {
@@ -66,6 +77,11 @@ func (s Single) List(ctx context.Context) ([]Machine, error) {
 	if up && s.K8sStatus != nil {
 		if on, ok := s.K8sStatus(ctx); ok {
 			m.K8s = kubeState(on)
+		}
+	}
+	if up && s.Resources != nil {
+		if r, ok := s.Resources(ctx); ok {
+			m.CPUs, m.Memory, m.Disk = r.CPUs, r.Memory, r.Disk
 		}
 	}
 	return []Machine{m}, nil

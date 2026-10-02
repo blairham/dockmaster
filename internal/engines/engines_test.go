@@ -252,6 +252,21 @@ func TestDetect(t *testing.T) {
 	if dd := asSingle(t, ps[0]); !reflect.DeepEqual(dd.StopC, []string{plugin, "desktop", "stop"}) {
 		t.Errorf("docker desktop via bundled plugin = %+v", dd)
 	}
+
+	// Rancher Desktop installed but never launched: rdctl is not on PATH
+	// until first-run setup adds ~/.rd/bin, but it ships inside the app.
+	const rdctl = "/Applications/Rancher Desktop.app/Contents/Resources/resources/darwin/bin/rdctl"
+	f = &fake{}
+	env = base(nil, []string{"Rancher Desktop"}, f)
+	env.FileExists = func(p string) bool { return p == rdctl }
+	ps = Detect(ctx, env)
+	if len(ps) != 1 || ps[0].Name() != RancherDesktopName {
+		t.Fatalf("rancher app = %q", names(ps))
+	}
+	if rd := asSingle(t, ps[0]); !reflect.DeepEqual(rd.StartC, []string{rdctl, "start"}) ||
+		!reflect.DeepEqual(rd.StopC, []string{rdctl, "shutdown"}) || rd.K8sStatus == nil || rd.Resources == nil {
+		t.Errorf("rancher via bundled rdctl = %+v", rd)
+	}
 }
 
 // TestSingleOwnStatusWinsOverPing: Docker Desktop paused by Resource Saver
@@ -399,5 +414,44 @@ func TestRuntimeKubernetesStatus(t *testing.T) {
 	down.Ping = func(context.Context, string) bool { return false }
 	if ms, _ := down.List(context.Background()); ms[0].K8s != "" {
 		t.Errorf("a stopped engine reports K8s %q", ms[0].K8s)
+	}
+}
+
+// TestRancherResources reads the VM's size from `rdctl list-settings` as
+// Rancher Desktop 1.24 writes it.
+func TestRancherResources(t *testing.T) {
+	out := []byte(`{"virtualMachine":{"memoryInGB":6,"numberCPUs":2,"type":"vz"},` +
+		`"experimental":{"virtualMachine":{"diskSize":"100GiB"}}}`)
+	r, ok := RancherResources(out)
+	if !ok || r.CPUs != 2 || r.Memory != 6<<30 || r.Disk != 100<<30 {
+		t.Errorf("resources = %+v, %v", r, ok)
+	}
+	if _, ok := RancherResources([]byte(`{"kubernetes":{"enabled":true}}`)); ok {
+		t.Error("settings with no VM size read as a size")
+	}
+}
+
+// TestSingleShowsResourcesWhenUp: a running single-engine runtime's row
+// carries its VM's size; a stopped one asks nothing — rdctl cannot answer
+// while the app is down.
+func TestSingleShowsResourcesWhenUp(t *testing.T) {
+	asked := 0
+	s := Single{
+		Engine: RancherDesktopName, Host: "unix:///h/.rd/docker.sock",
+		Ping: func(context.Context, string) bool { return true },
+		Resources: func(context.Context) (Resources, bool) {
+			asked++
+			return Resources{CPUs: 2, Memory: 6 << 30, Disk: 100 << 30}, true
+		},
+	}
+	ms, _ := s.List(context.Background())
+	if m := ms[0]; m.CPUs != 2 || m.Memory != 6<<30 || m.Disk != 100<<30 {
+		t.Errorf("running row = %+v", m)
+	}
+	s.Ping = func(context.Context, string) bool { return false }
+	asked = 0
+	ms, _ = s.List(context.Background())
+	if asked != 0 || ms[0].CPUs != 0 {
+		t.Errorf("stopped: asked %d times, row %+v", asked, ms[0])
 	}
 }
