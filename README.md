@@ -62,7 +62,7 @@ Digits pick the resource; `?` shows everything.
 | `0`–`6` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events | `/` | filter (leading `!` negates) |
 | `enter` | drill in — logs, layers, inspect | `:` | command palette |
 | `c` | on a ⎈ kind/k3d node: the pods' containers inside it | | |
-| `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats | `r` | refresh |
+| `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats; `C` copies files in or out (`docker cp`) | `r` | refresh |
 | `u` / `x` | start ("up") / stop; on an image, `u` runs it (name, ports, env, volumes, command, `--rm`) | `R` | restart |
 | `K` | kill (SIGKILL — confirms) | `p` | pause / unpause |
 | `s` | shell into the container | `ctrl-d` | remove (confirms) |

@@ -269,6 +269,12 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<tab>", Desc: "Next field"},
 			{Key: "<esc>", Desc: "Cancel"},
 		}
+	case style.ViewCopyForm:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Copy"},
+			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<esc>", Desc: "Cancel"},
+		}
 	case style.ViewRunForm:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Run"},
@@ -534,6 +540,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<T>", Desc: "Top (processes)"},
 					{Key: "<D>", Desc: "Diff (files)"},
 					{Key: "<S>", Desc: "Stats"},
+					{Key: "<C>", Desc: "Copy files"},
 					{Key: "<b>", Desc: "Browse port"},
 					{Key: "<p>", Desc: "Pause/unpause"},
 					{Key: "<s>", Desc: "Shell into it"},

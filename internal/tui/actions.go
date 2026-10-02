@@ -52,7 +52,7 @@ var mutating = map[string]bool{
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
 	"node_shell": true, "confirm_node_remove": true,
-	"run_image": true, "run_create": true,
+	"run_image": true, "run_create": true, "copy_into": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -196,6 +196,16 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.execShell(param)
 
 	// ---- Kubernetes nodes: the containers inside a kind/k3d node -------
+
+	case "copy_form":
+		return a.openCopyForm(param)
+	case "copy_from", "copy_into":
+		spec, err := views.DecodeCopySpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		return a, a.runCopy(spec)
 
 	case "run_image":
 		return a.openRunForm(param)
