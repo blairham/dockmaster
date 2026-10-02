@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/blairham/tuikit/tail"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
@@ -61,6 +62,59 @@ type LogsView struct {
 	tailLines  int
 	loading    bool
 	timestamps bool
+	// since, when non-zero, starts the stream that long ago instead of at
+	// the last tailLines lines (the 1–5 keys).
+	since time.Duration
+}
+
+// LogRanges are the time ranges the digit keys pick, as k9s's log view:
+// 0 is the usual backlog, 1–5 everything from that long ago.
+var LogRanges = []struct {
+	Key   string
+	Label string
+	Since time.Duration
+}{
+	{Key: "0", Label: "tail"},
+	{Key: "1", Label: "1m", Since: time.Minute},
+	{Key: "2", Label: "5m", Since: 5 * time.Minute},
+	{Key: "3", Label: "15m", Since: 15 * time.Minute},
+	{Key: "4", Label: "30m", Since: 30 * time.Minute},
+	{Key: "5", Label: "1h", Since: time.Hour},
+}
+
+// ClaimsDigits reports that this view uses the digit keys itself — for
+// time ranges — so they do not switch views here, as in k9s.
+func (v *LogsView) ClaimsDigits() bool { return true }
+
+// SetRange restarts the stream from since ago (zero: the usual backlog).
+// The buffer is cleared first: the new stream re-sends lines the old one
+// already showed.
+func (v *LogsView) SetRange(since time.Duration) tea.Cmd {
+	v.since = since
+	v.tail.Clear()
+	return v.start()
+}
+
+// Range is the time range in force, 0 for the usual backlog.
+func (v *LogsView) Range() time.Duration { return v.since }
+
+// ToggleWrap soft-wraps long lines, or stops wrapping them.
+func (v *LogsView) ToggleWrap() { v.tail.SetWrap(!v.tail.Wrap()) }
+
+// Wrap reports whether long lines wrap.
+func (v *LogsView) Wrap() bool { return v.tail.Wrap() }
+
+// Clear empties the buffer; the stream keeps appending.
+func (v *LogsView) Clear() { v.tail.Clear() }
+
+// PlainText is what the view shows — filtered, styling stripped — for
+// saving or copying.
+func (v *LogsView) PlainText() (string, int) {
+	lines := v.tail.VisibleLines()
+	for i, l := range lines {
+		lines[i] = ansi.Strip(l)
+	}
+	return strings.Join(lines, "\n"), len(lines)
 }
 
 // NewLogsView opens a tail for one container. The stream itself starts on
@@ -132,15 +186,19 @@ func (v *LogsView) start() tea.Cmd {
 	v.cancel = cancel
 
 	id, ts, n, node := v.containerID, v.timestamps, v.tailLines, v.node
+	var since time.Time
+	if v.since > 0 {
+		since = time.Now().Add(-v.since)
+	}
 	client := v.client
 	return func() tea.Msg {
 		open := client.StreamLogs
 		if node != "" {
-			open = func(ctx context.Context, id string, n int, ts bool) (*docker.LogStream, error) {
-				return client.StreamNodeLogs(ctx, node, id, n, ts)
+			open = func(ctx context.Context, id string, n int, ts bool, since time.Time) (*docker.LogStream, error) {
+				return client.StreamNodeLogs(ctx, node, id, n, ts, since)
 			}
 		}
-		st, err := open(ctx, id, n, ts)
+		st, err := open(ctx, id, n, ts, since)
 		if err != nil {
 			cancel()
 			return LogClosedMsg{Gen: gen, Err: err}
@@ -293,14 +351,13 @@ func (v *LogsView) SetFilter(f string) {
 
 // HandleKey maps a keystroke to an app action.
 func (v *LogsView) HandleKey(key string) (string, string) {
+	if action, param := logKey(key); action != "" {
+		return action, param
+	}
 	if v.node != "" {
 		return v.nodeKey(key)
 	}
 	switch key {
-	case "f":
-		return "toggle_follow", ""
-	case "T":
-		return "toggle_timestamps", ""
 	case "o":
 		return "inspect_container", v.containerID
 	case "s":
@@ -313,16 +370,40 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 	return "", ""
 }
 
+// logKey maps the keys every log view shares, docker's and a kind node's:
+// follow, timestamps, the time ranges, wrap, fullscreen, copy, save and
+// clear. Following k9s, except f, which was already follow here.
+func logKey(key string) (string, string) {
+	for _, r := range LogRanges {
+		if key == r.Key {
+			return "log_range", r.Label
+		}
+	}
+	switch key {
+	case "f":
+		return "toggle_follow", ""
+	case "T":
+		return "toggle_timestamps", ""
+	case "w":
+		return "log_wrap", ""
+	case "F":
+		return "fullscreen", ""
+	case "c":
+		return "log_copy", ""
+	case "ctrl+s":
+		return "log_save", ""
+	case "ctrl+k":
+		return "log_clear", ""
+	}
+	return "", ""
+}
+
 // nodeKey is HandleKey for a container inside a node: follow, timestamps,
 // inspect and shell. Stop and restart would go to the docker daemon with a
 // containerd ID it has never heard of, so they are not offered.
 func (v *LogsView) nodeKey(key string) (string, string) {
 	p := NodeParam(v.node, v.containerID, v.containerName)
 	switch key {
-	case "f":
-		return "toggle_follow", ""
-	case "T":
-		return "toggle_timestamps", ""
 	case "o":
 		return "node_inspect", p
 	case "s":
@@ -356,11 +437,19 @@ func (v *LogsView) Refresh() tea.Cmd { return v.start() }
 // Status is the extra detail the app puts in the border title: follow
 // state and the active filter.
 func (v *LogsView) Status() string {
-	parts := make([]string, 0, 2)
+	parts := make([]string, 0, 4)
 	if v.tail.Follow() {
 		parts = append(parts, "follow")
 	} else {
 		parts = append(parts, "paused")
+	}
+	for _, r := range LogRanges {
+		if r.Since != 0 && r.Since == v.since {
+			parts = append(parts, "last "+r.Label)
+		}
+	}
+	if v.tail.Wrap() {
+		parts = append(parts, "wrap")
 	}
 	if v.filter != "" {
 		parts = append(parts, "/"+v.filter)

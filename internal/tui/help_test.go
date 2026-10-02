@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // TestHelpShowsEveryEntryInFull renders the help overlay and checks that
@@ -13,11 +16,24 @@ import (
 // "Containers in a kind node" once rendered as "Containers in a kind", and
 // nothing noticed until it was looked at.
 func TestHelpShowsEveryEntryInFull(t *testing.T) {
-	for _, size := range []struct{ w, h int }{{w: 120, h: 40}, {w: 160, h: 44}, {w: 220, h: 50}} {
+	for _, tc := range []struct {
+		w, h int
+		logs bool
+	}{
+		{w: 120, h: 40},
+		{w: 160, h: 44},
+		{w: 220, h: 50},
+		{w: 120, h: 40, logs: true}, // help over a log has its own LOGS column
+	} {
+		size := tc
 		a := NewApp(nil, Options{Version: "test"})
 		a.splashActive, a.loading = false, false
 		step(a, tea.WindowSizeMsg{Width: size.w, Height: size.h})
 		loadContainers(a)
+		if tc.logs {
+			a.setView(style.ViewLogs, views.NewLogsView(nil, "abc", "web"))
+			a.pushView(style.ViewLogs)
+		}
 		step(a, key("?"))
 		out := render(a)
 		entries := 0

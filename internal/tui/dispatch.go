@@ -19,6 +19,8 @@ func (a *App) switchView(v style.ViewType) tea.Cmd {
 // history keys themselves.
 func (a *App) showView(v style.ViewType) tea.Cmd {
 	a.stopStoppableViews()
+	// Fullscreen belongs to the log it was turned on in.
+	a.setFullscreen(false)
 	a.viewStack = nil
 	a.view = v
 	a.showHelp = false
@@ -52,6 +54,8 @@ func (a *App) popView() {
 	if len(a.viewStack) == 0 {
 		return
 	}
+	// Fullscreen belongs to the log it was turned on in.
+	a.setFullscreen(false)
 	// The view being left is a drill-in; if it holds a stream, it is
 	// genuinely finished with, so stop that one specifically.
 	if s, ok := a.viewMap[a.view].(views.Stoppable); ok {

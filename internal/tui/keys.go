@@ -192,6 +192,16 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a.handleHelpKey(key)
 	}
 
+	// A view using the digits itself (the log view's time ranges) gets
+	// them before they switch views.
+	if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
+		if c, ok := a.activeView().(views.DigitClaimer); ok && c.ClaimsDigits() {
+			if action, param := a.activeViewHandleKey(key); action != "" {
+				return a.handleAction(action, param)
+			}
+		}
+	}
+
 	switch key {
 	case "?":
 		a.showHelp = true

@@ -263,6 +263,9 @@ func (a *App) renderShortcuts(info []string) []string {
 		actions = []chrome.Shortcut{
 			{Key: "<f>", Desc: "Follow"},
 			{Key: "<T>", Desc: "Timestamps"},
+			{Key: "<w>", Desc: "Wrap"},
+			{Key: "<F>", Desc: "Fullscreen"},
+			{Key: "<ctrl-s>", Desc: "Save"},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<s>", Desc: "Shell"},
 			{Key: "<esc>", Desc: "Back"},
@@ -525,10 +528,40 @@ func (a *App) helpPanel() chrome.HelpPanel {
 			chrome.NavigationHelp(),
 		},
 	}
+	// In a log the CONTAINER column gives way to the log's own keys, as
+	// k9s's help follows the view it is opened over.
+	if a.view == style.ViewLogs {
+		panel.Sections[1] = logsHelp()
+	}
 	for i := range panel.Sections {
 		sortHelpEntries(panel.Sections[i].Entries)
 	}
 	return panel
+}
+
+// logsHelp is the LOGS column: every key a log view binds.
+func logsHelp() chrome.HelpSection {
+	s := chrome.HelpSection{Title: "LOGS"}
+	for _, r := range views.LogRanges {
+		desc := "Last " + r.Label
+		if r.Since == 0 {
+			desc = "Usual backlog"
+		}
+		s.Entries = append(s.Entries, chrome.HelpEntry{Key: "<" + r.Key + ">", Desc: desc})
+	}
+	s.Entries = append(
+		s.Entries,
+		chrome.HelpEntry{Key: "<f>", Desc: "Follow"},
+		chrome.HelpEntry{Key: "<T>", Desc: "Timestamps"},
+		chrome.HelpEntry{Key: "<w>", Desc: "Wrap"},
+		chrome.HelpEntry{Key: "<F>", Desc: "Fullscreen"},
+		chrome.HelpEntry{Key: "<c>", Desc: "Copy"},
+		chrome.HelpEntry{Key: "<ctrl-s>", Desc: "Save to file"},
+		chrome.HelpEntry{Key: "<ctrl-k>", Desc: "Clear"},
+		chrome.HelpEntry{Key: "<o>", Desc: "Inspect"},
+		chrome.HelpEntry{Key: "<s>", Desc: "Shell"},
+	)
+	return s
 }
 
 // generalHelp is tuikit's shared GENERAL column — every key in it is bound
@@ -539,8 +572,6 @@ func generalHelp() chrome.HelpSection {
 	g.Entries = append(
 		g.Entries,
 		chrome.HelpEntry{Key: "<r>", Desc: "Reload"},
-		chrome.HelpEntry{Key: "<f>", Desc: "Log follow"},
-		chrome.HelpEntry{Key: "<T>", Desc: "Log timestamps"},
 		chrome.HelpEntry{Key: "<:logo>", Desc: "Toggle logo"},
 		chrome.HelpEntry{Key: "<ctrl-c>", Desc: "Quit"},
 	)

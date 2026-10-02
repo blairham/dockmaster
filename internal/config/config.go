@@ -245,3 +245,17 @@ dockmaster:
       warn: 70
       critical: 90
 `
+
+// StateDir is where dockmaster writes what it produces — saved logs:
+// $XDG_STATE_HOME/dockmaster, else ~/.local/state/dockmaster, the XDG home
+// k9s keeps its screen dumps under too.
+func StateDir() (string, error) {
+	if x := os.Getenv("XDG_STATE_HOME"); x != "" {
+		return filepath.Join(x, "dockmaster"), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("locating the state directory: %w", err)
+	}
+	return filepath.Join(home, ".local", "state", "dockmaster"), nil
+}

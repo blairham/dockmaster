@@ -144,17 +144,32 @@ const nodeLogScript = `exec 3<&0; crictl logs "$@" </dev/null & p=$!; ` +
 
 // StreamNodeLogs is StreamLogs for a container inside node: a follow-mode
 // tail read through crictl, stdout and stderr kept apart.
-func (c *Client) StreamNodeLogs(ctx context.Context, node, id string, tail int, timestamps bool) (*LogStream, error) {
+func (c *Client) StreamNodeLogs(
+	ctx context.Context, node, id string, tail int, timestamps bool, since time.Time,
+) (*LogStream, error) {
+	args := nodeLogArgs(tail, timestamps, since)
+	args = append(args, id)
+	cmd := append([]string{"sh", "-c", nodeLogScript, "crictl-logs"}, args...)
+	return c.streamNodeLogs(ctx, node, id, cmd)
+}
+
+// nodeLogArgs are crictl logs' flags: follow, then a line count or a start
+// time (crictl takes RFC 3339), then timestamps.
+func nodeLogArgs(tail int, timestamps bool, since time.Time) []string {
 	args := []string{"-f"}
-	if tail > 0 {
+	switch {
+	case !since.IsZero():
+		args = append(args, "--since="+since.UTC().Format(time.RFC3339))
+	case tail > 0:
 		args = append(args, "--tail="+strconv.Itoa(tail))
 	}
 	if timestamps {
 		args = append(args, "--timestamps")
 	}
-	args = append(args, id)
-	cmd := append([]string{"sh", "-c", nodeLogScript, "crictl-logs"}, args...)
+	return args
+}
 
+func (c *Client) streamNodeLogs(ctx context.Context, node, id string, cmd []string) (*LogStream, error) {
 	exec, err := c.api.ContainerExecCreate(ctx, node, container.ExecOptions{
 		Cmd: cmd, AttachStdin: true, AttachStdout: true, AttachStderr: true,
 	})

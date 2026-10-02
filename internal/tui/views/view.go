@@ -45,6 +45,12 @@ type View interface {
 	Refresh() tea.Cmd
 }
 
+// DigitClaimer is implemented by a view that uses the digit keys itself —
+// the log view's time ranges — so in it they do not switch views.
+type DigitClaimer interface {
+	ClaimsDigits() bool
+}
+
 // Stoppable is implemented by views holding background goroutines (the log
 // tail). The app calls Stop on view switch and at shutdown.
 type Stoppable interface {

@@ -72,3 +72,23 @@ func TestNodeRole(t *testing.T) {
 		}
 	}
 }
+
+func TestLogRequestRange(t *testing.T) {
+	since := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+
+	o := logOptions(500, false, time.Time{})
+	if o.Tail != "500" || o.Since != "" || !o.Follow {
+		t.Errorf("tail only: %+v", o)
+	}
+	o = logOptions(500, true, since)
+	if o.Tail != "all" || o.Since != "1790856000" || !o.Timestamps {
+		t.Errorf("since: %+v, want every line since the Unix time", o)
+	}
+
+	if got := strings.Join(nodeLogArgs(500, false, time.Time{}), " "); got != "-f --tail=500" {
+		t.Errorf("node tail: %q", got)
+	}
+	if got := strings.Join(nodeLogArgs(500, true, since), " "); got != "-f --since=2026-10-01T12:00:00Z --timestamps" {
+		t.Errorf("node since: %q", got)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,24 +38,23 @@ type LogStream struct {
 // a TTY container writes raw bytes, a non-TTY one writes 8-byte-framed
 // chunks. Reading a framed stream raw is the classic symptom where every
 // log line starts with a couple of mojibake control characters.
-func (c *Client) StreamLogs(ctx context.Context, id string, tail int, timestamps bool) (*LogStream, error) {
+//
+// since, when not zero, starts the stream at that time instead of a line
+// count: every line since then, then follow.
+func (c *Client) StreamLogs(
+	ctx context.Context,
+	id string,
+	tail int,
+	timestamps bool,
+	since time.Time,
+) (*LogStream, error) {
 	insp, err := c.api.ContainerInspect(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("inspecting %s for log stream: %w", shortID(id), err)
 	}
 	tty := insp.Config != nil && insp.Config.Tty
 
-	tailArg := "all"
-	if tail > 0 {
-		tailArg = fmt.Sprintf("%d", tail)
-	}
-	rc, err := c.api.ContainerLogs(ctx, id, container.LogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-		Follow:     true,
-		Timestamps: timestamps,
-		Tail:       tailArg,
-	})
+	rc, err := c.api.ContainerLogs(ctx, id, logOptions(tail, timestamps, since))
 	if err != nil {
 		return nil, fmt.Errorf("streaming logs for %s: %w", shortID(id), err)
 	}
@@ -93,6 +93,28 @@ func (c *Client) StreamLogs(ctx context.Context, id string, tail int, timestamps
 	}()
 
 	return &LogStream{Lines: lines, Err: errc}, nil
+}
+
+// logOptions builds a follow-mode log request: the last tail lines (all
+// when tail is 0), or — when since is set — everything since then.
+func logOptions(tail int, timestamps bool, since time.Time) container.LogsOptions {
+	opts := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Timestamps: timestamps,
+		Tail:       "all",
+	}
+	if tail > 0 {
+		opts.Tail = strconv.Itoa(tail)
+	}
+	if !since.IsZero() {
+		// The API takes a Unix timestamp; with one, the tail is everything
+		// since then rather than a count.
+		opts.Since = strconv.FormatInt(since.Unix(), 10)
+		opts.Tail = "all"
+	}
+	return opts
 }
 
 // maxLogLine caps a single line. A container that writes a megabyte

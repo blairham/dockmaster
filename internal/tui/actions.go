@@ -158,6 +158,11 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			return a, v.ToggleTimestamps()
 		}
 		return a, nil
+	case "log_range", "log_wrap", "log_clear", "log_copy", "log_save":
+		return a, a.logAction(action, param)
+	case "fullscreen":
+		a.setFullscreen(!a.fullscreen)
+		return a, nil
 
 	// ---- container lifecycle -------------------------------------------
 

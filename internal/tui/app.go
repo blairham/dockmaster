@@ -125,12 +125,16 @@ type App struct {
 	viewStack       []style.ViewType
 	// history is the top-level views visited, for [ ] and -.
 	history viewfsm.History
-	loader  loading.Model
-	chrome  chrome.Chrome
-	view    style.ViewType
-	width   int
-	height  int
-	loading bool
+	// fullscreen hides header and crumbs for a log (F); preFullscreen
+	// is what they were, to put back.
+	fullscreen    bool
+	preFullscreen [2]bool
+	loader        loading.Model
+	chrome        chrome.Chrome
+	view          style.ViewType
+	width         int
+	height        int
+	loading       bool
 	// forwards are the port-forward helpers this session started; quitting
 	// stops them.
 	forwards []string
