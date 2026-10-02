@@ -30,8 +30,7 @@ func closingBrackets(t *testing.T, out string) []int {
 // TestFormBracketsLineUp: every input box is the same width, so the
 // brackets line up down the form whatever each field's limit is.
 func TestFormBracketsLineUp(t *testing.T) {
-	hostMemoryGiB = func() int { return 64 }
-	t.Cleanup(func() { hostMemoryGiB = func() int { return int(engines.HostMemory() >> 30) } })
+	pinHost(t)
 
 	for name, f := range map[string]*RuntimeFormView{
 		"create": NewRuntimeCreateForm("colima", []engines.Provider{engines.Colima{}}, nil),
@@ -59,8 +58,7 @@ func TestFormBracketsLineUp(t *testing.T) {
 // TestFormRefusesMoreMemoryThanTheHost: like CPUs, memory is checked
 // against what this machine has.
 func TestFormRefusesMoreMemoryThanTheHost(t *testing.T) {
-	hostMemoryGiB = func() int { return 64 }
-	t.Cleanup(func() { hostMemoryGiB = func() int { return int(engines.HostMemory() >> 30) } })
+	pinHost(t)
 
 	f := NewRuntimeEditForm(
 		engines.Machine{Provider: "colima", Name: "default", CPUs: 4, Memory: 8 << 30, Disk: 100 << 30},
@@ -97,4 +95,14 @@ func TestChangingTheProviderRelaysTheForm(t *testing.T) {
 	if has(keyRuntime) || !has(keyRootful) || !has(keyUserNet) {
 		t.Errorf("podman form: runtime %v rootful %v usernet %v", has(keyRuntime), has(keyRootful), has(keyUserNet))
 	}
+}
+
+// pinHost fixes the host size the forms check against, so a fixture's VM
+// fits on any machine the tests run on.
+func pinHost(t *testing.T) {
+	t.Helper()
+	mem, cpus := HostMemoryGiB, HostCPUs
+	HostMemoryGiB = func() int { return 64 }
+	HostCPUs = func() int { return 16 }
+	t.Cleanup(func() { HostMemoryGiB, HostCPUs = mem, cpus })
 }

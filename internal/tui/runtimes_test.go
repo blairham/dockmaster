@@ -68,6 +68,12 @@ func (f *fakeColima) called(key string) bool {
 // cursor on the first profile ("default").
 func newColimaApp(t *testing.T, opts Options) (*App, *fakeColima) {
 	t.Helper()
+	// The fixture's profiles ask for 8 CPUs and 16 GiB, more than a CI
+	// runner has; the forms would refuse them before the code under test ran.
+	mem, cpus := views.HostMemoryGiB, views.HostCPUs
+	views.HostMemoryGiB = func() int { return 64 }
+	views.HostCPUs = func() int { return 16 }
+	t.Cleanup(func() { views.HostMemoryGiB, views.HostCPUs = mem, cpus })
 	f := &fakeColima{fail: map[string]error{}}
 	opts.Engines = []engines.Provider{engines.Colima{C: colima.NewWithRunner(f.run, "/h/.colima")}}
 	if opts.Version == "" {

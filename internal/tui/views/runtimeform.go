@@ -234,15 +234,20 @@ func newFormInput(value string, limit int) textinput.Model {
 	return in
 }
 
-// hostMemoryGiB is this machine's memory in whole GiB, 0 when unknown.
-// A var so tests can pin it.
-var hostMemoryGiB = func() int { return int(engines.HostMemory() >> 30) }
+// HostMemoryGiB is this machine's memory in whole GiB, 0 when unknown.
+// HostCPUs is its CPU count. Both are vars so tests can pin them: the
+// forms refuse a VM bigger than the host, and a test's fixture profile must
+// not depend on the machine the test runs on.
+var (
+	HostMemoryGiB = func() int { return int(engines.HostMemory() >> 30) }
+	HostCPUs      = runtime.NumCPU
+)
 
-func cpuHint() string { return fmt.Sprintf("this machine has %d", runtime.NumCPU()) }
+func cpuHint() string { return fmt.Sprintf("this machine has %d", HostCPUs()) }
 
 // memoryHint tells the user how much there is to give, as the CPU hint does.
 func memoryHint() string {
-	if g := hostMemoryGiB(); g > 0 {
+	if g := HostMemoryGiB(); g > 0 {
 		return fmt.Sprintf("this machine has %d GiB", g)
 	}
 	return ""
@@ -330,7 +335,7 @@ func (v *RuntimeFormView) validate() (RuntimeSpec, string) {
 	if err != nil || cpus < 1 {
 		return spec, "CPUs: a whole number, 1 or more"
 	}
-	if n := runtime.NumCPU(); cpus > n {
+	if n := HostCPUs(); cpus > n {
 		return spec, fmt.Sprintf("CPUs: this machine has %d", n)
 	}
 
@@ -338,7 +343,7 @@ func (v *RuntimeFormView) validate() (RuntimeSpec, string) {
 	if err != nil || mem < 0.5 {
 		return spec, "Memory: GiB, at least 0.5"
 	}
-	if g := hostMemoryGiB(); g > 0 && mem > float64(g) {
+	if g := HostMemoryGiB(); g > 0 && mem > float64(g) {
 		return spec, fmt.Sprintf("Memory: this machine has %d GiB", g)
 	}
 
