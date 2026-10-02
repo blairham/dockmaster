@@ -131,3 +131,34 @@ Like `config.yaml`, the file is checked at startup and a mistake stops it,
 naming the alias: a name is one word that is not already a dockmaster
 command (an alias cannot take over `ps`), and what it stands for has to
 reach a command, through at most five aliases and without a loop.
+
+## Hotkeys
+
+`hotkeys.yaml`, beside `config.yaml`, is k9s's hotkeys file: a key that
+runs a `:` command, aliases and `/filter` included.
+
+```yaml
+hotKeys:
+  usage:
+    shortCut: Shift-0
+    description: Disk usage
+    command: df
+  pg:
+    shortCut: Ctrl-U
+    command: pg          # an alias
+```
+
+`shortCut` is spelled as k9s spells it — `Shift-0`, `Shift-A`, `Ctrl-U`,
+`Alt-X`, `F2`, or one character — and translated to what the terminal
+sends: Shift with a digit is that digit's symbol on a US layout (`Shift-0`
+is `)`), Shift with a letter is the capital. `keepHistory` is accepted for
+k9s's files and does nothing; every view switch is already in the history.
+
+A hotkey is asked after the view's own keys and before navigation, so in a
+view that binds the same key the view keeps it — a hotkey on `x` stops a
+container in the containers view and opens its command elsewhere. Keys that
+could never reach it (`?`, `:`, `/`, the digits, `esc`, `q`, `r`, the
+chrome and table keys) or that would take navigation away (`j`/`k`, arrows,
+page keys) are refused at startup, as are a key taken twice and a command
+that does not resolve. Help lists hotkeys in a HOTKEYS column, the
+description or else the command.

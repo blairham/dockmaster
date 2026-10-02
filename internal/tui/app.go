@@ -112,6 +112,7 @@ type App struct {
 	logSince    time.Duration
 	liveRefresh bool
 	aliases     map[string]string
+	hotKeys     []HotKey
 	// requestTimeout is --request-timeout, carried onto each client a
 	// context switch dials.
 	requestTimeout time.Duration
@@ -208,6 +209,8 @@ type Options struct {
 	// Aliases are the user's `:` command names (aliases.yaml), validated by
 	// ValidateAliases.
 	Aliases map[string]string
+	// HotKeys are the user's hotkeys (hotkeys.yaml), validated by HotKeys.
+	HotKeys []HotKey
 	// RequestTimeout overrides every daemon request's own deadline when
 	// non-zero (--request-timeout).
 	RequestTimeout time.Duration
@@ -316,6 +319,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logSince:       opts.LogSince,
 		liveRefresh:    opts.LiveRefresh,
 		aliases:        opts.Aliases,
+		hotKeys:        opts.HotKeys,
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 	}

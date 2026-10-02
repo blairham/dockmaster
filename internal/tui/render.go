@@ -581,6 +581,9 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	if a.view == style.ViewLogs {
 		panel.Sections[1] = logsHelp()
 	}
+	if hk, ok := a.hotKeysHelp(); ok {
+		panel.Sections = append(panel.Sections, hk)
+	}
 	for i := range panel.Sections {
 		sortHelpEntries(panel.Sections[i].Entries)
 	}

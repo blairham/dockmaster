@@ -90,6 +90,14 @@ func run() error {
 	if aerr := tui.ValidateAliases(aliases); aerr != nil {
 		return aerr
 	}
+	hotKeyFile, err := config.LoadHotKeys()
+	if err != nil {
+		return err
+	}
+	hotKeys, err := tui.HotKeys(hotKeyFile, aliases)
+	if err != nil {
+		return err
+	}
 
 	// The skin goes in before anything is built: every style derives from
 	// the base theme.
@@ -183,6 +191,7 @@ func run() error {
 		LogSince:        time.Duration(max(cfg.Logger.SinceSeconds, 0)) * time.Second,
 		LiveRefresh:     cfg.LiveViewAutoRefresh,
 		Aliases:         aliases,
+		HotKeys:         hotKeys,
 		RequestTimeout:  cfg.RequestTimeout,
 		Thresholds:      tui.ThresholdsFrom(cfg.Thresholds),
 		Engines:         providers,

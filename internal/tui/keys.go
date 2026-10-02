@@ -296,6 +296,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if a.tableKey(key) {
 		return a, nil
 	}
+	// Then the user's hotkeys — after the view's own keys, so a view that
+	// binds the same key keeps it.
+	if cmd, ok := a.hotKey(key); ok {
+		return a, cmd
+	}
 
 	// Then navigation: tuikit maps the vim keys (j/k/h/l, g/G, ctrl+f/b)
 	// onto the arrow and page keys tables and viewports understand. After
