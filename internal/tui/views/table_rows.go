@@ -20,3 +20,9 @@ func setTableRows(t *table.Model, rows []table.Row) {
 		t.SetCursor(0)
 	}
 }
+
+// Tabler is a view drawn as a table. The keys every table shares — ctrl+s
+// to save it — work on any view that implements it.
+type Tabler interface {
+	Table() *table.Model
+}

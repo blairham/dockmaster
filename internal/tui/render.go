@@ -460,10 +460,19 @@ func (a *App) activeViewLoading() bool {
 	return false
 }
 
+// viewName is what the active view shows: its resource ("containers"), or
+// for a drill-in its subject — "nginx" is what you need to see above a log
+// tail, not "lines".
+func (a *App) viewName() string {
+	if t, ok := a.activeView().(views.Titler); ok && t.Title() != "" {
+		return t.Title()
+	}
+	return style.ViewResource(a.view) + "s"
+}
+
 // renderResourceTitle is the centered pill on the content box's top
 // border: "containers(all)[7]", plus a filter tag when one is active.
 func (a *App) renderResourceTitle() string {
-	resource := style.ViewResource(a.view)
 	count := 0
 	if v := a.activeView(); v != nil {
 		count = v.Count()
@@ -478,12 +487,7 @@ func (a *App) renderResourceTitle() string {
 	filterStyle := lipgloss.NewStyle().Foreground(style.ColorFuchsia).Bold(true)
 	countStyle := lipgloss.NewStyle().Foreground(style.ColorPapayaWhip).Bold(true)
 
-	name := resource + "s"
-	// Drill-ins name their subject instead of their resource: "nginx" is
-	// what you need to see above a log tail, not "lines".
-	if t, ok := a.activeView().(views.Titler); ok && t.Title() != "" {
-		name = t.Title()
-	}
+	name := a.viewName()
 	if v := typedView[*views.LogsView](a, style.ViewLogs); v != nil && a.view == style.ViewLogs {
 		if s := v.Status(); s != "" {
 			name += " " + s
@@ -610,6 +614,7 @@ func generalHelp() chrome.HelpSection {
 	g.Entries = append(
 		g.Entries,
 		chrome.HelpEntry{Key: "<r>", Desc: "Reload"},
+		chrome.HelpEntry{Key: "<ctrl-s>", Desc: "Save"},
 		chrome.HelpEntry{Key: "<:logo>", Desc: "Toggle logo"},
 		chrome.HelpEntry{Key: "<ctrl-c>", Desc: "Quit"},
 	)

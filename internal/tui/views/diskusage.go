@@ -176,3 +176,6 @@ func reclaimableCell(r docker.DiskUsageRow) string {
 	}
 	return cell
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *DiskUsageView) Table() *table.Model { return &v.table }

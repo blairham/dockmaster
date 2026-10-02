@@ -232,3 +232,6 @@ func (v *NodeView) rebuildRows() {
 	}
 	setTableRows(&v.table, rows)
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *NodeView) Table() *table.Model { return &v.table }

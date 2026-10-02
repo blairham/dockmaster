@@ -84,7 +84,7 @@ func TestLogCopyAndSave(t *testing.T) {
 	}
 
 	step(a, key("ctrl+s"))
-	files, _ := filepath.Glob(filepath.Join(state, "dockmaster", "logs", "web-*.log"))
+	files, _ := filepath.Glob(filepath.Join(state, "dockmaster", "logs", "web-*.txt"))
 	if len(files) != 1 {
 		t.Fatalf("ctrl-s wrote %v (flash %q %q)", files, a.flash, a.errFlash)
 	}
@@ -194,6 +194,12 @@ func TestLogMark(t *testing.T) {
 	}
 	if !strings.Contains(render(a), "───") {
 		t.Error("the mark is not drawn")
+	}
+
+	// Filtering for what came after the mark keeps the mark.
+	lv.SetFilter("after")
+	if text, _ := lv.PlainText(); !strings.HasPrefix(text, "───") || !strings.HasSuffix(text, "\nafter the mark") {
+		t.Errorf("a filter hid the mark:\n%s", text)
 	}
 }
 

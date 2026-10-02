@@ -272,3 +272,6 @@ func truncateLeft(s string, maxLen int) string {
 	}
 	return "…" + string(r[len(r)-maxLen+1:])
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *ProjectsView) Table() *table.Model { return &v.table }

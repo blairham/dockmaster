@@ -572,3 +572,6 @@ func (v *ContainersView) RunningTotal() (running, total int) {
 	}
 	return running, len(v.all)
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *ContainersView) Table() *table.Model { return &v.table }

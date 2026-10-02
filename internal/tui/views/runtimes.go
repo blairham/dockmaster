@@ -411,3 +411,6 @@ func kubeCell(m engines.Machine) string {
 	}
 	return style.Muted.Render("—")
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *RuntimesView) Table() *table.Model { return &v.table }

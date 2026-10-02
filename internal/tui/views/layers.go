@@ -177,3 +177,6 @@ func since(t time.Time) string {
 		return fmt.Sprintf("%dy", int(d.Hours()/24/365))
 	}
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *LayersView) Table() *table.Model { return &v.table }

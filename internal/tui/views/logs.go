@@ -116,13 +116,14 @@ func (v *LogsView) Clear() { v.tail.Clear() }
 
 // Mark draws a rule across the log at its current end, stamped with now —
 // k9s's m — so what arrives after a moment (a retry, a deploy) is easy to
-// find again. A mark is a line like any other: it scrolls with the log,
-// is copied and saved with it, and a filter it does not match hides it.
+// find again. It scrolls with the log and is copied and saved with it, and
+// it is a tail marker, so filtering for what matters after the mark — the
+// usual next step — still shows where the mark is.
 func (v *LogsView) Mark(now time.Time) {
 	stamp := " " + now.Local().Format("15:04:05") + " "
 	side := max((v.width-lipgloss.Width(stamp))/2, 3)
 	rule := strings.Repeat("─", side) + stamp + strings.Repeat("─", side)
-	v.tail.AppendLine(lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Bold(true).Render(rule))
+	v.tail.AppendMarker(lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Bold(true).Render(rule))
 }
 
 // PlainText is what the view shows — filtered, styling stripped — for

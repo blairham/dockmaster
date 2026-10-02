@@ -44,6 +44,14 @@ func key(s string) tea.KeyMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	case "ctrl+space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Mod: tea.ModCtrl}
+	}
+	arrows := map[string]rune{"left": tea.KeyLeft, "right": tea.KeyRight, "up": tea.KeyUp, "down": tea.KeyDown}
+	if c, ok := strings.CutPrefix(s, "shift+"); ok && arrows[c] != 0 {
+		return tea.KeyPressMsg{Code: arrows[c], Mod: tea.ModShift}
 	}
 	// A real ctrl chord, not Text "ctrl+f": a fake whose String() happens
 	// to match would pass a test the terminal's own keypress fails.
@@ -910,16 +918,17 @@ func TestHeaderLogo(t *testing.T) {
 	}{
 		{width: 240, wantLogo: true},
 		{width: 200, wantLogo: true},
-		// The info panel is as wide as its content (k9s layout), which
-		// leaves the 22-column DM logo room beside every column from 139;
-		// a narrower header sheds the logo rather than a shortcut. (The
-		// full dockmaster art, 69 columns, needed 186 — why the header
-		// draws DM and only the splash the full name.)
+		// The info panel is as wide as its content and each shortcut key
+		// column as wide as its widest key (k9s layout), which leaves the
+		// 22-column DM logo room beside every column from 120; a narrower
+		// header sheds the logo rather than a shortcut. (The full
+		// dockmaster art, 69 columns, needed 186 — why the header draws
+		// DM and only the splash the full name.)
 		{width: 180, wantLogo: true},
 		{width: 160, wantLogo: true},
-		{width: 139, wantLogo: true},
-		{width: 138},
-		{width: 120},
+		{width: 120, wantLogo: true},
+		{width: 119},
+		{width: 100},
 	} {
 		a := NewApp(nil, Options{Version: "test"})
 		a.splashActive, a.loading = false, false

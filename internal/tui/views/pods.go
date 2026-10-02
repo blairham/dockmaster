@@ -218,3 +218,6 @@ func podStatusCell(s string) string {
 	}
 	return style.StateCreated.Render(s)
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *PodsView) Table() *table.Model { return &v.table }

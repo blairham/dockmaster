@@ -246,3 +246,6 @@ func (v *ImagesView) RefFor(id string) string {
 
 // Total is the unfiltered image-row count, for the info panel.
 func (v *ImagesView) Total() int { return len(v.all) }
+
+// Table is the view's table, for the keys every table shares.
+func (v *ImagesView) Table() *table.Model { return &v.table }

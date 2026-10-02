@@ -158,3 +158,6 @@ func (v *ContextsView) rebuildRows() {
 	}
 	setTableRows(&v.table, rows)
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *ContextsView) Table() *table.Model { return &v.table }

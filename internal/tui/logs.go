@@ -1,15 +1,12 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
@@ -61,26 +58,14 @@ func (a *App) logAction(action, param string) tea.Cmd {
 }
 
 // saveLog writes what the log view shows, styling stripped, to
-// <state>/logs/<container>-<time>.log.
+// <state>/logs/<container>-<time>.txt.
 func saveLog(lv *views.LogsView) (string, int, error) {
 	text, n := lv.PlainText()
 	if n == 0 {
-		return "", 0, fmt.Errorf("nothing to save")
+		return "", 0, errors.New("nothing to save")
 	}
-	dir, err := config.StateDir()
-	if err != nil {
-		return "", 0, err
-	}
-	dir = filepath.Join(dir, "logs")
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return "", 0, err
-	}
-	name := strings.NewReplacer("/", "_", " ", "_").Replace(lv.Title())
-	path := filepath.Join(dir, fmt.Sprintf("%s-%s.log", name, time.Now().Format("20060102-150405")))
-	if err := os.WriteFile(path, []byte(text+"\n"), 0o600); err != nil {
-		return "", 0, err
-	}
-	return path, n, nil
+	path, err := saveDump("logs", lv.Title(), text)
+	return path, n, err
 }
 
 // setFullscreen hides the header and breadcrumbs so a log gets the whole

@@ -243,3 +243,6 @@ func FormatStats(s docker.Stats) []string {
 		style.Muted.Render("  Network and block I/O are totals since the container started."),
 	}
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *TopView) Table() *table.Model { return &v.table }

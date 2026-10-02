@@ -46,8 +46,8 @@ func TestForwardPrompt(t *testing.T) {
 	}
 	typeText(a, "nope")
 	step(a, key("enter"))
-	if !a.prompt.Active() || !strings.Contains(a.prompt.Error(), "not a port") {
-		t.Errorf("bad spec: active %v error %q", a.prompt.Active(), a.prompt.Error())
+	if !a.prompt.Active() || !strings.Contains(a.prompt.ErrMsg(), "not a port") {
+		t.Errorf("bad spec: active %v error %q", a.prompt.Active(), a.prompt.ErrMsg())
 	}
 	for range 4 {
 		step(a, tea.KeyPressMsg{Code: tea.KeyBackspace})

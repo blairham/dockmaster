@@ -209,3 +209,6 @@ func (v *VolumesView) rebuildRows() {
 
 // Total is the unfiltered volume count, for the info panel.
 func (v *VolumesView) Total() int { return len(v.all) }
+
+// Table is the view's table, for the keys every table shares.
+func (v *VolumesView) Table() *table.Model { return &v.table }

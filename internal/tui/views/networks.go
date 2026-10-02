@@ -230,3 +230,6 @@ func networkFlags(n docker.Network) string {
 	}
 	return strings.Join(flags, ",")
 }
+
+// Table is the view's table, for the keys every table shares.
+func (v *NetworksView) Table() *table.Model { return &v.table }

@@ -276,6 +276,10 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if action, param := a.activeViewHandleKey(key); action != "" {
 		return a.handleAction(action, param)
 	}
+	// Then the keys every table shares.
+	if a.tableKey(key) {
+		return a, nil
+	}
 
 	// Then navigation: tuikit maps the vim keys (j/k/h/l, g/G, ctrl+f/b)
 	// onto the arrow and page keys tables and viewports understand. After
