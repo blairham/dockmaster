@@ -290,8 +290,7 @@ func pingDaemon(ctx context.Context, host string) bool {
 	defer c.Close() //nolint:errcheck // probe client
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	_, err = c.API().Ping(ctx)
-	return err == nil
+	return c.Ping(ctx) == nil
 }
 
 // contextHost is a docker context's endpoint, from the context store.

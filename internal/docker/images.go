@@ -10,9 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/client"
 )
 
 // Image is one row of the images view.
@@ -54,7 +52,7 @@ func (i Image) Age() string { return since(i.Created) }
 // one line per tag — so do the same here, otherwise a multi-tagged image is
 // only actionable under whichever tag happened to sort first.
 func (c *Client) Images(ctx context.Context, all bool) ([]Image, error) {
-	raw, err := c.api.ImageList(ctx, image.ListOptions{All: all})
+	res, err := c.api.ImageList(ctx, client.ImageListOptions{All: all})
 	if err != nil {
 		// A deadline here is not a dockmaster problem and the bare
 		// "context deadline exceeded" sends people looking in the wrong
@@ -69,8 +67,8 @@ func (c *Client) Images(ctx context.Context, all bool) ([]Image, error) {
 		return nil, fmt.Errorf("listing images: %w", err)
 	}
 
-	out := make([]Image, 0, len(raw))
-	for _, s := range raw {
+	out := make([]Image, 0, len(res.Items))
+	for _, s := range res.Items {
 		digest := ""
 		if len(s.RepoDigests) > 0 {
 			if _, d, ok := strings.Cut(s.RepoDigests[0], "@"); ok {
@@ -158,12 +156,12 @@ type ImageLayer struct {
 
 // ImageHistory returns the build layers of an image, newest first.
 func (c *Client) ImageHistory(ctx context.Context, id string) ([]ImageLayer, error) {
-	raw, err := c.api.ImageHistory(ctx, id)
+	res, err := c.api.ImageHistory(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("reading history of %s: %w", shortID(id), err)
 	}
-	out := make([]ImageLayer, 0, len(raw))
-	for _, h := range raw {
+	out := make([]ImageLayer, 0, len(res.Items))
+	for _, h := range res.Items {
 		out = append(out, ImageLayer{
 			ID:        h.ID,
 			Created:   time.Unix(h.Created, 0),
@@ -186,7 +184,7 @@ func cleanBuildStep(s string) string {
 
 // RemoveImage deletes an image by ID or reference.
 func (c *Client) RemoveImage(ctx context.Context, id string, force bool) error {
-	_, err := c.api.ImageRemove(ctx, id, image.RemoveOptions{Force: force, PruneChildren: true})
+	_, err := c.api.ImageRemove(ctx, id, client.ImageRemoveOptions{Force: force, PruneChildren: true})
 	if err != nil {
 		return fmt.Errorf("removing image %s: %w", shortID(id), err)
 	}
@@ -197,7 +195,7 @@ func (c *Client) RemoveImage(ctx context.Context, id string, force bool) error {
 // The stream is drained rather than reported: the TUI shows a spinner, and
 // abandoning the reader early cancels the pull server-side.
 func (c *Client) PullImage(ctx context.Context, ref string) error {
-	rc, err := c.api.ImagePull(ctx, ref, image.PullOptions{})
+	rc, err := c.api.ImagePull(ctx, ref, client.ImagePullOptions{})
 	if err != nil {
 		return fmt.Errorf("pulling %s: %w", ref, err)
 	}
@@ -222,11 +220,10 @@ func (c *Client) PullImage(ctx context.Context, ref string) error {
 // `docker image prune`; false is `-a`, which deletes every image not
 // referenced by a container.
 func (c *Client) PruneImages(ctx context.Context, danglingOnly bool) (deleted int, reclaimed uint64, err error) {
-	args := filters.NewArgs()
-	args.Add("dangling", fmt.Sprintf("%t", danglingOnly))
-	rep, err := c.api.ImagesPrune(ctx, args)
+	args := make(client.Filters).Add("dangling", fmt.Sprintf("%t", danglingOnly))
+	res, err := c.api.ImagePrune(ctx, client.ImagePruneOptions{Filters: args})
 	if err != nil {
 		return 0, 0, fmt.Errorf("pruning images: %w", err)
 	}
-	return len(rep.ImagesDeleted), rep.SpaceReclaimed, nil
+	return len(res.Report.ImagesDeleted), res.Report.SpaceReclaimed, nil
 }

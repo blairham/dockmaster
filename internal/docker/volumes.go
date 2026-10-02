@@ -6,8 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/client"
 )
 
 // Volume is one row of the volumes view.
@@ -42,23 +41,20 @@ func (v Volume) Dangling() bool { return v.Refs == 0 }
 // tree for a byte count, which is slow on large volumes — the view only
 // turns it on when the user asks for the size column.
 func (c *Client) Volumes(ctx context.Context, withSize bool) ([]Volume, error) {
-	opts := volume.ListOptions{}
+	opts := client.VolumeListOptions{}
 	// The size/ref counts ride on UsageData, which the daemon only fills
 	// when the dangling filter forces a full walk. Ask for everything and
 	// let the empty-args path stay cheap.
 	if withSize {
-		opts.Filters = filters.NewArgs(filters.Arg("dangling", "false"), filters.Arg("dangling", "true"))
+		opts.Filters = make(client.Filters).Add("dangling", "false", "true")
 	}
 	resp, err := c.api.VolumeList(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("listing volumes: %w", err)
 	}
 
-	out := make([]Volume, 0, len(resp.Volumes))
-	for _, v := range resp.Volumes {
-		if v == nil {
-			continue
-		}
+	out := make([]Volume, 0, len(resp.Items))
+	for _, v := range resp.Items {
 		row := Volume{
 			Name:       v.Name,
 			Driver:     v.Driver,
@@ -84,16 +80,16 @@ func (c *Client) Volumes(ctx context.Context, withSize bool) ([]Volume, error) {
 
 // InspectVolume returns pretty-printed inspect JSON for a volume.
 func (c *Client) InspectVolume(ctx context.Context, name string) ([]byte, error) {
-	_, raw, err := c.api.VolumeInspectWithRaw(ctx, name)
+	res, err := c.api.VolumeInspect(ctx, name, client.VolumeInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("inspecting volume %s: %w", name, err)
 	}
-	return indentJSON(raw)
+	return indentJSON(res.Raw)
 }
 
 // RemoveVolume deletes a volume.
 func (c *Client) RemoveVolume(ctx context.Context, name string, force bool) error {
-	if err := c.api.VolumeRemove(ctx, name, force); err != nil {
+	if _, err := c.api.VolumeRemove(ctx, name, client.VolumeRemoveOptions{Force: force}); err != nil {
 		return fmt.Errorf("removing volume %s: %w", name, err)
 	}
 	return nil
@@ -103,10 +99,11 @@ func (c *Client) RemoveVolume(ctx context.Context, name string, force bool) erro
 func (c *Client) PruneVolumes(ctx context.Context) (deleted int, reclaimed uint64, err error) {
 	// The daemon defaults to anonymous volumes only; `all=true` matches
 	// `docker volume prune -a` and is what the confirm prompt describes.
-	args := filters.NewArgs(filters.Arg("all", "true"))
-	rep, err := c.api.VolumesPrune(ctx, args)
+	// All is the client's spelling of that filter: it adds all=true to
+	// the filters, the same request the old explicit filter made.
+	res, err := c.api.VolumePrune(ctx, client.VolumePruneOptions{All: true})
 	if err != nil {
 		return 0, 0, fmt.Errorf("pruning volumes: %w", err)
 	}
-	return len(rep.VolumesDeleted), rep.SpaceReclaimed, nil
+	return len(res.Report.VolumesDeleted), res.Report.SpaceReclaimed, nil
 }

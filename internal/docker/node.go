@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/client"
 )
 
 // Kubernetes-in-docker nodes are containers running their own container
@@ -170,13 +170,13 @@ func nodeLogArgs(tail int, timestamps bool, since time.Time) []string {
 }
 
 func (c *Client) streamNodeLogs(ctx context.Context, node, id string, cmd []string) (*LogStream, error) {
-	exec, err := c.api.ContainerExecCreate(ctx, node, container.ExecOptions{
+	exec, err := c.api.ExecCreate(ctx, node, client.ExecCreateOptions{
 		Cmd: cmd, AttachStdin: true, AttachStdout: true, AttachStderr: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("streaming logs for %s in %s: %w", shortID(id), node, err)
 	}
-	resp, err := c.api.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
+	resp, err := c.api.ExecAttach(ctx, exec.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("streaming logs for %s in %s: %w", shortID(id), node, err)
 	}
@@ -219,13 +219,13 @@ func (c *Client) streamNodeLogs(ctx context.Context, node, id string, cmd []stri
 // non-zero exit is an error carrying the command's stderr, which is where
 // crictl and friends say what went wrong.
 func (c *Client) Exec(ctx context.Context, id string, argv ...string) ([]byte, error) {
-	exec, err := c.api.ContainerExecCreate(ctx, id, container.ExecOptions{
+	exec, err := c.api.ExecCreate(ctx, id, client.ExecCreateOptions{
 		Cmd: argv, AttachStdout: true, AttachStderr: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("exec %s in %s: %w", argv[0], id, err)
 	}
-	resp, err := c.api.ContainerExecAttach(ctx, exec.ID, container.ExecAttachOptions{})
+	resp, err := c.api.ExecAttach(ctx, exec.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("exec %s in %s: %w", argv[0], id, err)
 	}
@@ -246,7 +246,7 @@ func (c *Client) Exec(ctx context.Context, id string, argv ...string) ([]byte, e
 		return nil, fmt.Errorf("exec %s in %s: %w", argv[0], id, ctx.Err())
 	}
 
-	insp, err := c.api.ContainerExecInspect(ctx, exec.ID)
+	insp, err := c.api.ExecInspect(ctx, exec.ID, client.ExecInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("exec %s in %s: %w", argv[0], id, err)
 	}

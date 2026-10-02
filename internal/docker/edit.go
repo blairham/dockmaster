@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-units"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // RestartPolicies are the policies the edit form offers, as docker names
@@ -33,10 +34,11 @@ type EditSpec struct {
 
 // EditState reads a container's current name, limits and restart policy.
 func (c *Client) EditState(ctx context.Context, id string) (EditState, error) {
-	insp, err := c.api.ContainerInspect(ctx, id)
+	res, err := c.api.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return EditState{}, fmt.Errorf("inspecting %s: %w", shortID(id), err)
 	}
+	insp := res.Container
 	s := EditState{Name: strings.TrimPrefix(insp.Name, "/"), Restart: "no"}
 	if h := insp.HostConfig; h != nil {
 		s.NanoCPUs, s.Memory, s.MemorySwap = h.NanoCPUs, h.Memory, h.MemorySwap
@@ -137,12 +139,18 @@ func (c *Client) Edit(ctx context.Context, id string, s EditSpec) error {
 		return err
 	}
 	if changed {
-		if _, err := c.api.ContainerUpdate(ctx, id, u); err != nil {
+		// The client takes the two halves of the update separately and
+		// sends them as one UpdateConfig, so the request body is the same
+		// u the old ContainerUpdate(ctx, id, u) sent.
+		if _, err := c.api.ContainerUpdate(ctx, id, client.ContainerUpdateOptions{
+			Resources:     &u.Resources,
+			RestartPolicy: &u.RestartPolicy,
+		}); err != nil {
 			return fmt.Errorf("updating %s: %w", cur.Name, err)
 		}
 	}
 	if rename != "" {
-		if err := c.api.ContainerRename(ctx, id, rename); err != nil {
+		if _, err := c.api.ContainerRename(ctx, id, client.ContainerRenameOptions{NewName: rename}); err != nil {
 			return fmt.Errorf("renaming %s: %w", cur.Name, err)
 		}
 	}

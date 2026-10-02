@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/client"
 )
 
 // BrowseImage runs a volume's file listing: any image with a POSIX shell,
@@ -116,21 +117,21 @@ func (c *Client) volumeRun(ctx context.Context, volume, script string, env ...st
 			return nil, perr
 		}
 	}
-	created, err := c.api.ContainerCreate(ctx,
-		&container.Config{
+	created, err := c.api.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{
 			Image:           BrowseImage,
 			Entrypoint:      []string{"sh", "-c", script},
 			Env:             env,
 			Labels:          map[string]string{LabelBrowse: volume},
 			NetworkDisabled: true,
 		},
-		&container.HostConfig{
+		HostConfig: &container.HostConfig{
 			NetworkMode: "none",
 			Mounts: []mount.Mount{{
 				Type: mount.TypeVolume, Source: volume, Target: browseMount, ReadOnly: true,
 			}},
 		},
-		nil, nil, "")
+	})
 	if err != nil {
 		return nil, fmt.Errorf("browsing %s: %w", volume, err)
 	}
@@ -138,22 +139,25 @@ func (c *Client) volumeRun(ctx context.Context, volume, script string, env ...st
 		// The caller's context may be spent; removal still has to happen.
 		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
-		_ = c.api.ContainerRemove(rctx, created.ID, container.RemoveOptions{Force: true}) //nolint:errcheck // best effort
+		force := client.ContainerRemoveOptions{Force: true}
+		_, _ = c.api.ContainerRemove(rctx, created.ID, force) //nolint:errcheck // best effort
 	}()
 
-	if serr := c.api.ContainerStart(ctx, created.ID, container.StartOptions{}); serr != nil {
+	if _, serr := c.api.ContainerStart(ctx, created.ID, client.ContainerStartOptions{}); serr != nil {
 		return nil, fmt.Errorf("browsing %s: %w", volume, serr)
 	}
-	waitC, errC := c.api.ContainerWait(ctx, created.ID, container.WaitConditionNotRunning)
+	wait := c.api.ContainerWait(ctx, created.ID, client.ContainerWaitOptions{
+		Condition: container.WaitConditionNotRunning,
+	})
 	var code int64
 	select {
-	case w := <-waitC:
+	case w := <-wait.Result:
 		code = w.StatusCode
-	case werr := <-errC:
+	case werr := <-wait.Error:
 		return nil, fmt.Errorf("browsing %s: %w", volume, werr)
 	}
 
-	logs, err := c.api.ContainerLogs(ctx, created.ID, container.LogsOptions{ShowStdout: true, ShowStderr: true})
+	logs, err := c.api.ContainerLogs(ctx, created.ID, client.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
 	if err != nil {
 		return nil, fmt.Errorf("browsing %s: %w", volume, err)
 	}

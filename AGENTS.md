@@ -8,7 +8,7 @@ Guidance for AI coding agents (Claude Code, Cursor, Copilot, Codex, OpenCode, �
 
 - Module path: `github.com/blairham/dockmaster`
 - Go 1.26 (pinned in `.tool-versions`, kept in sync with `go.mod` by a pre-commit hook)
-- Built on [`github.com/blairham/tuikit`](https://github.com/blairham/tuikit) — the shared Bubble Tea chrome — plus the Docker Engine API SDK.
+- Built on [`github.com/blairham/tuikit`](https://github.com/blairham/tuikit) — the shared Bubble Tea chrome — plus the Docker Engine API client (`github.com/moby/moby/client` and `.../api`).
 
 **This repo is local-only** — there is no GitHub remote, no CI, and no release pipeline. Do not create one without asking.
 
@@ -108,7 +108,7 @@ Both were as slow through the CLI as through the SDK, so it is the daemon, not t
 - **Every daemon request takes its deadline from `Client.RequestContext(def)`**, never a bare `context.WithTimeout`: `--request-timeout` / `requestTimeout` overrides `def` everywhere, and a guard test counts the exceptions (CLI calls only).
 - **The CPU/MEM sampler is one blocking request per running container** and is togglable with `<t>` for exactly that reason.
 
-The stats sampler uses `ContainerStats(ctx, id, false)` — the two-sample form — **not** `ContainerStatsOneShot`. One-shot returns a zeroed `PreCPU` block, and the CPU formula against a zero baseline reports numbers in the thousands of percent. `TestLiveStats` asserts a plausible bound to catch a regression back to it.
+The stats sampler asks for the two-sample form — `ContainerStatsOptions{Stream: false, IncludePreviousSample: true}` — **not** one-shot, which is what the zero value sends. One-shot returns a zeroed `PreCPU` block, and the CPU formula against a zero baseline reports numbers in the thousands of percent. `TestLiveStats` asserts a plausible bound to catch a regression back to it.
 
 ## Keymap
 

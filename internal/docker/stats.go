@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // statsConcurrency bounds the fan-out of the per-container stats poll. Each
@@ -119,7 +120,15 @@ func (c *Client) SampleStats(ctx context.Context, ids []string) map[string]Stats
 }
 
 func (c *Client) sampleOne(ctx context.Context, id string) (Stats, error) {
-	resp, err := c.api.ContainerStats(ctx, id, false)
+	// Stream off with the previous sample included is the old
+	// ContainerStats(ctx, id, false): stream=false and no one-shot, so the
+	// daemon waits one interval and fills PreCPUStats. Leaving
+	// IncludePreviousSample off would send one-shot=true — the zeroed
+	// PreCPU this exists to avoid.
+	resp, err := c.api.ContainerStats(ctx, id, client.ContainerStatsOptions{
+		Stream:                false,
+		IncludePreviousSample: true,
+	})
 	if err != nil {
 		return Stats{}, fmt.Errorf("sampling %s: %w", shortID(id), err)
 	}

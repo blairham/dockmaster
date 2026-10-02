@@ -3,10 +3,13 @@ package docker
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 // RunSpec is `docker run -d` as the run form fills it in.
@@ -32,7 +35,7 @@ func RunConfig(s RunSpec) (*container.Config, *container.HostConfig, error) {
 	if strings.TrimSpace(s.Image) == "" {
 		return nil, nil, fmt.Errorf("no image to run")
 	}
-	exposed, bindings, err := nat.ParsePortSpecs(s.Ports)
+	exposed, bindings, err := portSpecs(s.Ports)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ports: %w", err)
 	}
@@ -68,14 +71,57 @@ func (c *Client) Run(ctx context.Context, s RunSpec) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	created, err := c.api.ContainerCreate(ctx, cfg, host, nil, nil, s.Name)
+	created, err := c.api.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     cfg,
+		HostConfig: host,
+		Name:       s.Name,
+	})
 	if err != nil {
 		return "", fmt.Errorf("creating the container: %w", err)
 	}
-	if err := c.api.ContainerStart(ctx, created.ID, container.StartOptions{}); err != nil {
-		cleanup := container.RemoveOptions{Force: true}
-		_ = c.api.ContainerRemove(ctx, created.ID, cleanup) //nolint:errcheck // best effort; the start error is reported
+	if _, err := c.api.ContainerStart(ctx, created.ID, client.ContainerStartOptions{}); err != nil {
+		cleanup := client.ContainerRemoveOptions{Force: true}
+		_, _ = c.api.ContainerRemove(ctx, created.ID, cleanup) //nolint:errcheck // best effort; the start error is reported
 		return "", fmt.Errorf("starting the container: %w", err)
 	}
 	return created.ID, nil
+}
+
+// portSpecs parses -p specs with nat.ParsePortSpecs — the docker CLI's own
+// parser, so "80", "8080:80" and "127.0.0.1:8080:80" mean what they mean to
+// `docker run` — and returns them in the API's port types, which keep the
+// port and host address as typed values rather than strings.
+func portSpecs(specs []string) (network.PortSet, network.PortMap, error) {
+	natExposed, natBindings, err := nat.ParsePortSpecs(specs)
+	if err != nil {
+		return nil, nil, err
+	}
+	exposed := make(network.PortSet, len(natExposed))
+	for p := range natExposed {
+		port, err := network.ParsePort(string(p))
+		if err != nil {
+			return nil, nil, err
+		}
+		exposed[port] = struct{}{}
+	}
+	bindings := make(network.PortMap, len(natBindings))
+	for p, bs := range natBindings {
+		port, err := network.ParsePort(string(p))
+		if err != nil {
+			return nil, nil, err
+		}
+		out := make([]network.PortBinding, 0, len(bs))
+		for _, b := range bs {
+			pb := network.PortBinding{HostPort: b.HostPort}
+			// An empty host IP is "every address", the zero netip.Addr.
+			if b.HostIP != "" {
+				if pb.HostIP, err = netip.ParseAddr(b.HostIP); err != nil {
+					return nil, nil, fmt.Errorf("host address %q: %w", b.HostIP, err)
+				}
+			}
+			out = append(out, pb)
+		}
+		bindings[port] = out
+	}
+	return exposed, bindings, nil
 }

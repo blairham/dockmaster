@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // HealthCheck is a container's healthcheck configuration. Zero durations
@@ -53,17 +54,18 @@ type HealthReport struct {
 
 // Health reads a container's healthcheck configuration and recent probes.
 func (c *Client) Health(ctx context.Context, id string) (HealthReport, error) {
-	insp, err := c.api.ContainerInspect(ctx, id)
+	res, err := c.api.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return HealthReport{}, fmt.Errorf("inspecting %s: %w", shortID(id), err)
 	}
+	insp := res.Container
 	var cfg *container.HealthConfig
 	if insp.Config != nil {
 		cfg = insp.Config.Healthcheck
 	}
 	var st *container.Health
 	running := false
-	if insp.ContainerJSONBase != nil && insp.State != nil {
+	if insp.State != nil {
 		st = insp.State.Health
 		running = insp.State.Running
 	}
@@ -86,7 +88,7 @@ func healthReport(cfg *container.HealthConfig, st *container.Health, running boo
 		}
 	}
 	if st != nil {
-		r.Status = st.Status
+		r.Status = string(st.Status)
 		r.FailingStreak = st.FailingStreak
 		// The daemon keeps them oldest first; the view wants the latest on top.
 		for i := len(st.Log) - 1; i >= 0; i-- {

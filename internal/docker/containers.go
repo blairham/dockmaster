@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // Container is one row of the containers view — already flattened and
@@ -68,13 +68,13 @@ func (c Container) Age() string { return since(c.Created) }
 // Containers lists containers. all=false mirrors `docker ps` (running
 // only); all=true mirrors `docker ps -a`.
 func (c *Client) Containers(ctx context.Context, all bool) ([]Container, error) {
-	raw, err := c.api.ContainerList(ctx, container.ListOptions{All: all})
+	res, err := c.api.ContainerList(ctx, client.ContainerListOptions{All: all})
 	if err != nil {
 		return nil, fmt.Errorf("listing containers: %w", err)
 	}
 
-	out := make([]Container, 0, len(raw))
-	for _, s := range raw {
+	out := make([]Container, 0, len(res.Items))
+	for _, s := range res.Items {
 		ctr := newContainer(s)
 		// Created from an image ID — as Kubernetes's cri-dockerd creates
 		// every pod container — the container's image reads as a bare
@@ -111,8 +111,10 @@ func newContainer(s container.Summary) Container {
 		for n, ep := range s.NetworkSettings.Networks {
 			names = append(names, n)
 			e := Endpoint{Network: n}
-			if ep != nil {
-				e.IP = ep.IPAddress
+			// The address is a netip.Addr now; the zero value is "no
+			// address", which must stay "" rather than print "invalid IP".
+			if ep != nil && ep.IPAddress.IsValid() {
+				e.IP = ep.IPAddress.String()
 			}
 			endpoints = append(endpoints, e)
 		}
@@ -142,7 +144,7 @@ func newContainer(s container.Summary) Container {
 		Image:     s.Image,
 		Command:   s.Command,
 		Created:   time.Unix(s.Created, 0),
-		State:     s.State,
+		State:     string(s.State),
 		Status:    s.Status,
 		Health:    parseHealth(s.Status),
 		Ports:     formatPorts(s.Ports),
@@ -180,7 +182,7 @@ func parseHealth(status string) string {
 // formatPorts renders the port map the way `docker ps` does, collapsing the
 // published mappings ahead of the merely-exposed ones. Unpublished ports are
 // noise in a narrow column, so they only appear when nothing is published.
-func formatPorts(ports []container.Port) string {
+func formatPorts(ports []container.PortSummary) string {
 	published := make([]string, 0, len(ports))
 	exposed := make([]string, 0, len(ports))
 	for _, p := range ports {
@@ -200,16 +202,16 @@ func formatPorts(ports []container.Port) string {
 
 // InspectContainer returns the pretty-printed inspect JSON for a container.
 func (c *Client) InspectContainer(ctx context.Context, id string) ([]byte, error) {
-	_, raw, err := c.api.ContainerInspectWithRaw(ctx, id, false)
+	res, err := c.api.ContainerInspect(ctx, id, client.ContainerInspectOptions{Size: false})
 	if err != nil {
 		return nil, fmt.Errorf("inspecting container %s: %w", shortID(id), err)
 	}
-	return indentJSON(raw)
+	return indentJSON(res.Raw)
 }
 
 // StartContainer starts a stopped container.
 func (c *Client) StartContainer(ctx context.Context, id string) error {
-	if err := c.api.ContainerStart(ctx, id, container.StartOptions{}); err != nil {
+	if _, err := c.api.ContainerStart(ctx, id, client.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("starting %s: %w", shortID(id), err)
 	}
 	return nil
@@ -218,7 +220,7 @@ func (c *Client) StartContainer(ctx context.Context, id string) error {
 // StopContainer stops a running container, giving it timeout seconds to
 // exit before the daemon escalates to SIGKILL.
 func (c *Client) StopContainer(ctx context.Context, id string, timeout int) error {
-	if err := c.api.ContainerStop(ctx, id, container.StopOptions{Timeout: &timeout}); err != nil {
+	if _, err := c.api.ContainerStop(ctx, id, client.ContainerStopOptions{Timeout: &timeout}); err != nil {
 		return fmt.Errorf("stopping %s: %w", shortID(id), err)
 	}
 	return nil
@@ -226,7 +228,7 @@ func (c *Client) StopContainer(ctx context.Context, id string, timeout int) erro
 
 // RestartContainer restarts a container.
 func (c *Client) RestartContainer(ctx context.Context, id string, timeout int) error {
-	if err := c.api.ContainerRestart(ctx, id, container.StopOptions{Timeout: &timeout}); err != nil {
+	if _, err := c.api.ContainerRestart(ctx, id, client.ContainerRestartOptions{Timeout: &timeout}); err != nil {
 		return fmt.Errorf("restarting %s: %w", shortID(id), err)
 	}
 	return nil
@@ -234,7 +236,7 @@ func (c *Client) RestartContainer(ctx context.Context, id string, timeout int) e
 
 // KillContainer sends a signal (default SIGKILL) to a container.
 func (c *Client) KillContainer(ctx context.Context, id, signal string) error {
-	if err := c.api.ContainerKill(ctx, id, signal); err != nil {
+	if _, err := c.api.ContainerKill(ctx, id, client.ContainerKillOptions{Signal: signal}); err != nil {
 		return fmt.Errorf("killing %s: %w", shortID(id), err)
 	}
 	return nil
@@ -242,7 +244,7 @@ func (c *Client) KillContainer(ctx context.Context, id, signal string) error {
 
 // PauseContainer freezes every process in the container's cgroup.
 func (c *Client) PauseContainer(ctx context.Context, id string) error {
-	if err := c.api.ContainerPause(ctx, id); err != nil {
+	if _, err := c.api.ContainerPause(ctx, id, client.ContainerPauseOptions{}); err != nil {
 		return fmt.Errorf("pausing %s: %w", shortID(id), err)
 	}
 	return nil
@@ -250,7 +252,7 @@ func (c *Client) PauseContainer(ctx context.Context, id string) error {
 
 // UnpauseContainer thaws a paused container.
 func (c *Client) UnpauseContainer(ctx context.Context, id string) error {
-	if err := c.api.ContainerUnpause(ctx, id); err != nil {
+	if _, err := c.api.ContainerUnpause(ctx, id, client.ContainerUnpauseOptions{}); err != nil {
 		return fmt.Errorf("unpausing %s: %w", shortID(id), err)
 	}
 	return nil
@@ -259,7 +261,7 @@ func (c *Client) UnpauseContainer(ctx context.Context, id string) error {
 // RemoveContainer deletes a container. force kills it first; volumes also
 // drops its anonymous volumes.
 func (c *Client) RemoveContainer(ctx context.Context, id string, force, volumes bool) error {
-	err := c.api.ContainerRemove(ctx, id, container.RemoveOptions{
+	_, err := c.api.ContainerRemove(ctx, id, client.ContainerRemoveOptions{
 		Force:         force,
 		RemoveVolumes: volumes,
 	})
@@ -272,11 +274,11 @@ func (c *Client) RemoveContainer(ctx context.Context, id string, force, volumes 
 // PruneContainers deletes every stopped container and reports how much
 // space came back.
 func (c *Client) PruneContainers(ctx context.Context) (deleted int, reclaimed uint64, err error) {
-	rep, err := c.api.ContainersPrune(ctx, filters.NewArgs())
+	res, err := c.api.ContainerPrune(ctx, client.ContainerPruneOptions{})
 	if err != nil {
 		return 0, 0, fmt.Errorf("pruning containers: %w", err)
 	}
-	return len(rep.ContainersDeleted), rep.SpaceReclaimed, nil
+	return len(res.Report.ContainersDeleted), res.Report.SpaceReclaimed, nil
 }
 
 // KubeRef is a Kubernetes container's identity, from the labels

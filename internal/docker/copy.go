@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/container"
 	"github.com/moby/go-archive"
+	"github.com/moby/moby/client"
 )
 
 // LocalPath resolves a path typed on this machine: ~ is the home
@@ -38,13 +38,13 @@ func (c *Client) CopyFrom(ctx context.Context, id, srcPath, dstPath string) erro
 	if err != nil {
 		return err
 	}
-	content, stat, err := c.api.CopyFromContainer(ctx, id, srcPath)
+	res, err := c.api.CopyFromContainer(ctx, id, client.CopyFromContainerOptions{SourcePath: srcPath})
 	if err != nil {
 		return fmt.Errorf("reading %s from %s: %w", srcPath, shortID(id), err)
 	}
-	defer content.Close() //nolint:errcheck // read-only stream
-	src := archive.CopyInfo{Path: srcPath, Exists: true, IsDir: stat.Mode.IsDir()}
-	if err := archive.CopyTo(content, src, dst); err != nil {
+	defer res.Content.Close() //nolint:errcheck // read-only stream
+	src := archive.CopyInfo{Path: srcPath, Exists: true, IsDir: res.Stat.Mode.IsDir()}
+	if err := archive.CopyTo(res.Content, src, dst); err != nil {
 		return fmt.Errorf("writing %s: %w", dst, err)
 	}
 	return nil
@@ -68,10 +68,10 @@ func (c *Client) CopyInto(ctx context.Context, id, srcPath, dstPath string) erro
 	defer srcArchive.Close() //nolint:errcheck // read-only stream
 
 	dstInfo := archive.CopyInfo{Path: dstPath}
-	stat, err := c.api.ContainerStatPath(ctx, id, dstPath)
+	stat, err := c.api.ContainerStatPath(ctx, id, client.ContainerStatPathOptions{Path: dstPath})
 	switch {
 	case err == nil:
-		dstInfo.Exists, dstInfo.IsDir = true, stat.Mode.IsDir()
+		dstInfo.Exists, dstInfo.IsDir = true, stat.Stat.Mode.IsDir()
 	case !cerrdefs.IsNotFound(err):
 		return fmt.Errorf("checking %s in %s: %w", dstPath, shortID(id), err)
 	}
@@ -80,7 +80,10 @@ func (c *Client) CopyInto(ctx context.Context, id, srcPath, dstPath string) erro
 		return fmt.Errorf("preparing the copy: %w", err)
 	}
 	defer prepared.Close() //nolint:errcheck // read-only stream
-	if err := c.api.CopyToContainer(ctx, id, dstDir, prepared, container.CopyToContainerOptions{}); err != nil {
+	if _, err := c.api.CopyToContainer(ctx, id, client.CopyToContainerOptions{
+		DestinationPath: dstDir,
+		Content:         prepared,
+	}); err != nil {
 		return fmt.Errorf("writing %s into %s: %w", dstPath, shortID(id), err)
 	}
 	return nil

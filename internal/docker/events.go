@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/events"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 )
 
 // Event is one daemon event: something happened to an object.
@@ -29,11 +30,12 @@ type EventStream struct {
 // StreamEvents follows the daemon's event feed, starting since ago so the
 // view opens on recent history rather than an empty screen.
 func (c *Client) StreamEvents(ctx context.Context, since time.Duration) *EventStream {
-	opts := events.ListOptions{}
+	opts := client.EventsListOptions{}
 	if since > 0 {
 		opts.Since = fmt.Sprintf("%d", time.Now().Add(-since).Unix())
 	}
-	msgs, errs := c.api.Events(ctx, opts)
+	res := c.api.Events(ctx, opts)
+	msgs, errs := res.Messages, res.Err
 	out := make(chan Event, 256)
 	go func() {
 		defer close(out)

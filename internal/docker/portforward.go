@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 // Port-forward helper labels. Every helper carries them, so the forwards
@@ -114,14 +114,17 @@ func forwardConfig(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	port := nat.Port(strconv.Itoa(local) + "/tcp")
+	port, err := network.ParsePort(strconv.Itoa(local) + "/tcp")
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	cfg := &container.Config{
 		Image: ForwardImage,
 		Cmd: []string{
 			fmt.Sprintf("tcp-listen:%d,fork,reuseaddr", local),
 			fmt.Sprintf("tcp-connect:%s:%d", ep.IP, remote),
 		},
-		ExposedPorts: nat.PortSet{port: struct{}{}},
+		ExposedPorts: network.PortSet{port: struct{}{}},
 		Labels: map[string]string{
 			LabelForward:           "true",
 			LabelForwardTarget:     target.ID,
@@ -131,8 +134,11 @@ func forwardConfig(
 		},
 	}
 	host := &container.HostConfig{
-		AutoRemove:   true,
-		PortBindings: nat.PortMap{port: {{HostIP: "127.0.0.1", HostPort: strconv.Itoa(local)}}},
+		AutoRemove: true,
+		PortBindings: network.PortMap{port: {{
+			HostIP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
+			HostPort: strconv.Itoa(local),
+		}}},
 	}
 	nets := &network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{ep.Network: {}}}
 	return cfg, host, nets, nil
@@ -159,14 +165,19 @@ func (c *Client) StartPortForward(ctx context.Context, target Container, local, 
 		}
 	}
 	name := forwardName(target.Name, local)
-	created, err := c.api.ContainerCreate(ctx, cfg, host, nets, nil, name)
+	created, err := c.api.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           cfg,
+		HostConfig:       host,
+		NetworkingConfig: nets,
+		Name:             name,
+	})
 	if err != nil {
 		return PortForward{}, fmt.Errorf("creating the forward: %w", err)
 	}
-	if err := c.api.ContainerStart(ctx, created.ID, container.StartOptions{}); err != nil {
+	if _, err := c.api.ContainerStart(ctx, created.ID, client.ContainerStartOptions{}); err != nil {
 		// A port already taken fails here; the created helper is ours to clean up.
-		cleanup := container.RemoveOptions{Force: true}
-		_ = c.api.ContainerRemove(ctx, created.ID, cleanup) //nolint:errcheck // best effort; the start error is reported
+		cleanup := client.ContainerRemoveOptions{Force: true}
+		_, _ = c.api.ContainerRemove(ctx, created.ID, cleanup) //nolint:errcheck // best effort; the start error is reported
 		return PortForward{}, fmt.Errorf("starting the forward on localhost:%d: %w", local, err)
 	}
 	return PortForward{
@@ -181,15 +192,15 @@ func (c *Client) StartPortForward(ctx context.Context, target Container, local, 
 
 // PortForwards lists the forward helpers on the daemon.
 func (c *Client) PortForwards(ctx context.Context) ([]PortForward, error) {
-	list, err := c.api.ContainerList(ctx, container.ListOptions{
+	list, err := c.api.ContainerList(ctx, client.ContainerListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("label", LabelForward+"=true")),
+		Filters: make(client.Filters).Add("label", LabelForward+"=true"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("listing port forwards: %w", err)
 	}
-	out := make([]PortForward, 0, len(list))
-	for _, s := range list {
+	out := make([]PortForward, 0, len(list.Items))
+	for _, s := range list.Items {
 		local, _ := strconv.Atoi(s.Labels[LabelForwardLocal])   //nolint:errcheck // our own label; 0 on garbage
 		remote, _ := strconv.Atoi(s.Labels[LabelForwardRemote]) //nolint:errcheck // our own label; 0 on garbage
 		out = append(out, PortForward{
@@ -198,7 +209,7 @@ func (c *Client) PortForwards(ctx context.Context) ([]PortForward, error) {
 			TargetName: s.Labels[LabelForwardTargetName],
 			Local:      local,
 			Remote:     remote,
-			State:      s.State,
+			State:      string(s.State),
 			Created:    time.Unix(s.Created, 0),
 		})
 	}
@@ -208,10 +219,10 @@ func (c *Client) PortForwards(ctx context.Context) ([]PortForward, error) {
 
 // StopPortForward removes a forward helper.
 func (c *Client) StopPortForward(ctx context.Context, id string) error {
-	if err := c.api.ContainerRemove(
+	if _, err := c.api.ContainerRemove(
 		ctx,
 		id,
-		container.RemoveOptions{Force: true},
+		client.ContainerRemoveOptions{Force: true},
 	); err != nil &&
 		!cerrdefs.IsNotFound(err) {
 		return fmt.Errorf("stopping the forward: %w", err)

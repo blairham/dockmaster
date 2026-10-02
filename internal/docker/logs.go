@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/client"
 )
 
 // LogLine is one line of container output, tagged with the stream it came
@@ -48,11 +48,11 @@ func (c *Client) StreamLogs(
 	timestamps bool,
 	since time.Time,
 ) (*LogStream, error) {
-	insp, err := c.api.ContainerInspect(ctx, id)
+	insp, err := c.api.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("inspecting %s for log stream: %w", shortID(id), err)
 	}
-	tty := insp.Config != nil && insp.Config.Tty
+	tty := insp.Container.Config != nil && insp.Container.Config.Tty
 
 	rc, err := c.api.ContainerLogs(ctx, id, logOptions(tail, timestamps, since))
 	if err != nil {
@@ -97,8 +97,8 @@ func (c *Client) StreamLogs(
 
 // logOptions builds a follow-mode log request: the last tail lines (all
 // when tail is 0), or — when since is set — everything since then.
-func logOptions(tail int, timestamps bool, since time.Time) container.LogsOptions {
-	opts := container.LogsOptions{
+func logOptions(tail int, timestamps bool, since time.Time) client.ContainerLogsOptions {
+	opts := client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     true,
@@ -147,13 +147,13 @@ func scanLines(ctx context.Context, r io.Reader, stderr bool, out chan<- LogLine
 // following. Used by the inspect/detail views that want recent context
 // without holding a stream open.
 func (c *Client) Logs(ctx context.Context, id string, tail int) ([]LogLine, error) {
-	insp, err := c.api.ContainerInspect(ctx, id)
+	insp, err := c.api.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("inspecting %s for logs: %w", shortID(id), err)
 	}
-	tty := insp.Config != nil && insp.Config.Tty
+	tty := insp.Container.Config != nil && insp.Container.Config.Tty
 
-	rc, err := c.api.ContainerLogs(ctx, id, container.LogsOptions{
+	rc, err := c.api.ContainerLogs(ctx, id, client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Tail:       fmt.Sprintf("%d", tail),

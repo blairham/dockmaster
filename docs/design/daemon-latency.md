@@ -44,10 +44,12 @@ is slow.
 
 ## The stats formula
 
-`sampleOne` uses `ContainerStats(ctx, id, false)` — the two-sample form, which
-is what `docker stats --no-stream` uses. It does **not** use
-`ContainerStatsOneShot`, despite the name being the obvious fit: one-shot
-returns a **zeroed `PreCPU` block**, and docker's CPU formula against a zero
+`sampleOne` uses `ContainerStats` with `Stream: false, IncludePreviousSample:
+true` — the two-sample form (`stream=false`, no `one-shot`), which is what
+`docker stats --no-stream` uses. It does **not** leave `IncludePreviousSample`
+off, despite that being the zero value: the client then sends `one-shot=true`
+(the old SDK's `ContainerStatsOneShot`), and one-shot returns a **zeroed
+`PreCPU` block**, and docker's CPU formula against a zero
 baseline produces numbers in the thousands of percent. `TestLiveStats` asserts
 a plausible upper bound specifically to catch a regression back to it.
 

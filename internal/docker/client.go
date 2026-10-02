@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/client"
 )
 
 // Compose label keys. Docker Compose stamps these onto every object it
@@ -71,11 +71,15 @@ func (c *Client) RequestContext(def time.Duration) (context.Context, context.Can
 func New(host string) (*Client, error) {
 	resolved, ctxName := ResolveHost(host)
 
-	opts := []client.Opt{client.FromEnv, client.WithAPIVersionNegotiation()}
+	// API version negotiation is the client's default (and
+	// WithAPIVersionNegotiation a deprecated no-op): the first request pings
+	// the daemon and settles on the lower of its version and the client's.
+	// DOCKER_API_VERSION, read by FromEnv, pins a version instead.
+	opts := []client.Opt{client.FromEnv}
 	if resolved != "" {
 		opts = append(opts, client.WithHost(resolved))
 	}
-	api, err := client.NewClientWithOpts(opts...)
+	api, err := client.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating docker client: %w", err)
 	}
@@ -95,15 +99,22 @@ func (c *Client) API() *client.Client { return c.api }
 // startup; a failure here is fatal for the app since every view needs the
 // daemon.
 func (c *Client) Negotiate(ctx context.Context) error {
-	info, err := c.api.Info(ctx)
+	res, err := c.api.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		return fmt.Errorf("connecting to docker daemon at %s: %w", c.Host, err)
 	}
+	info := res.Info
 	c.Version = info.ServerVersion
 	c.Name = info.Name
 	c.OSArch = info.OSType + "/" + info.Architecture
 	c.APIVersion = c.api.ClientVersion()
 	return nil
+}
+
+// Ping reports whether the daemon answers, without the cost of Info.
+func (c *Client) Ping(ctx context.Context) error {
+	_, err := c.api.Ping(ctx, client.PingOptions{})
+	return err
 }
 
 // Close releases the underlying transport.

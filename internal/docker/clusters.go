@@ -3,14 +3,14 @@ package docker
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 // Cluster is a Kubernetes cluster whose nodes are containers on a daemon:
@@ -46,9 +46,9 @@ func IsClusterRegistry(c Container) bool {
 func (c *Client) SetRegistryRunning(ctx context.Context, name string, on bool) error {
 	var err error
 	if on {
-		err = c.api.ContainerStart(ctx, name, container.StartOptions{})
+		_, err = c.api.ContainerStart(ctx, name, client.ContainerStartOptions{})
 	} else {
-		err = c.api.ContainerStop(ctx, name, container.StopOptions{})
+		_, err = c.api.ContainerStop(ctx, name, client.ContainerStopOptions{})
 	}
 	if err != nil {
 		return fmt.Errorf("registry %s: %w", name, err)
@@ -81,15 +81,15 @@ func Clusters(ctx context.Context, host string) ([]Cluster, error) {
 func (c *Client) Clusters(ctx context.Context) ([]Cluster, error) {
 	var out []Cluster
 	for _, probe := range clusterLabels {
-		list, err := c.api.ContainerList(ctx, container.ListOptions{
+		list, err := c.api.ContainerList(ctx, client.ContainerListOptions{
 			All:     true,
-			Filters: filters.NewArgs(filters.Arg("label", probe.label)),
+			Filters: make(client.Filters).Add("label", probe.label),
 		})
 		if err != nil {
 			return nil, err
 		}
 		byName := map[string]*Cluster{}
-		for _, s := range list {
+		for _, s := range list.Items {
 			name := s.Labels[probe.label]
 			if name == "" || isK3dHelper(s.Labels) {
 				continue
@@ -102,7 +102,7 @@ func (c *Client) Clusters(ctx context.Context) ([]Cluster, error) {
 			if len(s.Names) > 0 {
 				cl.Nodes = append(cl.Nodes, trimSlash(s.Names[0]))
 			}
-			cl.Running = cl.Running || s.State == "running"
+			cl.Running = cl.Running || s.State == container.StateRunning
 		}
 		for _, cl := range byName {
 			sort.Strings(cl.Nodes)
@@ -126,11 +126,11 @@ func (c *Client) attachRegistry(ctx context.Context, clusters []Cluster) error {
 	if !hasKind {
 		return nil
 	}
-	list, err := c.api.ContainerList(ctx, container.ListOptions{All: true})
+	list, err := c.api.ContainerList(ctx, client.ContainerListOptions{All: true})
 	if err != nil {
 		return err
 	}
-	for _, s := range list {
+	for _, s := range list.Items {
 		r := newContainer(s)
 		if !IsClusterRegistry(r) {
 			continue
@@ -169,9 +169,9 @@ func (c *Client) SetClusterRunning(ctx context.Context, cl Cluster, on bool) err
 	for _, n := range cl.Nodes {
 		var err error
 		if on {
-			err = c.api.ContainerStart(ctx, n, container.StartOptions{})
+			_, err = c.api.ContainerStart(ctx, n, client.ContainerStartOptions{})
 		} else {
-			err = c.api.ContainerStop(ctx, n, container.StopOptions{})
+			_, err = c.api.ContainerStop(ctx, n, client.ContainerStopOptions{})
 		}
 		if err != nil {
 			return fmt.Errorf("%s node %s: %w", cl, n, err)
@@ -198,13 +198,14 @@ const registryImage = "registry:2"
 // created (pulling registry:2 if needed) when absent, started when stopped,
 // left alone when up. A registry already there is reused, not replaced.
 func (c *Client) EnsureRegistry(ctx context.Context, r Registry) error {
-	insp, err := c.api.ContainerInspect(ctx, r.Name)
+	insp, err := c.api.ContainerInspect(ctx, r.Name, client.ContainerInspectOptions{})
 	switch {
 	case err == nil:
-		if insp.State != nil && insp.State.Running {
+		if insp.Container.State != nil && insp.Container.State.Running {
 			return nil
 		}
-		return c.api.ContainerStart(ctx, r.Name, container.StartOptions{})
+		_, err = c.api.ContainerStart(ctx, r.Name, client.ContainerStartOptions{})
+		return err
 	case !cerrdefs.IsNotFound(err):
 		return fmt.Errorf("checking %s: %w", r.Name, err)
 	}
@@ -213,24 +214,32 @@ func (c *Client) EnsureRegistry(ctx context.Context, r Registry) error {
 			return perr
 		}
 	}
-	port := nat.Port("5000/tcp")
-	created, err := c.api.ContainerCreate(ctx,
-		&container.Config{Image: registryImage, ExposedPorts: nat.PortSet{port: {}}},
-		&container.HostConfig{
+	port := network.MustParsePort("5000/tcp")
+	created, err := c.api.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{Image: registryImage, ExposedPorts: network.PortSet{port: {}}},
+		HostConfig: &container.HostConfig{
 			RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyUnlessStopped},
-			PortBindings:  nat.PortMap{port: {{HostIP: "127.0.0.1", HostPort: r.Port}}},
+			PortBindings: network.PortMap{port: {{
+				HostIP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
+				HostPort: r.Port,
+			}}},
 		},
-		nil, nil, r.Name)
+		Name: r.Name,
+	})
 	if err != nil {
 		return fmt.Errorf("creating %s: %w", r.Name, err)
 	}
-	return c.api.ContainerStart(ctx, created.ID, container.StartOptions{})
+	_, err = c.api.ContainerStart(ctx, created.ID, client.ContainerStartOptions{})
+	return err
 }
 
 // ConnectRegistry attaches the registry to the cluster's network ("kind"),
 // so nodes reach it by name. Already connected is fine.
 func (c *Client) ConnectRegistry(ctx context.Context, r Registry, networkName string) error {
-	err := c.api.NetworkConnect(ctx, networkName, r.Name, &network.EndpointSettings{})
+	_, err := c.api.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{
+		Container:      r.Name,
+		EndpointConfig: &network.EndpointSettings{},
+	})
 	if err != nil && !cerrdefs.IsConflict(err) && !cerrdefs.IsAlreadyExists(err) && !alreadyConnected(err) {
 		return fmt.Errorf("connecting %s to %s: %w", r.Name, networkName, err)
 	}

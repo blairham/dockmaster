@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // Processes is `docker top`: the processes in a container, as ps on the
@@ -17,7 +18,7 @@ type Processes struct {
 
 // Top lists the processes running in container id.
 func (c *Client) Top(ctx context.Context, id string) (Processes, error) {
-	top, err := c.api.ContainerTop(ctx, id, nil)
+	top, err := c.api.ContainerTop(ctx, id, client.ContainerTopOptions{})
 	if err != nil {
 		return Processes{}, fmt.Errorf("listing processes in %s: %w", shortID(id), err)
 	}
@@ -33,11 +34,11 @@ type FileChange struct {
 // Diff is `docker diff`: what container id has written over its image,
 // sorted by path so a directory's changes stay together.
 func (c *Client) Diff(ctx context.Context, id string) ([]FileChange, error) {
-	changes, err := c.api.ContainerDiff(ctx, id)
+	res, err := c.api.ContainerDiff(ctx, id, client.ContainerDiffOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("diffing %s: %w", shortID(id), err)
 	}
-	return fileChanges(changes), nil
+	return fileChanges(res.Changes), nil
 }
 
 func fileChanges(changes []container.FilesystemChange) []FileChange {

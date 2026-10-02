@@ -1,6 +1,6 @@
 package docker
 
-import "github.com/docker/docker/api/types/container"
+import "github.com/moby/moby/api/types/container"
 
 // portFixture keeps the port tests readable without importing the SDK
 // type into every table row.
@@ -10,10 +10,10 @@ type portFixture struct {
 	Public  uint16
 }
 
-func toPorts(in []portFixture) []container.Port {
-	out := make([]container.Port, 0, len(in))
+func toPorts(in []portFixture) []container.PortSummary {
+	out := make([]container.PortSummary, 0, len(in))
 	for _, p := range in {
-		out = append(out, container.Port{PrivatePort: p.Private, PublicPort: p.Public, Type: p.Type})
+		out = append(out, container.PortSummary{PrivatePort: p.Private, PublicPort: p.Public, Type: p.Type})
 	}
 	return out
 }

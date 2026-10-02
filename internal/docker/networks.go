@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/client"
 )
 
 // builtinNetworks are the three networks the daemon creates and refuses to
@@ -51,32 +50,33 @@ func (n Network) Builtin() bool { return builtinNetworks[n.Name] }
 
 // Networks lists networks.
 func (c *Client) Networks(ctx context.Context) ([]Network, error) {
-	raw, err := c.api.NetworkList(ctx, network.ListOptions{})
+	res, err := c.api.NetworkList(ctx, client.NetworkListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("listing networks: %w", err)
 	}
 
-	out := make([]Network, 0, len(raw))
-	for _, n := range raw {
+	out := make([]Network, 0, len(res.Items))
+	for _, n := range res.Items {
 		subnets := make([]string, 0, len(n.IPAM.Config))
 		gateway := ""
 		for _, cfg := range n.IPAM.Config {
-			if cfg.Subnet != "" {
-				subnets = append(subnets, cfg.Subnet)
+			// Subnet and Gateway are netip values now; the zero value
+			// is "not set", which must stay "" rather than print "invalid".
+			if cfg.Subnet.IsValid() {
+				subnets = append(subnets, cfg.Subnet.String())
 			}
-			if gateway == "" {
-				gateway = cfg.Gateway
+			if gateway == "" && cfg.Gateway.IsValid() {
+				gateway = cfg.Gateway.String()
 			}
 		}
 		sort.Strings(subnets)
 
-		// The list endpoint omits Containers unless the daemon feels like
-		// including it; -1 keeps "unknown" distinct from "zero attached",
-		// which matters because zero is the delete-is-safe signal.
+		// The list endpoint does not report attachments — the daemon
+		// leaves Containers out of /networks, and the API's list type no
+		// longer has the field at all. -1 keeps "unknown" distinct from
+		// "zero attached", which matters because zero is the
+		// delete-is-safe signal.
 		count := -1
-		if n.Containers != nil {
-			count = len(n.Containers)
-		}
 
 		out = append(out, Network{
 			ID:         n.ID,
@@ -100,11 +100,11 @@ func (c *Client) Networks(ctx context.Context) ([]Network, error) {
 
 // InspectNetwork returns pretty-printed inspect JSON for a network.
 func (c *Client) InspectNetwork(ctx context.Context, id string) ([]byte, error) {
-	_, raw, err := c.api.NetworkInspectWithRaw(ctx, id, network.InspectOptions{Verbose: true})
+	res, err := c.api.NetworkInspect(ctx, id, client.NetworkInspectOptions{Verbose: true})
 	if err != nil {
 		return nil, fmt.Errorf("inspecting network %s: %w", shortID(id), err)
 	}
-	return indentJSON(raw)
+	return indentJSON(res.Raw)
 }
 
 // RemoveNetwork deletes a network.
@@ -112,7 +112,7 @@ func (c *Client) RemoveNetwork(ctx context.Context, id, name string) error {
 	if builtinNetworks[name] {
 		return fmt.Errorf("%s is a built-in network and cannot be removed", name)
 	}
-	if err := c.api.NetworkRemove(ctx, id); err != nil {
+	if _, err := c.api.NetworkRemove(ctx, id, client.NetworkRemoveOptions{}); err != nil {
 		return fmt.Errorf("removing network %s: %w", name, err)
 	}
 	return nil
@@ -120,9 +120,9 @@ func (c *Client) RemoveNetwork(ctx context.Context, id, name string) error {
 
 // PruneNetworks removes every network no container is attached to.
 func (c *Client) PruneNetworks(ctx context.Context) (deleted int, err error) {
-	rep, err := c.api.NetworksPrune(ctx, filters.NewArgs())
+	res, err := c.api.NetworkPrune(ctx, client.NetworkPruneOptions{})
 	if err != nil {
 		return 0, fmt.Errorf("pruning networks: %w", err)
 	}
-	return len(rep.NetworksDeleted), nil
+	return len(res.Report.NetworksDeleted), nil
 }

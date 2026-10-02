@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/moby/moby/api/types/network"
 )
 
 func TestParseForwardSpec(t *testing.T) {
@@ -56,7 +58,8 @@ func TestForwardConfig(t *testing.T) {
 		[]string{"tcp-listen:18080,fork,reuseaddr", "tcp-connect:172.20.0.5:80"}) {
 		t.Errorf("image %q cmd %q", cfg.Image, cfg.Cmd)
 	}
-	if b := host.PortBindings["18080/tcp"]; len(b) != 1 || b[0].HostIP != "127.0.0.1" || b[0].HostPort != "18080" {
+	b := host.PortBindings[network.MustParsePort("18080/tcp")]
+	if len(b) != 1 || b[0].HostIP.String() != "127.0.0.1" || b[0].HostPort != "18080" {
 		t.Errorf("binding = %+v, want 127.0.0.1:18080 only", b)
 	}
 	if !host.AutoRemove {

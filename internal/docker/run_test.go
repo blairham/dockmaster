@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/network"
 )
 
 func TestRunConfig(t *testing.T) {
@@ -19,10 +19,11 @@ func TestRunConfig(t *testing.T) {
 	if cfg.Image != "nginx:1.27" || len(cfg.Env) != 2 || strings.Join(cfg.Cmd, " ") != "nginx -g daemon off;" {
 		t.Errorf("config = %+v", cfg)
 	}
-	if _, ok := cfg.ExposedPorts[nat.Port("80/tcp")]; !ok {
+	if _, ok := cfg.ExposedPorts[network.MustParsePort("80/tcp")]; !ok {
 		t.Errorf("80/tcp not exposed: %v", cfg.ExposedPorts)
 	}
-	if b := host.PortBindings[nat.Port("443/tcp")]; len(b) != 1 || b[0].HostIP != "127.0.0.1" || b[0].HostPort != "9443" {
+	if b := host.PortBindings[network.MustParsePort("443/tcp")]; len(b) != 1 || b[0].HostIP.String() != "127.0.0.1" ||
+		b[0].HostPort != "9443" {
 		t.Errorf("443 binding = %+v", b)
 	}
 	if !host.AutoRemove || len(host.Binds) != 2 {
