@@ -214,3 +214,26 @@ func TestCPUShare(t *testing.T) {
 		}
 	}
 }
+
+func TestContainerFault(t *testing.T) {
+	for _, tc := range []struct {
+		c     Container
+		fault bool
+	}{
+		{c: Container{State: "running", Health: "healthy", Status: "Up 3 hours (healthy)"}},
+		{c: Container{State: "running", Health: "unhealthy", Status: "Up 3 hours (unhealthy)"}, fault: true},
+		{c: Container{State: "restarting", Status: "Restarting (1) 5 seconds ago"}, fault: true},
+		{c: Container{State: "dead", Status: "Dead"}, fault: true},
+		{c: Container{State: "exited", Status: "Exited (0) 2 hours ago"}},
+		{c: Container{State: "exited", Status: "Exited (137) 2 hours ago"}, fault: true},
+		{c: Container{State: "paused", Status: "Up 3 hours (Paused)"}},
+		{c: Container{State: "created", Status: "Created"}},
+	} {
+		if got := tc.c.Fault(); got != tc.fault {
+			t.Errorf("%s / %q: fault %v, want %v", tc.c.State, tc.c.Status, got, tc.fault)
+		}
+	}
+	if code, ok := (Container{Status: "Exited (137) 2 hours ago"}).ExitCode(); !ok || code != 137 {
+		t.Errorf("exit code %d %v", code, ok)
+	}
+}

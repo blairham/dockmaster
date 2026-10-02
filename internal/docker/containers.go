@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -347,4 +348,32 @@ func shortDigest(d string) string {
 		return d
 	}
 	return algo + ":" + hex[:12]
+}
+
+// ExitCode is the code a stopped container exited with, read from docker's
+// status ("Exited (137) 2 hours ago"); ok is false for one that has not
+// exited.
+func (c Container) ExitCode() (int, bool) {
+	rest, ok := strings.CutPrefix(c.Status, "Exited (")
+	if !ok {
+		return 0, false
+	}
+	code, _, ok := strings.Cut(rest, ")")
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(code)
+	return n, err == nil
+}
+
+// Fault reports a container in trouble, as k9s's faults are pods that are
+// neither running healthily nor completed: unhealthy, restarting, dead, or
+// exited with a non-zero code. A clean exit 0 is finished, not failed.
+func (c Container) Fault() bool {
+	switch {
+	case c.Health == "unhealthy", c.State == "restarting", c.State == "dead":
+		return true
+	}
+	code, exited := c.ExitCode()
+	return exited && code != 0
 }

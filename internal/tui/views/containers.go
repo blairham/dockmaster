@@ -97,6 +97,9 @@ type ContainersView struct {
 
 	loading bool
 	showAll bool
+	// showFaults lists only the containers in trouble (Container.Fault),
+	// stopped ones included — k9s's ctrl+z.
+	showFaults bool
 	// showKube lists the containers a runtime's built-in Kubernetes runs
 	// its pods in; hidden by default, they would otherwise bury the user's
 	// own (Rancher Desktop starts eleven).
@@ -150,6 +153,18 @@ func (v *ContainersView) ToggleKube() {
 	v.rebuildRows()
 }
 
+// ToggleFaults lists only the containers in trouble, or all again. Failed
+// containers have exited, so faults fetches stopped ones too, without
+// changing the stopped/all toggle.
+func (v *ContainersView) ToggleFaults() tea.Cmd {
+	v.showFaults = !v.showFaults
+	v.rebuildRows()
+	return v.refresh()
+}
+
+// ShowFaults reports whether only faults are listed.
+func (v *ContainersView) ShowFaults() bool { return v.showFaults }
+
 // ShowKube reports whether Kubernetes containers are listed.
 func (v *ContainersView) ShowKube() bool { return v.showKube }
 
@@ -157,10 +172,14 @@ func (v *ContainersView) ShowKube() bool { return v.showKube }
 // border title — so a daemon running only Kubernetes does not read as
 // empty.
 func (v *ContainersView) Status() string {
-	if n := v.hiddenKube(); n > 0 {
-		return fmt.Sprintf("+%d kube hidden", n)
+	var parts []string
+	if v.showFaults {
+		parts = append(parts, "faults")
 	}
-	return ""
+	if n := v.hiddenKube(); n > 0 {
+		parts = append(parts, fmt.Sprintf("+%d kube hidden", n))
+	}
+	return strings.Join(parts, " ")
 }
 
 // hiddenKube counts the Kubernetes containers ctrl+k would show; 0 while
@@ -303,6 +322,8 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 			return "toggle_stats", ""
 		case "ctrl+k":
 			return "toggle_kube", ""
+		case "ctrl+z":
+			return "toggle_faults", ""
 		}
 		return "", ""
 	}
@@ -359,6 +380,8 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "toggle_all", ""
 	case "ctrl+k":
 		return "toggle_kube", ""
+	case "ctrl+z":
+		return "toggle_faults", ""
 	case "t":
 		return "toggle_stats", ""
 	case "F":
@@ -384,6 +407,9 @@ func (v *ContainersView) View() string {
 		if n := v.hiddenKube(); n > 0 {
 			hint = fmt.Sprintf("only Kubernetes's containers here (%d) — press <ctrl-k> to show them", n)
 		}
+		if v.showFaults {
+			hint = "no faults — nothing unhealthy, restarting, dead or exited with an error (<ctrl-z> shows all)"
+		}
 		if v.filter != "" {
 			hint = fmt.Sprintf("no containers match /%s", v.filter)
 		}
@@ -404,7 +430,7 @@ func (v *ContainersView) refresh() tea.Cmd {
 		return nil
 	}
 	v.inFlight = true
-	all := v.showAll
+	all := v.showAll || v.showFaults
 	return func() tea.Msg {
 		ctx, cancel := v.client.RequestContext(20 * time.Second)
 		defer cancel()
@@ -443,6 +469,9 @@ func (v *ContainersView) rebuildRows() {
 		k, kube := c.Kube()
 		// A pod's pause container is never listed; the rest only on ctrl+k.
 		if kube && (k.Sandbox || !v.showKube) {
+			continue
+		}
+		if v.showFaults && !c.Fault() {
 			continue
 		}
 		if !f.Empty() && !f.MatchesAny(c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),

@@ -137,6 +137,13 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- view toggles ---------------------------------------------------
 
+	case "toggle_faults":
+		if v := typedView[*views.ContainersView](a, style.ViewContainers); v != nil {
+			cmd := v.ToggleFaults()
+			a.flash = "faults only " + onOff(v.ShowFaults())
+			return a, cmd
+		}
+		return a, nil
 	case "toggle_kube":
 		if v := typedView[*views.ContainersView](a, style.ViewContainers); v != nil {
 			v.ToggleKube()
