@@ -21,6 +21,19 @@ Show
 Sleep 3s
 Screenshot docs/images/containers.png
 
+# Two rows marked for a bulk action, then unmarked again.
+Down
+Space
+Down
+Space
+Sleep 1s
+Screenshot docs/images/marks.png
+Space
+Up
+Space
+Up
+Sleep 500ms
+
 # Help.
 Type "?"
 Sleep 1s
@@ -69,6 +82,16 @@ Sleep 500ms
 Screenshot docs/images/run.png
 Escape
 Sleep 500ms
+
+# A volume's files: db's data directory.
+Type "2"
+Sleep 3s
+Type "/pgdata"
+Enter
+Sleep 500ms
+Enter
+Sleep 3s
+Screenshot docs/images/volume.png
 
 Hide
 Type ":q"

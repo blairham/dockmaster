@@ -17,6 +17,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_PASSWORD: demo
+    volumes: ["pgdata:/var/lib/postgresql/data"]
   cache:
     image: redis:7-alpine
   worker:
@@ -32,3 +33,5 @@ services:
           [ $$((i % 9)) -eq 0 ] && echo "$$(date -u +%H:%M:%S) WRN payment retry order=$$((1000 + i)) attempt=2"
           sleep 1
         done
+volumes:
+  pgdata:

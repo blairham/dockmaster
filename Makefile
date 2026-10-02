@@ -72,4 +72,4 @@ screenshots: build ## Render docs/images with VHS on a staged demo daemon
 	@mkdir -p $(dir $(DEMO_SOCK)) && ln -sfn $(patsubst unix://%,%,$(DEMO_HOST)) $(DEMO_SOCK)
 	DOCKER_HOST=$(DEMO_HOST) docker compose -f docs/demo/compose.yaml up -d --wait
 	DOCKMASTER_DEMO_HOST=unix://$(DEMO_SOCK) DOCKMASTER_CONFIG_DIR=$$(mktemp -d) vhs docs/demo/screenshots.tape; \
-		status=$$?; DOCKER_HOST=$(DEMO_HOST) docker compose -f docs/demo/compose.yaml down; exit $$status
+		status=$$?; DOCKER_HOST=$(DEMO_HOST) docker compose -f docs/demo/compose.yaml down -v; exit $$status
