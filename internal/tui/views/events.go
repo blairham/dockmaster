@@ -161,11 +161,8 @@ func (v *EventsView) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-var (
-	eventTimeStyle = style.Muted
-	eventTypeStyle = lipgloss.NewStyle().Foreground(style.ColorCyan)
-	eventNameStyle = lipgloss.NewStyle().Foreground(style.ColorWhite).Bold(true)
-)
+// Event feed styles, derived in applyTheme.
+var eventTimeStyle, eventTypeStyle, eventNameStyle lipgloss.Style
 
 // renderEvent is one line of the feed:
 //

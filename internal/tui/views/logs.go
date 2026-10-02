@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"regexp"
 	"strconv"
 	"strings"
@@ -587,15 +588,18 @@ func dropBrokenEscapes(s string) string {
 	return b.String()
 }
 
-// logTextFg is the raw SGR for the log foreground, derived from lipgloss so
-// it honors the terminal's color profile.
-var logTextFg = func() string {
-	sample := lipgloss.NewStyle().Foreground(style.ColorLogText).Render("x")
+// logTextFg is the raw SGR for the log foreground, derived in applyTheme
+// from lipgloss so it honors the terminal's color profile.
+var logTextFg string
+
+// sgrFor is the SGR that starts text in c.
+func sgrFor(c color.Color) string {
+	sample := lipgloss.NewStyle().Foreground(c).Render("x")
 	if i := strings.IndexByte(sample, 'x'); i > 0 && strings.HasPrefix(sample, "\x1b[") {
 		return sample[:i]
 	}
 	return ""
-}()
+}
 
 // sgrSeq matches one SGR escape.
 var sgrSeq = regexp.MustCompile(`\x1b\[[0-9;:]*m`)

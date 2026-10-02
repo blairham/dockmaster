@@ -18,6 +18,7 @@ import (
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/engines"
 	"github.com/blairham/dockmaster/internal/tui"
+	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/version"
 )
 
@@ -43,6 +44,7 @@ func run() error {
 		splashless  = flag.Bool("splashless", false, "skip the startup splash")
 		headless    = flag.Bool("headless", false, "hide the header (info, shortcuts, logo)")
 		crumbsless  = flag.Bool("crumbsless", false, "hide the breadcrumbs")
+		invert      = flag.Bool("invert", false, "invert the skin, dark to light or light to dark, keeping its colors")
 		command     string
 		refresh     int
 		reqTimeout  = flag.Duration("request-timeout", 0,
@@ -75,12 +77,19 @@ func run() error {
 	// only those, so --readonly=false can switch off a readOnly: true.
 	cfg = config.ApplyFlags(cfg, config.SetFlags(flag.CommandLine), config.FlagValues{
 		ReadOnly: *readonly, ShowAll: *all, NoStats: *noStats, Logoless: *logoless,
-		Splashless: *splashless, Headless: *headless, Crumbsless: *crumbsless, Command: command,
+		Splashless: *splashless, Headless: *headless, Crumbsless: *crumbsless, Invert: *invert, Command: command,
 		Refresh: refresh, RequestTimeout: *reqTimeout,
 	})
 	if verr := cfg.Validate(); verr != nil {
 		return verr
 	}
+	// The skin goes in before anything is built: every style derives from
+	// the base theme.
+	th, err := cfg.Theme(style.Base())
+	if err != nil {
+		return err
+	}
+	style.SetBase(th)
 
 	if cfg.DefaultView != "" {
 		if _, ok := tui.ViewForCommand(cfg.DefaultView); !ok {

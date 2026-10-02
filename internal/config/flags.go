@@ -23,6 +23,7 @@ type FlagValues struct {
 	Splashless     bool
 	Headless       bool
 	Crumbsless     bool
+	Invert         bool
 }
 
 // SetFlags names the flags given on fs's command line — only those, so a
@@ -58,6 +59,7 @@ func ApplyFlags(cfg Config, set map[string]bool, v FlagValues) Config {
 		{dst: &cfg.UI.Splashless, name: "splashless", val: v.Splashless},
 		{dst: &cfg.UI.Headless, name: "headless", val: v.Headless},
 		{dst: &cfg.UI.Crumbsless, name: "crumbsless", val: v.Crumbsless},
+		{dst: &cfg.UI.Invert, name: "invert", val: v.Invert},
 	}
 	for _, b := range bools {
 		if set[b.name] {

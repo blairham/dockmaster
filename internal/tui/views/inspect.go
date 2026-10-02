@@ -224,12 +224,8 @@ func (v *InspectView) Refresh() tea.Cmd {
 	}
 }
 
-var (
-	jsonKeyStyle = lipgloss.NewStyle().Foreground(style.ColorDockerBlue)
-	jsonStrStyle = lipgloss.NewStyle().Foreground(style.ColorGreen)
-	jsonNumStyle = lipgloss.NewStyle().Foreground(style.ColorPapayaWhip)
-	jsonNilStyle = lipgloss.NewStyle().Foreground(style.ColorSlateGray)
-)
+// JSON highlighting styles, derived in applyTheme.
+var jsonKeyStyle, jsonStrStyle, jsonNumStyle, jsonNilStyle lipgloss.Style
 
 // colorizeJSON tints one already-indented JSON line. This is deliberately
 // a line-shaped heuristic rather than a tokenizer: the viewport renders a

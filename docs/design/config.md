@@ -67,8 +67,30 @@ usage over the container's limit, which for an unlimited container is the
 host's memory. The selected row is drawn in the selection style and shows
 no threshold colour.
 
+## Skins
+
+`ui.skin` names a skin in `skins/` beside `config.yaml` (`<name>.yaml` or
+`.yml`); `DOCKMASTER_SKIN` overrides it, as `K9S_SKIN` does k9s's. A skin
+file is k9s's own format — colors under a top-level `k9s:` key — so a k9s
+skin drops in unchanged; tuikit's `theme.Skin` maps the keys it draws with
+and ignores the rest. A skin with no colors under `k9s:`, an unknown name,
+or an unreadable color stops startup with the reason (the color's key
+path included), rather than silently drawing the default.
+
+`--invert` (or `ui.invert: true`) is k9s's: every color's lightness is
+flipped in OkLch and its hue kept, so a dark skin turns light. It applies
+to the default look as well as to a skin.
+
+The skin is applied before anything is built: `style.SetBase` re-derives
+the palette and every package-level style, and the views register theirs
+through `style.OnBase`. `TestNoPackageStyleSkipsTheSkin` fails any
+package-level style set in its declaration, which would keep the default
+colors for good. Tables repaint with `tktable.FixRows` in the theme's own
+colors — the old fixed light-sky-blue and black left blocks of the
+terminal's background behind every styled cell on any other canvas.
+
 ## Not yet
 
-k9s's `skin`, `logger.buffer` and `logger.sinceSeconds`, and
+k9s's `logger.buffer` and `logger.sinceSeconds`, and
 `liveViewAutoRefresh` have no dockmaster equivalent yet. Each lands in this
 file when its feature does.

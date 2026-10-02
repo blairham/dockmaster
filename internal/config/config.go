@@ -72,10 +72,15 @@ type Config struct {
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
 type UI struct {
-	Headless   bool `yaml:"headless"`
-	Logoless   bool `yaml:"logoless"`
-	Crumbsless bool `yaml:"crumbsless"`
-	Splashless bool `yaml:"splashless"`
+	// Skin names a skin file in SkinsDir, without its extension — k9s's
+	// ui.skin. DOCKMASTER_SKIN overrides it.
+	Skin       string `yaml:"skin"`
+	Headless   bool   `yaml:"headless"`
+	Logoless   bool   `yaml:"logoless"`
+	Crumbsless bool   `yaml:"crumbsless"`
+	Splashless bool   `yaml:"splashless"`
+	// Invert turns the skin dark to light or light to dark (--invert).
+	Invert bool `yaml:"invert"`
 }
 
 // Thresholds colour the containers view's CPU% and MEM columns, as k9s's
@@ -193,6 +198,9 @@ func (c Config) Validate() error {
 				t.name, t.t.Warn, t.t.Critical))
 		}
 	}
+	if strings.ContainsAny(c.UI.Skin, `/\`) {
+		errs = append(errs, fmt.Sprintf("ui.skin is a skin's name in %s, not a path, got %q", SkinsDirName, c.UI.Skin))
+	}
 	if c.Logger.Tail < 1 || c.Logger.Tail > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.tail must be between 1 and %d, got %d", MaxLogTail, c.Logger.Tail))
 	}
@@ -225,6 +233,11 @@ dockmaster:
   # Disable the CPU/MEM poll, one request per running container (--no-stats).
   noStats: false
   ui:
+    # A skin in skins/ beside this file, by name — a k9s skin works as is
+    # (DOCKMASTER_SKIN overrides).
+    skin: ""
+    # Invert the skin, dark to light or light to dark (--invert).
+    invert: false
     headless: false
     logoless: false
     crumbsless: false

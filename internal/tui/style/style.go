@@ -16,77 +16,114 @@ import (
 	"github.com/blairham/tuikit/theme"
 )
 
-// Base is the theme every dockmaster style derives from. Exported so the
-// app can hand the same value to chrome, table, and loading and be sure
-// they agree.
-func Base() theme.Theme {
-	// tuikit's default is k9s's palette (orange logo and labels, aqua
-	// titles, light-sky-blue focused border), and dockmaster keeps it as is so
-	// the two read the same side by side.
-	return theme.Default()
+// base is the theme every dockmaster style derives from: tuikit's
+// default — k9s's palette, so the two read the same side by side — or
+// that with a skin over it (SetBase).
+var base = theme.Default()
+
+// onBase are the derived styles other packages keep, re-derived whenever
+// the base changes.
+var onBase []func()
+
+// Base is the theme every dockmaster style derives from. The app hands it
+// to chrome, table and loading so they agree with the views.
+func Base() theme.Theme { return base }
+
+// SetBase makes t the theme every style derives from — a skin, inverted
+// or not — and re-derives every color and style below, and those other
+// packages registered with OnBase. Call it before building the app.
+func SetBase(t theme.Theme) {
+	base = t
+	apply(t)
+	for _, fn := range onBase {
+		fn()
+	}
 }
 
-var t = theme.Default()
+// OnBase registers fn to re-derive a package's own styles when the base
+// changes, and runs it now.
+func OnBase(fn func()) {
+	onBase = append(onBase, fn)
+	fn()
+}
 
-// Palette. The named docker colors are literals; everything else tracks
-// the tuikit theme so a tuikit recolor propagates.
+// Palette. The named docker colors are dockmaster's own; everything else
+// tracks the theme, so a skin recolors it.
 var (
 	// ColorDockerBlue is Docker's brand blue (#2496ED).
 	ColorDockerBlue color.Color = lipgloss.Color("#2496ED")
 	// ColorWhaleGray is the muted hull gray used for secondary text.
 	ColorWhaleGray color.Color = lipgloss.Color("#8899A6")
+	ColorSeaGreen  color.Color = lipgloss.Color("#2E8B57")
+	ColorSlateGray color.Color = lipgloss.Color("#778899")
+	ColorPurple    color.Color = lipgloss.Color("#9370DB")
 
-	ColorBg    = t.Bg
-	ColorWhite = t.Value
-	ColorGray  = t.Muted
-
-	ColorGreen  color.Color = t.Status.OK
-	ColorRed    color.Color = t.Status.Error
-	ColorYellow color.Color = t.Filter
-	ColorBlue               = t.Border
-	ColorCyan               = t.Accent
-
-	ColorOrange     color.Color = t.Logo
-	ColorFuchsia                = t.AccentAlt
-	ColorPapayaWhip             = t.AccentBold
-	ColorSelection              = t.Selection
-	ColorBorder                 = t.Border
-	ColorSeaGreen   color.Color = lipgloss.Color("#2E8B57")
-	ColorSlateGray  color.Color = lipgloss.Color("#778899")
-	ColorPurple     color.Color = lipgloss.Color("#9370DB")
-	// ColorLogText is k9s's default log foreground (lightskyblue), so a
-	// log pane reads the same in both tools.
-	ColorLogText color.Color = lipgloss.Color("#87CEFA")
+	ColorBg         color.Color
+	ColorWhite      color.Color
+	ColorGray       color.Color
+	ColorGreen      color.Color
+	ColorRed        color.Color
+	ColorYellow     color.Color
+	ColorBlue       color.Color
+	ColorCyan       color.Color
+	ColorOrange     color.Color
+	ColorFuchsia    color.Color
+	ColorPapayaWhip color.Color
+	ColorSelection  color.Color
+	ColorBorder     color.Color
+	// ColorLogText is the log foreground: k9s's lightskyblue by default,
+	// so a log pane reads the same in both tools, and a skin's
+	// views.logs.fgColor when it sets one.
+	ColorLogText color.Color
 )
 
-// Info panel (top-left).
+// Shared styles, derived from the palette by apply.
 var (
+	// Info panel (top-left).
+	InfoLabel lipgloss.Style
+	InfoValue lipgloss.Style
+	// Logo is the ASCII-art style.
+	Logo lipgloss.Style
+	// General text styles.
+	Title   lipgloss.Style
+	Error   lipgloss.Style
+	Success lipgloss.Style
+	Muted   lipgloss.Style
+	// State styles color the STATE column. Docker's container states map
+	// onto k9s's pod-phase coloring: green for the one healthy steady
+	// state, red for terminal failure, amber for anything mid-transition.
+	StateRunning    lipgloss.Style
+	StateExited     lipgloss.Style
+	StateDead       lipgloss.Style
+	StatePaused     lipgloss.Style
+	StateRestarting lipgloss.Style
+	StateCreated    lipgloss.Style
+)
+
+func init() { apply(base) }
+
+// apply derives the palette and the shared styles from t.
+func apply(t theme.Theme) {
+	ColorBg, ColorWhite, ColorGray = t.Bg, t.Value, t.Muted
+	ColorGreen, ColorRed, ColorYellow, ColorBlue = t.Status.OK, t.Status.Error, t.Filter, t.Border
+	ColorCyan, ColorOrange, ColorFuchsia, ColorPapayaWhip = t.Accent, t.Logo, t.AccentAlt, t.AccentBold
+	ColorSelection, ColorBorder = t.Selection, t.Border
+	ColorLogText = t.LogTextColor()
+
 	InfoLabel = lipgloss.NewStyle().Foreground(t.Label)
 	InfoValue = lipgloss.NewStyle().Foreground(ColorWhite).Bold(true)
-)
-
-// Logo is the ASCII-art style.
-var Logo = lipgloss.NewStyle().Foreground(t.Logo).Bold(true)
-
-// General text styles.
-var (
-	Title   = lipgloss.NewStyle().Foreground(ColorCyan).Bold(true)
-	Error   = lipgloss.NewStyle().Foreground(ColorRed).Bold(true)
+	Logo = lipgloss.NewStyle().Foreground(t.Logo).Bold(true)
+	Title = lipgloss.NewStyle().Foreground(ColorCyan).Bold(true)
+	Error = lipgloss.NewStyle().Foreground(ColorRed).Bold(true)
 	Success = lipgloss.NewStyle().Foreground(ColorGreen).Bold(true)
-	Muted   = lipgloss.NewStyle().Foreground(ColorGray)
-)
-
-// State styles color the STATE column. Docker's container states map onto
-// k9s's pod-phase coloring: green for the one healthy steady state, red
-// for terminal failure, amber for anything mid-transition.
-var (
-	StateRunning    = lipgloss.NewStyle().Foreground(ColorGreen)
-	StateExited     = lipgloss.NewStyle().Foreground(ColorGray)
-	StateDead       = lipgloss.NewStyle().Foreground(ColorRed)
-	StatePaused     = lipgloss.NewStyle().Foreground(ColorYellow)
+	Muted = lipgloss.NewStyle().Foreground(ColorGray)
+	StateRunning = lipgloss.NewStyle().Foreground(ColorGreen)
+	StateExited = lipgloss.NewStyle().Foreground(ColorGray)
+	StateDead = lipgloss.NewStyle().Foreground(ColorRed)
+	StatePaused = lipgloss.NewStyle().Foreground(ColorYellow)
 	StateRestarting = lipgloss.NewStyle().Foreground(ColorYellow)
-	StateCreated    = lipgloss.NewStyle().Foreground(ColorBlue)
-)
+	StateCreated = lipgloss.NewStyle().Foreground(ColorBlue)
+}
 
 // StateStyle returns the style for a docker container state string.
 func StateStyle(state string) lipgloss.Style {

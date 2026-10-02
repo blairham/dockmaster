@@ -2,16 +2,37 @@ package views
 
 import (
 	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
 	tktable "github.com/blairham/tuikit/table"
 	"github.com/blairham/tuikit/theme"
 
 	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
-// pkgTheme is dockmaster's theme. It paints the canvas, so tables render in
-// tuikit's full paint mode: every cell carries the background, and
-// FixSelectedRow re-asserts the selection across per-cell resets.
-var pkgTheme = style.Base()
+// pkgTheme is dockmaster's theme — style.Base, skin included. Painting
+// the canvas, tables render in tuikit's full paint mode: every cell
+// carries the background, and FixSelectedRow re-asserts the selection
+// across per-cell resets.
+var pkgTheme theme.Theme
+
+func init() { style.OnBase(applyTheme) }
+
+// applyTheme derives every style the views keep at package level from the
+// current base theme. A package-level style must be set here, not in its
+// declaration, or a skin would never reach it — TestNoPackageStyleSkipsTheSkin
+// holds every file to that.
+func applyTheme() {
+	pkgTheme = style.Base()
+	eventTimeStyle = style.Muted
+	eventTypeStyle = lipgloss.NewStyle().Foreground(style.ColorCyan)
+	eventNameStyle = lipgloss.NewStyle().Foreground(style.ColorWhite).Bold(true)
+	jsonKeyStyle = lipgloss.NewStyle().Foreground(style.ColorDockerBlue)
+	jsonStrStyle = lipgloss.NewStyle().Foreground(style.ColorGreen)
+	jsonNumStyle = lipgloss.NewStyle().Foreground(style.ColorPapayaWhip)
+	jsonNilStyle = lipgloss.NewStyle().Foreground(style.ColorSlateGray)
+	logTextFg = sgrFor(style.ColorLogText)
+	dirStyle = lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Bold(true)
+}
 
 // Key names shared across views. Spelled here once so a rebind is a
 // one-line change rather than a grep.
@@ -40,12 +61,11 @@ func tableStylesWithWidth(width int) table.Styles {
 	return tktable.StylesWithWidth(pkgTheme, width)
 }
 
-// fixSelectedRow repaints selected rows after bubbles renders them. Under
-// NoPaintBackground the paint mode is None, so unselected rows pass
-// through untouched.
-func fixSelectedRow(view string) string {
-	return tktable.FixSelectedRow(view, tktable.PaintModeFor(pkgTheme))
-}
+// fixSelectedRow repaints a table after bubbles renders it, in the
+// theme's own colors — a skin's selection and canvas, not the defaults —
+// so the selected row is found and styled cells keep the canvas behind
+// them. Under NoPaintBackground unselected rows pass through untouched.
+func fixSelectedRow(view string) string { return tktable.FixRows(view, pkgTheme) }
 
 // truncate shortens s to maxLen terminal cells, appending "…" when it was
 // cut — by display width, so a cut never tears a multi-byte rune.

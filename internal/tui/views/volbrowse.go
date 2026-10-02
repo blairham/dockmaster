@@ -27,8 +27,8 @@ var (
 	}
 )
 
-// dirStyle draws directory names, as ls colors them.
-var dirStyle = lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Bold(true)
+// dirStyle draws directory names, as ls colors them; derived in applyTheme.
+var dirStyle lipgloss.Style
 
 // volumeFileLimit caps how much of a file the viewer reads.
 const volumeFileLimit = 1 << 20
