@@ -9,6 +9,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -147,6 +148,9 @@ type App struct {
 	headerLogo bool
 	// composeRunner replaces the docker CLI for compose verbs; tests only.
 	composeRunner docker.ComposeRunner
+	// execProcess replaces tea.ExecProcess, which hands a child the
+	// terminal; tests only.
+	execProcess func(*exec.Cmd, tea.ExecCallback) tea.Cmd
 	// sizedView, sizedW and sizedH record what the active view was last
 	// sized to; see syncViewSize.
 	sizedView    style.ViewType
@@ -413,6 +417,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 
 	case composeDoneMsg:
 		return a.handleComposeDone(msg)
+
+	case composeEditedMsg:
+		return a.handleComposeEdited(msg)
 
 	case forwardStartedMsg:
 		return a.handleForwardStarted(msg)

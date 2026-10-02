@@ -225,6 +225,7 @@ func (a *App) renderShortcuts(info []string) []string {
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Containers"},
 			{Key: "<u>", Desc: "Up"},
+			{Key: "<e>", Desc: "Edit"},
 			{Key: "<x>", Desc: "Stop"},
 			{Key: "<R>", Desc: "Restart"},
 			{Key: "<p>", Desc: "Pull"},

@@ -47,7 +47,7 @@ var mutating = map[string]bool{
 	"runtime_start": true, "runtime_shell": true,
 	"confirm_runtime_stop": true, "confirm_runtime_restart": true, "confirm_runtime_delete": true,
 	"runtime_new": true, "runtime_edit": true, "runtime_create": true, "runtime_apply": true,
-	"compose_up": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
+	"compose_up": true, "compose_edit": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
@@ -355,6 +355,8 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, nil
 	case "compose_up":
 		return a, a.composeUp(param)
+	case "compose_edit":
+		return a, a.composeEdit(param)
 	case "compose_restart":
 		return a, a.composeRestart(param)
 	case "compose_pull":

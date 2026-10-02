@@ -2,7 +2,13 @@ package tui
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -144,4 +150,95 @@ func (a *App) composeDown(name string) tea.Cmd {
 		return nil
 	}
 	return a.composeRun(p, "removing", "took down", (*docker.Compose).Down)
+}
+
+// composeEditedMsg reports the editor closing on a project's compose files.
+type composeEditedMsg struct {
+	err     error
+	project string
+	changed bool
+}
+
+// editorArgv is the user's editor as an argv: $VISUAL, then $EDITOR, then
+// vi, split on spaces so a value like "code --wait" works.
+func editorArgv() []string {
+	for _, env := range []string{"VISUAL", "EDITOR"} {
+		if f := strings.Fields(os.Getenv(env)); len(f) > 0 {
+			return f
+		}
+	}
+	return []string{"vi"}
+}
+
+// fileState fingerprints files' contents, so an edit that saves nothing
+// new — or quits without saving — reads as no change. A file that cannot
+// be read fingerprints as its error, which differs from any content.
+func fileState(files []string) string {
+	h := sha256.New()
+	for _, f := range files {
+		b, err := os.ReadFile(f) //nolint:gosec // compose files the project's labels record
+		if err != nil {
+			b = []byte("\x00" + err.Error())
+		}
+		h.Write([]byte(f + "\x00" + strconv.Itoa(len(b)) + "\x00"))
+		h.Write(b)
+	}
+	return string(h.Sum(nil))
+}
+
+// inTerminal hands the terminal to cmd until it exits, as tea.ExecProcess
+// does; tests swap it.
+func (a *App) inTerminal(cmd *exec.Cmd, fn tea.ExecCallback) tea.Cmd {
+	if a.execProcess != nil {
+		return a.execProcess(cmd, fn)
+	}
+	return tea.ExecProcess(cmd, fn)
+}
+
+// composeEdit opens a project's compose files in the user's editor and,
+// when they come back changed, runs `compose up -d` so the edit takes
+// effect — `kubectl edit` for a compose project. Files saved unchanged, or
+// an editor that exits non-zero (vim's :cq), leave the project alone.
+func (a *App) composeEdit(name string) tea.Cmd {
+	p, ok := a.composeProject(name)
+	if !ok {
+		return nil
+	}
+	if missing := p.MissingFile(); missing != "" {
+		a.errFlash = "cannot edit " + name + ": " + missing
+		return nil
+	}
+	argv := editorArgv()
+	bin, err := exec.LookPath(argv[0])
+	if err != nil {
+		a.errFlash = "editor " + argv[0] + " is not on PATH — set $EDITOR"
+		return nil
+	}
+	files := append([]string{}, p.ConfigFiles...)
+	before := fileState(files)
+	// context.Background(): the editing session is the user's, not a timeout's.
+	cmd := exec.CommandContext(
+		context.Background(),
+		bin,
+		append(argv[1:], files...)...,
+	) //nolint:gosec // the user's own editor on the project's own files
+	return a.inTerminal(cmd, func(err error) tea.Msg {
+		return composeEditedMsg{project: name, err: err, changed: fileState(files) != before}
+	})
+}
+
+func (a *App) handleComposeEdited(msg composeEditedMsg) (tea.Model, tea.Cmd) {
+	// The editor had the terminal; take the screen back whatever happened.
+	var exitErr *exec.ExitError
+	switch {
+	case errors.As(msg.err, &exitErr):
+		a.errFlash = fmt.Sprintf("editor exited %d — %s left as is", exitErr.ExitCode(), msg.project)
+	case msg.err != nil:
+		a.errFlash = "editor: " + msg.err.Error()
+	case !msg.changed:
+		a.flash = "no changes — " + msg.project + " left as is"
+	default:
+		return a, tea.Batch(a.composeUp(msg.project), tea.ClearScreen)
+	}
+	return a, tea.Batch(a.refreshActiveView(), tea.ClearScreen)
 }

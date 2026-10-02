@@ -30,6 +30,7 @@ is showing rather than the shell's current context.
 | Key | Verb | Confirms |
 |---|---|---|
 | `u` | `compose up -d` — creates what is missing, recreates what changed | no |
+| `e` | opens the compose files in the editor, then `compose up -d` if they changed | no |
 | `R` | `compose restart` | no |
 | `p` | `compose pull` | no |
 | `ctrl-d` | `compose down` — containers and networks; **volumes are kept** | yes |
@@ -48,7 +49,27 @@ machine", and the verbs fall back to what the Engine API can do on its own:
 - `u` starts the existing containers, and says so;
 - `R` restarts them one by one;
 - `ctrl-d` asks to force-remove them one by one;
-- `p` refuses, with the reason — there is nothing to pull without a file.
+- `p` refuses, with the reason — there is nothing to pull without a file;
+- `e` refuses too — there is no file to edit.
+
+## Editing
+
+`e` is `kubectl edit` for a project: every compose file the labels record
+opens in `$VISUAL`, else `$EDITOR`, else `vi` (split on spaces, so
+`code --wait` works), with the terminal handed over as `s` hands it to a
+shell. When the editor exits, `up -d` applies the edit — compose recreates
+only the services whose definition changed.
+
+Nothing runs unless the edit is one the user meant to keep:
+
+- the files are fingerprinted by **content** before and after, so quitting
+  without saving, or saving the same bytes, is "no changes" — an mtime
+  would call a plain `:w` a change and recreate nothing for no reason;
+- an editor that exits non-zero (vim's `:cq`) abandons the edit, even if
+  it wrote the file first, as `git commit` treats it.
+
+An edit that makes the file invalid is not caught up front: `up` fails and
+its reason is the flash, and the file stays as written for the next `e`.
 
 ## Long-running
 

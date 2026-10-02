@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -161,7 +162,7 @@ func TestComposeFailureSurfacesTheReason(t *testing.T) {
 
 func TestComposeReadonly(t *testing.T) {
 	a, f, _ := newComposeApp(t, Options{ReadOnly: true}, true)
-	for _, k := range []string{"u", "R", "p", "ctrl+d"} {
+	for _, k := range []string{"u", "e", "R", "p", "ctrl+d"} {
 		a.errFlash = ""
 		runOnce(a, step(a, key(k)))
 		if !strings.Contains(a.errFlash, "readonly") || a.confirm.Active() {
@@ -188,5 +189,102 @@ func runOnce(a *App, cmd tea.Cmd) {
 	case nil:
 	default:
 		step(a, m)
+	}
+}
+
+// fakeEditor makes $VISUAL a script running body, with the files to edit
+// as its arguments after --wait, and runs the editor in place of handing
+// it the terminal. It returns where the script logs its argv.
+func fakeEditor(t *testing.T, a *App, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	script, argv := filepath.Join(dir, "editor"), filepath.Join(dir, "argv")
+	src := "#!/bin/sh\necho \"$@\" > '" + argv + "'\nshift\n" + body + "\n"
+	if err := os.WriteFile(script, []byte(src), 0o700); err != nil { //nolint:gosec // a test script must be executable
+		t.Fatal(err)
+	}
+	t.Setenv("VISUAL", script+" --wait")
+	a.execProcess = func(c *exec.Cmd, fn tea.ExecCallback) tea.Cmd {
+		return func() tea.Msg { return fn(c.Run()) }
+	}
+	return argv
+}
+
+// editProject presses e and closes the editor, returning what the app does
+// next — the up, or nothing — without running it.
+func editProject(t *testing.T, a *App) tea.Cmd {
+	t.Helper()
+	cmd := step(a, key("e"))
+	if cmd == nil {
+		t.Fatalf("e opened no editor (err %q)", a.errFlash)
+	}
+	msg, ok := cmd().(composeEditedMsg)
+	if !ok {
+		t.Fatalf("editor finished with %T", msg)
+	}
+	return step(a, msg)
+}
+
+func TestComposeEditUpsAChangedFile(t *testing.T) {
+	a, f, dir := newComposeApp(t, Options{}, true)
+	file := filepath.Join(dir, "compose.yaml")
+	argv := fakeEditor(t, a, `printf 'x-edited: true\n' >> "$1"`)
+
+	runOnce(a, editProject(t, a))
+	got, _ := os.ReadFile(argv) //nolint:gosec // the test's own temp file
+	if want := "--wait " + file + "\n"; string(got) != want {
+		t.Errorf("editor argv = %q, want %q", got, want)
+	}
+	if got := f.last(); !strings.HasSuffix(got, " -f "+file+" up -d") {
+		t.Errorf("an edited file was not brought up: ran %q (err %q)", got, a.errFlash)
+	}
+}
+
+func TestComposeEditLeavesAnUnchangedProject(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, flash, errFlash string
+	}{
+		{name: "quit without saving", body: "true", flash: "no changes — shop left as is"},
+		{name: "saved the same bytes", body: `cp "$1" "$1.bak" && mv "$1.bak" "$1"`, flash: "no changes — shop left as is"},
+		// vim's :cq — an edit the user abandoned, even though the file changed.
+		{name: "editor failed", body: `printf 'half: \n' >> "$1"; exit 3`, errFlash: "editor exited 3 — shop left as is"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, f, _ := newComposeApp(t, Options{}, true)
+			fakeEditor(t, a, tc.body)
+			editProject(t, a) // a refresh and a redraw; nothing to run
+
+			if len(f.calls) != 0 {
+				t.Errorf("compose ran: %q", f.calls)
+			}
+			if a.flash != tc.flash || a.errFlash != tc.errFlash {
+				t.Errorf("flash %q err %q, want %q / %q", a.flash, a.errFlash, tc.flash, tc.errFlash)
+			}
+		})
+	}
+}
+
+func TestComposeEditNeedsTheFilesHere(t *testing.T) {
+	a, _, _ := newComposeApp(t, Options{}, false)
+	fakeEditor(t, a, "true")
+	if cmd := step(a, key("e")); cmd != nil || !strings.Contains(a.errFlash, "cannot edit shop") {
+		t.Errorf("e on a project whose files are elsewhere: cmd %v, err %q", cmd != nil, a.errFlash)
+	}
+}
+
+func TestEditorArgv(t *testing.T) {
+	for _, tc := range []struct {
+		visual, editor string
+		want           []string
+	}{
+		{visual: "code --wait", editor: "nano", want: []string{"code", "--wait"}},
+		{visual: "  ", editor: "nano", want: []string{"nano"}},
+		{want: []string{"vi"}},
+	} {
+		t.Setenv("VISUAL", tc.visual)
+		t.Setenv("EDITOR", tc.editor)
+		if got := editorArgv(); strings.Join(got, "|") != strings.Join(tc.want, "|") {
+			t.Errorf("VISUAL %q EDITOR %q: %q, want %q", tc.visual, tc.editor, got, tc.want)
+		}
 	}
 }
