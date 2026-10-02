@@ -29,8 +29,8 @@ services:
         i=0
         while true; do
           i=$$((i + 1))
-          echo "$$(date -u +%H:%M:%S) INF processed order id=$$((1000 + i)) items=$$((i % 5 + 1)) total=$$((i * 7 % 300)).00"
-          [ $$((i % 9)) -eq 0 ] && echo "$$(date -u +%H:%M:%S) WRN payment retry order=$$((1000 + i)) attempt=2"
+          echo "INF processed order id=$$((1000 + i)) items=$$((i % 5 + 1)) total=$$((i * 7 % 300)).00"
+          [ $$((i % 9)) -eq 0 ] && echo "WRN payment retry order=$$((1000 + i)) attempt=2"
           sleep 1
         done
 volumes:
