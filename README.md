@@ -62,7 +62,7 @@ Digits pick the resource; `?` shows everything.
 |---|---|---|---|
 | `0`–`6` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events | `/` | filter (leading `!` negates) |
 | `enter` | drill in — logs, layers, inspect | `:` | command palette |
-| `c` | on a ⎈ kind/k3d node: the pods' containers inside it | | |
+| `n` | on a ⎈ kind/k3d node: the pods' containers inside it | `d` / `y` | inspect, as `o` (k9s's describe / yaml) |
 | `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats; `C` copies files in or out (`docker cp`); `e` edits CPU/memory limits, restart policy and name, live (`docker update`, no restart) | `r` | refresh |
 | `u` / `x` | start ("up") / stop; on an image, `u` runs it (name, ports, env, volumes, command, `--rm`) | `R` | restart |
 | `K` | kill (SIGKILL — confirms) | `p` | pause / unpause |
@@ -72,10 +72,12 @@ Digits pick the resource; `?` shows everything.
 | `ctrl-w` | wide columns: ID, command, networks and IP | | |
 | `t` | toggle the CPU/MEM poll | `z` | volume sizes (slow) |
 | on a volume: `enter` | browse its files (`enter` opens, `esc` goes up) | `o` | inspect |
-| `f` | toggle log follow (scrolling pauses it, `G` resumes) | `T` | toggle log timestamps |
-| in a log: `0`–`5` | usual backlog / last 1m, 5m, 15m, 30m, 1h | `w` / `F` | wrap / fullscreen |
-| in a log: `c` / `ctrl-s` | copy / save what is shown (`~/.local/state/dockmaster/logs`) | `ctrl-k` | clear |
+| in a log: `s` | autoscroll on/off (scrolling pauses it, `G` resumes) | `t` | timestamps |
+| in a log: `0`–`5` | usual backlog / last 1m, 5m, 15m, 30m, 1h | `w` / `f` | wrap / fullscreen |
+| in a log: `c` / `ctrl-s` | copy / save what is shown (`~/.local/state/dockmaster/logs`) | `shift-c` | clear |
 | in a log: `m` | mark: a stamped rule at the end, so later lines are easy to find | | |
+
+The log keys are k9s's. Where k9s and Docker mean different things the key stays dockmaster's: `p` pauses (k9s's previous-container logs have no Docker equivalent — an exited container's logs are kept), `a` shows stopped containers, and `ctrl-k` shows Kubernetes containers rather than killing one (`K` kills, after a confirm).
 | `ctrl-s` | save the table as text (`~/.local/state/dockmaster/dumps`) | `shift-←/→` / `shift-↑/↓` | sort column / direction |
 | `space` / `ctrl-space` | mark a row / a range — lifecycle and remove keys then act on every marked row | `ctrl-\` | clear marks |
 | `ctrl-g` | toggle breadcrumbs | `ctrl-e` | toggle the header |

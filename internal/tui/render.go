@@ -295,16 +295,15 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	case style.ViewLogs:
 		actions = []chrome.Shortcut{
-			{Key: "<f>", Desc: "Follow"},
-			{Key: "<T>", Desc: "Timestamps"},
+			{Key: "<s>", Desc: "Autoscroll"},
+			{Key: "<t>", Desc: "Timestamps"},
 			{Key: "<w>", Desc: "Wrap"},
-			{Key: "<F>", Desc: "Fullscreen"},
+			{Key: "<f>", Desc: "Fullscreen"},
 			{Key: "<c>", Desc: "Copy"},
 			{Key: "<ctrl-s>", Desc: "Save"},
-			{Key: "<ctrl-k>", Desc: "Clear"},
+			{Key: "<shift-c>", Desc: "Clear"},
 			{Key: "<m>", Desc: "Mark"},
 			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<s>", Desc: "Shell"},
 			{Key: "<esc>", Desc: "Back"},
 		}
 	case style.ViewNode:
@@ -551,6 +550,8 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<6>", Desc: "Events"},
 					{Key: "<enter>", Desc: "Drill in"},
 					{Key: "<o>", Desc: "Inspect"},
+					{Key: "<d>", Desc: "Describe (inspect)"},
+					{Key: "<y>", Desc: "YAML (inspect)"},
 					{Key: "<a>", Desc: "Toggle stopped/all"},
 					{Key: "<ctrl-k>", Desc: "K8s containers"},
 					{Key: "<ctrl-z>", Desc: "Faults"},
@@ -569,7 +570,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<x>", Desc: "Stop"},
 					{Key: "<R>", Desc: "Restart"},
 					{Key: "<K>", Desc: "Kill (SIGKILL)"},
-					{Key: "<c>", Desc: "Node containers ⎈"},
+					{Key: "<n>", Desc: "Node containers ⎈"},
 					{Key: "<H>", Desc: "Health"},
 					{Key: "<T>", Desc: "Top (processes)"},
 					{Key: "<D>", Desc: "Diff (files)"},
@@ -618,16 +619,15 @@ func logsHelp() chrome.HelpSection {
 	}
 	s.Entries = append(
 		s.Entries,
-		chrome.HelpEntry{Key: "<f>", Desc: "Follow"},
-		chrome.HelpEntry{Key: "<T>", Desc: "Timestamps"},
+		chrome.HelpEntry{Key: "<s>", Desc: "Autoscroll"},
+		chrome.HelpEntry{Key: "<t>", Desc: "Timestamps"},
 		chrome.HelpEntry{Key: "<w>", Desc: "Wrap"},
-		chrome.HelpEntry{Key: "<F>", Desc: "Fullscreen"},
+		chrome.HelpEntry{Key: "<f>", Desc: "Fullscreen"},
 		chrome.HelpEntry{Key: "<c>", Desc: "Copy"},
 		chrome.HelpEntry{Key: "<ctrl-s>", Desc: "Save to file"},
-		chrome.HelpEntry{Key: "<ctrl-k>", Desc: "Clear"},
+		chrome.HelpEntry{Key: "<shift-c>", Desc: "Clear"},
 		chrome.HelpEntry{Key: "<m>", Desc: "Mark"},
 		chrome.HelpEntry{Key: "<o>", Desc: "Inspect"},
-		chrome.HelpEntry{Key: "<s>", Desc: "Shell"},
 	)
 	return s
 }

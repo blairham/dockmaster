@@ -415,8 +415,6 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 	switch key {
 	case "o":
 		return "inspect_container", v.containerID
-	case "s":
-		return "exec", v.containerID
 	case "x":
 		return "stop", v.containerID
 	case "R":
@@ -427,7 +425,9 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 
 // logKey maps the keys every log view shares, docker's and a kind node's:
 // follow, timestamps, the time ranges, wrap, fullscreen, copy, save,
-// clear and mark. Following k9s, except f, which was already follow here.
+// clear and mark. They are k9s's: s autoscroll, t timestamps, w wrap,
+// f fullscreen, c copy, shift-c clear (#3). The shell is a key on the
+// container, not the log, as in k9s — esc, then s.
 func logKey(key string) (string, string) {
 	for _, r := range LogRanges {
 		if key == r.Key {
@@ -435,19 +435,19 @@ func logKey(key string) (string, string) {
 		}
 	}
 	switch key {
-	case "f":
+	case "s":
 		return "toggle_follow", ""
-	case "T":
+	case "t":
 		return "toggle_timestamps", ""
 	case "w":
 		return "log_wrap", ""
-	case "F":
+	case "f":
 		return "fullscreen", ""
 	case "c":
 		return "log_copy", ""
 	case "ctrl+s":
 		return "log_save", ""
-	case "ctrl+k":
+	case "C":
 		return "log_clear", ""
 	case "m":
 		return "log_mark", ""
@@ -455,16 +455,13 @@ func logKey(key string) (string, string) {
 	return "", ""
 }
 
-// nodeKey is HandleKey for a container inside a node: follow, timestamps,
-// inspect and shell. Stop and restart would go to the docker daemon with a
+// nodeKey is HandleKey for a container inside a node: inspect. Stop and restart would go to the docker daemon with a
 // containerd ID it has never heard of, so they are not offered.
 func (v *LogsView) nodeKey(key string) (string, string) {
 	p := NodeParam(v.node, v.containerID, v.containerName)
 	switch key {
 	case "o":
 		return "node_inspect", p
-	case "s":
-		return "node_shell", p
 	}
 	return "", ""
 }
