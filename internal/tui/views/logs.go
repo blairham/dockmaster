@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Blair Hamilton
+// SPDX-License-Identifier: Apache-2.0
+
 package views
 
 import (
@@ -537,7 +540,7 @@ const logTabWidth = 4
 // left edge, an erase wipes out its right border. So: keep only what a
 // terminal would finally show after the last carriage return, drop every
 // escape that is not color, expand tabs, and remove the remaining control
-// characters.
+// characters, C1 included.
 func sanitizeLogText(s string) string {
 	s = strings.TrimRight(s, "\r\n")
 	if i := strings.LastIndexByte(s, '\r'); i >= 0 {
@@ -547,12 +550,18 @@ func sanitizeLogText(s string) string {
 	s = dropBrokenEscapes(s)
 	s = strings.ReplaceAll(s, "\t", strings.Repeat(" ", logTabWidth))
 	return strings.Map(func(r rune) rune {
-		if r == '\x1b' || r >= ' ' && r != 0x7f {
+		if r == '\x1b' || r >= ' ' && r != 0x7f && !isC1(r) {
 			return r
 		}
 		return -1
 	}, s)
 }
+
+// isC1 reports the C1 controls, U+0080–U+009F. Each is a one-character
+// form of an escape — U+009B is CSI, the same as ESC [ — and a terminal that
+// honors them would let a log line move the cursor or erase the frame
+// without an ESC anywhere in it.
+func isC1(r rune) bool { return r >= 0x80 && r <= 0x9f }
 
 // colorEscape is one complete SGR sequence.
 var colorEscape = regexp.MustCompile(`^\x1b\[[0-9;:]*m`)
