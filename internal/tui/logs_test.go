@@ -64,9 +64,9 @@ func TestLogWrapAndClear(t *testing.T) {
 	if !lv.Wrap() || !strings.Contains(render(a), "END") || !strings.Contains(render(a), "Wrap:On") {
 		t.Errorf("w did not wrap the long line, or the indicator does not say so (wrap %v)", lv.Wrap())
 	}
-	step(a, key("ctrl+k"))
+	step(a, key("C"))
 	if lv.Count() != 0 {
-		t.Errorf("ctrl-k left %d lines", lv.Count())
+		t.Errorf("shift-c left %d lines", lv.Count())
 	}
 	step(a, views.LogBatchMsg{Lines: []docker.LogLine{{Text: "after clear"}}})
 	if !strings.Contains(render(a), "after clear") {
@@ -100,13 +100,13 @@ func TestLogCopyAndSave(t *testing.T) {
 	}
 }
 
-// TestLogFullscreen: F hides header and crumbs; leaving the log puts back
+// TestLogFullscreen: f hides header and crumbs; leaving the log puts back
 // what was there, including a header already hidden with ctrl-e.
 func TestLogFullscreen(t *testing.T) {
 	a, _ := openLogs(t)
-	step(a, key("F"))
+	step(a, key("f"))
 	if !a.chrome.HeaderHidden || !a.chrome.CrumbsHidden || strings.Contains(render(a), "Context:") {
-		t.Fatal("F did not hide the header and crumbs")
+		t.Fatal("f did not hide the header and crumbs")
 	}
 	// No header, no crumbs: the box runs from the top line to the bottom.
 	lines := strings.Split(strings.TrimRight(render(a), "\n"), "\n")
@@ -121,10 +121,10 @@ func TestLogFullscreen(t *testing.T) {
 
 	b, _ := openLogs(t)
 	step(b, key("ctrl+e")) // the user hides the header first
-	step(b, key("F"))
-	step(b, key("F"))
+	step(b, key("f"))
+	step(b, key("f"))
 	if !b.chrome.HeaderHidden || b.chrome.CrumbsHidden {
-		t.Errorf("F twice: header hidden %v crumbs hidden %v, want the header the user hid to stay hidden",
+		t.Errorf("f twice: header hidden %v crumbs hidden %v, want the header the user hid to stay hidden",
 			b.chrome.HeaderHidden, b.chrome.CrumbsHidden)
 	}
 }
@@ -172,10 +172,10 @@ func TestLogHeaderAndIndicatorFollowTheLog(t *testing.T) {
 		t.Fatalf("indicator = %q", got)
 	}
 	step(a, key("w"))
-	step(a, key("F"))
+	step(a, key("f"))
 	step(a, key("k"))
 	if got := indicator(); !strings.Contains(got, "Autoscroll:Off FullScreen:On Timestamps:Off Wrap:On") {
-		t.Errorf("after w, F, k: indicator = %q", got)
+		t.Errorf("after w, f, k: indicator = %q", got)
 	}
 }
 

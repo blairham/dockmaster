@@ -191,10 +191,17 @@ func (a *App) updateActiveTable(msg tea.Msg) tea.Cmd {
 }
 
 func (a *App) activeViewHandleKey(key string) (string, string) {
-	if v := a.activeView(); v != nil {
-		return v.HandleKey(key)
+	v := a.activeView()
+	if v == nil {
+		return "", ""
 	}
-	return "", ""
+	action, param := v.HandleKey(key)
+	// k9s's d (describe) and y (yaml) open what o opens here, in any view
+	// that does not bind them itself (#3).
+	if action == "" && (key == "d" || key == "y") {
+		return v.HandleKey("o")
+	}
+	return action, param
 }
 
 func (a *App) setActiveFilter(filter string) {

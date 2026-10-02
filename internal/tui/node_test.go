@@ -51,9 +51,9 @@ func TestKindNodeDrillIn(t *testing.T) {
 		t.Fatalf("enter on a kind node opened %v, want its logs", a.view)
 	}
 	step(a, key("esc"))
-	step(a, key("c"))
+	step(a, key("n"))
 	if a.view != style.ViewNode {
-		t.Fatalf("c on a kind node opened %v, want the node view", a.view)
+		t.Fatalf("n on a kind node opened %v, want the node view", a.view)
 	}
 	nv := typedView[*views.NodeView](a, style.ViewNode)
 	if nv.Node() != "node0000worker" || nv.Title() != "k8s-worker" {
@@ -98,9 +98,9 @@ func TestKindNodeDrillIn(t *testing.T) {
 	for c, _ := cv.Selected(); c.Name != "nginx"; c, _ = cv.Selected() {
 		step(a, key("j"))
 	}
-	step(a, key("c"))
+	step(a, key("n"))
 	if a.view != style.ViewContainers || !strings.Contains(a.errFlash, "not a kind/k3d node") {
-		t.Errorf("c on a plain container: view %v flash %q, want an explanation", a.view, a.errFlash)
+		t.Errorf("n on a plain container: view %v flash %q, want an explanation", a.view, a.errFlash)
 	}
 	step(a, key("enter"))
 	if a.view != style.ViewLogs {

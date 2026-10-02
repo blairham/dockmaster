@@ -248,15 +248,15 @@ func TestRegistryIsPartOfTheCluster(t *testing.T) {
 	for c, _ := cv.Selected(); c.Name != "kind-registry"; c, _ = cv.Selected() {
 		step(a, key("j"))
 	}
-	step(a, key("c"))
+	step(a, key("n"))
 	if a.view != style.ViewContainers || !strings.Contains(a.errFlash, "local registry, not a node") {
-		t.Errorf("c on the registry: view %v flash %q", a.view, a.errFlash)
+		t.Errorf("n on the registry: view %v flash %q", a.view, a.errFlash)
 	}
 
 	step(a, key("g"))
-	step(a, key("c"))
+	step(a, key("n"))
 	if a.view != style.ViewNode {
-		t.Fatalf("c on the node opened %v", a.view)
+		t.Fatalf("n on the node opened %v", a.view)
 	}
 	step(a, views.NodeRefreshMsg{Node: "node0000worker", Containers: rigContainers()})
 	if out := render(a); !strings.Contains(out, "registry kind-registry · push to localhost:5001 · running") {
