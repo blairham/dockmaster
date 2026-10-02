@@ -15,7 +15,7 @@ import (
 )
 
 // logAction carries out the log view's own keys: time range, wrap, clear,
-// copy and save. None of them touches the daemon.
+// copy, save and mark. None of them touches the daemon.
 func (a *App) logAction(action, param string) tea.Cmd {
 	lv := typedView[*views.LogsView](a, style.ViewLogs)
 	if lv == nil {
@@ -36,6 +36,8 @@ func (a *App) logAction(action, param string) tea.Cmd {
 	case "log_wrap":
 		lv.ToggleWrap()
 		a.flash = "wrap " + onOff(lv.Wrap())
+	case "log_mark":
+		lv.Mark(time.Now())
 	case "log_clear":
 		lv.Clear()
 		a.flash = "cleared — new lines keep arriving"

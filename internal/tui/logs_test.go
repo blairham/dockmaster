@@ -131,7 +131,7 @@ func TestLogsHelpShowsTheLogKeys(t *testing.T) {
 	a, _ := openLogs(t)
 	step(a, key("?"))
 	out := render(a)
-	for _, want := range []string{"LOGS", "Last 5m", "Usual backlog", "Wrap", "Fullscreen", "Save to file", "Clear"} {
+	for _, want := range []string{"LOGS", "Last 5m", "Usual backlog", "Wrap", "Fullscreen", "Save to file", "Clear", "Mark"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("help over a log is missing %q", want)
 		}
@@ -173,5 +173,37 @@ func TestLogHeaderAndIndicatorFollowTheLog(t *testing.T) {
 	step(a, key("k"))
 	if got := indicator(); !strings.Contains(got, "Autoscroll:Off FullScreen:On Timestamps:Off Wrap:On") {
 		t.Errorf("after w, F, k: indicator = %q", got)
+	}
+}
+
+// TestLogMark: m draws a stamped rule at the end of what has arrived, so
+// the lines after it are the ones that came later — on screen, and in a
+// copy.
+func TestLogMark(t *testing.T) {
+	a, lv := openLogs(t)
+	step(a, key("m"))
+	step(a, views.LogBatchMsg{Lines: []docker.LogLine{{Text: "after the mark"}}})
+
+	text, n := lv.PlainText()
+	lines := strings.Split(text, "\n")
+	if n != 4 {
+		t.Fatalf("%d lines after a mark and one more, want 4:\n%s", n, text)
+	}
+	if !strings.Contains(lines[1], "END") || !strings.HasPrefix(lines[2], "───") || lines[3] != "after the mark" {
+		t.Errorf("the mark is not between what came before and after:\n%s", text)
+	}
+	if !strings.Contains(render(a), "───") {
+		t.Error("the mark is not drawn")
+	}
+}
+
+func TestLogMarkStampsTheTime(t *testing.T) {
+	lv := views.NewLogsView(nil, "abc", "web")
+	lv.Resize(40, 10)
+	at := time.Date(2026, 10, 1, 9, 5, 7, 0, time.Local)
+	lv.Mark(at)
+	text, _ := lv.PlainText()
+	if want := "─────────────── 09:05:07 ───────────────"; text != want { // the full 40 columns
+		t.Errorf("mark = %q\nwant   %q", text, want)
 	}
 }

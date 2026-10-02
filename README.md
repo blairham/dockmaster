@@ -56,6 +56,7 @@ Digits pick the resource; `?` shows everything.
 | `f` | toggle log follow (scrolling pauses it, `G` resumes) | `T` | toggle log timestamps |
 | in a log: `0`–`5` | usual backlog / last 1m, 5m, 15m, 30m, 1h | `w` / `F` | wrap / fullscreen |
 | in a log: `c` / `ctrl-s` | copy / save what is shown (`~/.local/state/dockmaster/logs`) | `ctrl-k` | clear |
+| in a log: `m` | mark: a stamped rule at the end, so later lines are easy to find | | |
 | `ctrl-g` | toggle breadcrumbs | `ctrl-e` | toggle the header |
 | `j` `k` `h` `l` | move (arrows work too) | `g` / `G` | top / bottom |
 | `ctrl-f` / `ctrl-b` | page down / up | `ctrl-r` | reload |

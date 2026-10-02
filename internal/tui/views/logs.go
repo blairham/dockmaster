@@ -114,6 +114,17 @@ func (v *LogsView) Wrap() bool { return v.tail.Wrap() }
 // Clear empties the buffer; the stream keeps appending.
 func (v *LogsView) Clear() { v.tail.Clear() }
 
+// Mark draws a rule across the log at its current end, stamped with now —
+// k9s's m — so what arrives after a moment (a retry, a deploy) is easy to
+// find again. A mark is a line like any other: it scrolls with the log,
+// is copied and saved with it, and a filter it does not match hides it.
+func (v *LogsView) Mark(now time.Time) {
+	stamp := " " + now.Local().Format("15:04:05") + " "
+	side := max((v.width-lipgloss.Width(stamp))/2, 3)
+	rule := strings.Repeat("─", side) + stamp + strings.Repeat("─", side)
+	v.tail.AppendLine(lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Bold(true).Render(rule))
+}
+
 // PlainText is what the view shows — filtered, styling stripped — for
 // saving or copying.
 func (v *LogsView) PlainText() (string, int) {
@@ -401,8 +412,8 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 }
 
 // logKey maps the keys every log view shares, docker's and a kind node's:
-// follow, timestamps, the time ranges, wrap, fullscreen, copy, save and
-// clear. Following k9s, except f, which was already follow here.
+// follow, timestamps, the time ranges, wrap, fullscreen, copy, save,
+// clear and mark. Following k9s, except f, which was already follow here.
 func logKey(key string) (string, string) {
 	for _, r := range LogRanges {
 		if key == r.Key {
@@ -424,6 +435,8 @@ func logKey(key string) (string, string) {
 		return "log_save", ""
 	case "ctrl+k":
 		return "log_clear", ""
+	case "m":
+		return "log_mark", ""
 	}
 	return "", ""
 }

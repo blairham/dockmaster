@@ -298,6 +298,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<c>", Desc: "Copy"},
 			{Key: "<ctrl-s>", Desc: "Save"},
 			{Key: "<ctrl-k>", Desc: "Clear"},
+			{Key: "<m>", Desc: "Mark"},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<s>", Desc: "Shell"},
 			{Key: "<esc>", Desc: "Back"},
@@ -594,6 +595,7 @@ func logsHelp() chrome.HelpSection {
 		chrome.HelpEntry{Key: "<c>", Desc: "Copy"},
 		chrome.HelpEntry{Key: "<ctrl-s>", Desc: "Save to file"},
 		chrome.HelpEntry{Key: "<ctrl-k>", Desc: "Clear"},
+		chrome.HelpEntry{Key: "<m>", Desc: "Mark"},
 		chrome.HelpEntry{Key: "<o>", Desc: "Inspect"},
 		chrome.HelpEntry{Key: "<s>", Desc: "Shell"},
 	)
