@@ -142,6 +142,17 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.setView(style.ViewDumps, views.NewDumpsView(root))
 		a.pushView(style.ViewDumps)
 		return a, a.viewMap[style.ViewDumps].Init()
+	case "scan_image":
+		a.setView(style.ViewScan, views.NewScanView(param, a.dockerHostArg()))
+		a.pushView(style.ViewScan)
+		return a, a.viewMap[style.ViewScan].Init()
+	case "vuln_detail":
+		report := param
+		v := views.NewInspectFetchView("vulnerability", func(context.Context) ([]byte, error) {
+			return []byte(report), nil
+		})
+		v.SetPlain()
+		return a.openReport(v)
 	case "lint":
 		a.setView(style.ViewLint, views.NewLintView(a.client))
 		a.pushView(style.ViewLint)

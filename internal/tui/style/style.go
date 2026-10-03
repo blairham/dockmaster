@@ -189,6 +189,7 @@ const (
 	ViewVolumeBrowse
 	ViewDumps
 	ViewLint
+	ViewScan
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -240,6 +241,8 @@ func ViewName(v ViewType) string {
 		return "Dumps"
 	case ViewLint:
 		return "Lint"
+	case ViewScan:
+		return "Scan"
 	default:
 		return "Unknown"
 	}
@@ -291,6 +294,8 @@ func ViewResource(v ViewType) string {
 		return "dump"
 	case ViewLint:
 		return "container"
+	case ViewScan:
+		return "vulnerabilitie"
 	default:
 		return ""
 	}

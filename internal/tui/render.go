@@ -208,6 +208,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<u>", Desc: "Run"},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<U>", Desc: "Used by"},
+			{Key: "<v>", Desc: "Scan"},
 			{Key: "<a>", Desc: "All"},
 			{Key: "<P>", Desc: "Prune"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
@@ -343,6 +344,13 @@ func (a *App) renderShortcuts(info []string) []string {
 	case style.ViewContexts:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Switch"},
+			{Key: "<esc>", Desc: "Back"},
+		}
+	case style.ViewScan:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Details"},
+			{Key: "<c>", Desc: "Copy ID"},
+			{Key: "<r>", Desc: "Rescan"},
 			{Key: "<esc>", Desc: "Back"},
 		}
 	case style.ViewLint:
@@ -584,6 +592,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<:ctx>", Desc: "Docker contexts"},
 					{Key: "<:sd>", Desc: "Saved dumps"},
 					{Key: "<:lint>", Desc: "Container lint"},
+					{Key: "<v>", Desc: "Scan image"},
 				},
 			},
 			{

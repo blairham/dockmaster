@@ -438,6 +438,13 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "pause", c.ID
 	case "s":
 		return "exec", c.ID
+	case "v":
+		// The container's image, by the ID it was created from: the tag
+		// may have moved to a newer image since.
+		if c.ImageID != "" {
+			return "scan_image", c.ImageID
+		}
+		return "scan_image", c.Image
 	case "A":
 		if !c.Running() {
 			return "not_running", c.Name
