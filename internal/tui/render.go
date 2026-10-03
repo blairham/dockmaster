@@ -321,6 +321,8 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	case style.ViewInspect:
 		actions = []chrome.Shortcut{
+			{Key: "</>", Desc: "Search"},
+			{Key: "<n>/<N>", Desc: "Next/Prev match"},
 			{Key: "<c>", Desc: "Copy"},
 			{Key: "<ctrl-s>", Desc: "Save"},
 			{Key: "<f>", Desc: "Fullscreen"},

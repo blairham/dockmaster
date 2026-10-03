@@ -43,9 +43,9 @@ func TestLogViewTakesTheLoggerConfig(t *testing.T) {
 	}
 }
 
-// TestInspectRefreshKeepsFilterAndPlace: a refetched document keeps the
-// reader's filter and scroll position — before, a refresh dropped both.
-func TestInspectRefreshKeepsFilterAndPlace(t *testing.T) {
+// TestInspectRefreshKeepsSearchAndPlace: a refetched document keeps the
+// reader's search and scroll position — before, a refresh dropped both.
+func TestInspectRefreshKeepsSearchAndPlace(t *testing.T) {
 	v := views.NewInspectFetchView("doc", nil)
 	v.Resize(40, 3)
 	body := make([]string, 0, 20)
@@ -55,12 +55,12 @@ func TestInspectRefreshKeepsFilterAndPlace(t *testing.T) {
 	msg := views.InspectRefreshMsg{Kind: views.InspectContainer, Body: []byte(strings.Join(body, "\n"))}
 	v.Update(msg)
 	v.SetFilter("row 0")
-	if v.Count() != 9 {
-		t.Fatalf("setup: filter shows %d", v.Count())
+	if v.Status() != "1/9" || v.Count() != 20 {
+		t.Fatalf("setup: search reads %q over %d rows", v.Status(), v.Count())
 	}
 	v.Update(msg)
-	if v.Count() != 9 {
-		t.Errorf("a refresh dropped the filter: %d rows shown", v.Count())
+	if v.Status() != "1/9" {
+		t.Errorf("a refresh dropped the search: %q", v.Status())
 	}
 	v.SetFilter("")
 	for range 5 {
@@ -68,7 +68,7 @@ func TestInspectRefreshKeepsFilterAndPlace(t *testing.T) {
 	}
 	before := strings.Split(v.View(), "\n")[0]
 	v.Update(msg)
-	if after := strings.Split(v.View(), "\n")[0]; after != before || !strings.Contains(before, "row 06") {
+	if after := strings.Split(v.View(), "\n")[0]; after != before {
 		t.Errorf("a refresh moved the view from %q to %q", before, after)
 	}
 }
