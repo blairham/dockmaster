@@ -119,6 +119,14 @@ func (a *App) inspectAction(action string) tea.Cmd {
 			return nil
 		}
 		a.flash = fmt.Sprintf("saved %d lines to %s", n, path)
+	case "search_next", "search_prev":
+		moved := iv.NextMatch
+		if action == "search_prev" {
+			moved = iv.PrevMatch
+		}
+		if !moved() {
+			a.errFlash = "no matches — / to search"
+		}
 	case "inspect_auto":
 		on := !a.inspectAutoRefresh()
 		iv.SetAutoRefresh(on)

@@ -76,7 +76,8 @@ Digits pick the resource; `?` shows everything.
 | in a log: `0`–`5` | usual backlog / last 1m, 5m, 15m, 30m, 1h | `w` / `f` | wrap / fullscreen |
 | in a log: `c` / `ctrl-s` | copy / save what is shown (`~/.local/state/dockmaster/logs`) | `shift-c` | clear |
 | in a log: `m` | mark: a stamped rule at the end, so later lines are easy to find | | |
-| in inspect: `c` / `ctrl-s` | copy / save what is shown (saves list in `:sd`) | `f` / `a` | fullscreen / refresh on the poll |
+| in inspect: `/` | search: matches highlighted, nothing hidden, the title counts them; `n` / `N` next / previous | `c` / `ctrl-s` | copy / save the document (saves list in `:sd`) |
+| in inspect: `f` | fullscreen | `a` | refresh on the poll |
 
 The log keys are k9s's. Where k9s and Docker mean different things the key stays dockmaster's: `p` pauses (k9s's previous-container logs have no Docker equivalent — an exited container's logs are kept), `a` shows stopped containers, and `ctrl-k` shows Kubernetes containers rather than killing one (`K` kills, after a confirm).
 | `ctrl-s` | save the table as text (`~/.local/state/dockmaster/dumps`) | `shift-←/→` / `shift-↑/↓` | sort column / direction |

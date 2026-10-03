@@ -157,8 +157,30 @@ func (v *InspectView) Count() int { return v.tail.VisibleCount() }
 // Loading reports whether the fetch is outstanding.
 func (v *InspectView) Loading() bool { return v.loading }
 
-// SetFilter applies a regex filter over the JSON lines.
-func (v *InspectView) SetFilter(f string) { v.tail.SetFilter(f) }
+// SetFilter is the / bar's text. Inspect searches rather than filters, as
+// k9s's describe view does (#6): every line stays, matches are highlighted,
+// and the view moves to the first one; n and N step between them.
+func (v *InspectView) SetFilter(f string) {
+	v.tail.SetSearch(f)
+	if f != "" {
+		v.tail.NextMatch()
+	}
+}
+
+// NextMatch and PrevMatch step between search matches, wrapping around.
+func (v *InspectView) NextMatch() bool { return v.tail.NextMatch() }
+
+// PrevMatch steps back to the previous search match.
+func (v *InspectView) PrevMatch() bool { return v.tail.PrevMatch() }
+
+// Status is the search counter for the border title: "3/17", or "0/0"
+// while a search matches nothing; "" with no search.
+func (v *InspectView) Status() string {
+	if v.tail.SearchExpr() == "" {
+		return ""
+	}
+	return fmt.Sprintf("%d/%d", v.tail.MatchIndex(), v.tail.Matches())
+}
 
 // AutoRefresh reports this view's own auto-refresh choice, and whether one
 // has been made; without one the app's liveViewAutoRefresh decides.
@@ -168,8 +190,9 @@ func (v *InspectView) AutoRefresh() (on, set bool) { return v.auto, v.autoSet }
 // liveViewAutoRefresh says.
 func (v *InspectView) SetAutoRefresh(on bool) { v.auto, v.autoSet = on, true }
 
-// PlainText is what the view shows — every line the filter lets through,
-// styling stripped — and how many lines that is, for copy and save.
+// PlainText is the document, styling stripped, and how many lines it is,
+// for copy and save. A search highlights rather than hides, so it is the
+// whole document whatever is being searched for.
 func (v *InspectView) PlainText() (string, int) {
 	lines := v.tail.VisibleLines()
 	for i, l := range lines {
@@ -191,6 +214,10 @@ func (v *InspectView) HandleKey(key string) (string, string) {
 		return "fullscreen", ""
 	case "a":
 		return "inspect_auto", ""
+	case "n":
+		return "search_next", ""
+	case "N":
+		return "search_prev", ""
 	}
 	if v.kind == InspectContainer {
 		switch key {
