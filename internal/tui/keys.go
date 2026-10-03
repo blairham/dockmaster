@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/chrome"
+	tktable "github.com/blairham/tuikit/table"
 	"github.com/blairham/tuikit/viewfsm"
 
 	"github.com/blairham/dockmaster/internal/docker"
@@ -354,6 +355,16 @@ func (a *App) handleHelpKey(key string) (tea.Model, tea.Cmd) {
 func (a *App) onFilterChange(value string) {
 	a.filter = value
 	a.setActiveFilter(value)
+	// A label filter can only match rows that have labels; anywhere else
+	// it empties the list, which reads like a broken filter unless said.
+	if tktable.ParseFilter(value).Kind() == tktable.FilterLabel && !labelledViews[a.view] {
+		a.flash = "-l filters labels: containers, images, volumes and networks have them, this view does not"
+	}
+}
+
+// labelledViews are the views whose rows carry labels a -l filter reads.
+var labelledViews = map[style.ViewType]bool{
+	style.ViewContainers: true, style.ViewImages: true, style.ViewVolumes: true, style.ViewNetworks: true,
 }
 
 // dispatchCommand parses a `:` command.

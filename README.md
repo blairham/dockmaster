@@ -60,7 +60,7 @@ Digits pick the resource; `?` shows everything.
 
 | | | | |
 |---|---|---|---|
-| `0`–`6` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events | `/` | filter (leading `!` negates) |
+| `0`–`6` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events | `/` | filter: a regex (leading `!` negates), `-f term` fuzzy, `-l k=v,k!=v,k,!k` by label |
 | `enter` | drill in — logs, layers, inspect | `:` | command palette |
 | `n` | on a ⎈ kind/k3d node: the pods' containers inside it | `d` / `y` | inspect, as `o` (k9s's describe / yaml) |
 | `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats; `C` copies files in or out (`docker cp`); `e` edits CPU/memory limits, restart policy and name, live (`docker update`, no restart) | `r` | refresh |

@@ -181,7 +181,7 @@ func (v *NetworksView) rebuildRows() {
 	v.visible = v.visible[:0]
 
 	for _, n := range v.all {
-		if !f.Empty() && !f.MatchesAny(n.Name, n.Driver, n.Subnet, n.Project, n.Short()) {
+		if !f.Empty() && !f.Match([]string{n.Name, n.Driver, n.Subnet, n.Project, n.Short()}, n.Labels) {
 			continue
 		}
 
