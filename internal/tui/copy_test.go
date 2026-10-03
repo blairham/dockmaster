@@ -4,83 +4,61 @@
 package tui
 
 import (
-	"errors"
-	"strings"
+	"fmt"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/blairham/dockmaster/internal/tui/style"
-	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
-// TestCopyForm: C opens docker cp for the selected container; the paths
-// are checked in the form, and the direction picks the action.
-func TestCopyForm(t *testing.T) {
+// clipboard runs cmd and returns what it asked the terminal to copy, ""
+// when it was not a clipboard request.
+func clipboard(cmd tea.Cmd) string {
+	if cmd == nil {
+		return ""
+	}
+	// The message type is unexported; it is a string named setClipboardMsg.
+	if m := cmd(); fmt.Sprintf("%T", m) == "tea.setClipboardMsg" {
+		return fmt.Sprint(m)
+	}
+	return ""
+}
+
+// TestCopyNameAndID: c copies the selected row's name and i its full ID,
+// in every table that has them (#5); where rows have no ID, i says so
+// instead of copying something else.
+func TestCopyNameAndID(t *testing.T) {
 	a := newTestApp(t)
 	loadContainers(a)
-	step(a, key("C"))
-	if a.view != style.ViewCopyForm {
-		t.Fatalf("C opened %v, want the copy form", a.view)
+	if got := clipboard(step(a, key("c"))); got != "web" || a.flash != "copied web" {
+		t.Errorf("c on a container copied %q (flash %q), want its name", got, a.flash)
 	}
-	f := typedView[*views.CopyFormView](a, style.ViewCopyForm)
-	if f.Title() != "copy web" {
-		t.Errorf("title %q", f.Title())
+	if got := clipboard(step(a, key("i"))); got != "aaaaaaaaaaaa1111" || a.flash != "copied ID aaaaaaaaaaaa1111" {
+		t.Errorf("i on a container copied %q (flash %q), want its full ID", got, a.flash)
 	}
 
-	typeText(a, "etc/nginx") // not absolute
-	step(a, key("enter"))
-	if a.view != style.ViewCopyForm || !strings.Contains(render(a), "absolute path") {
-		t.Fatalf("a relative container path was not refused:\n%s", render(a))
-	}
-	step(a, tea.KeyPressMsg{Code: tea.KeyHome})
-	typeText(a, "/")
-	if act, param := f.HandleKey("enter"); act != "copy_from" || !strings.Contains(param, `"/etc/nginx"`) {
-		t.Errorf("container → here: %q %q", act, param)
+	b := newTestApp(t)
+	loadImages(b)
+	step(b, key("1"))
+	loadImages(b)
+	if got := clipboard(step(b, key("c"))); got == "" || got == "<none>" {
+		t.Errorf("c on an image copied %q, want its reference", got)
 	}
 
-	step(a, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}) // back to Direction
-	step(a, tea.KeyPressMsg{Code: tea.KeyRight})
-	if s := f.Spec(); !s.Into || s.Container != "/etc/nginx" || s.Local != "." {
-		t.Fatalf("after flipping: %+v", s)
+	p, _, _ := newComposeApp(t, Options{}, true)
+	if got := clipboard(step(p, key("c"))); got != "shop" {
+		t.Errorf("c on a project copied %q, want its name", got)
 	}
-	if act, _ := f.HandleKey("enter"); act != "copy_into" {
-		t.Errorf("here → container submitted %q", act)
+	if got := clipboard(step(p, key("i"))); got != "" || p.errFlash == "" {
+		t.Errorf("i on a project copied %q (err %q); a project has no ID, so it should say so", got, p.errFlash)
 	}
 }
 
-// TestCopyReadonly: copying out only reads the container, so --readonly
-// allows it; copying in changes it, so --readonly refuses.
-func TestCopyReadonly(t *testing.T) {
-	a := NewApp(nil, Options{ReadOnly: true})
-	spec := `{"id":"x","name":"web","container":"/etc","local":".","into":true}`
-	a.handleAction("copy_into", spec)
-	if !strings.Contains(a.errFlash, "readonly") {
-		t.Errorf("copy_into under --readonly: flash %q", a.errFlash)
-	}
-	a.errFlash = ""
-	if _, cmd := a.handleAction(
-		"copy_from",
-		strings.Replace(spec, `"into":true`, `"into":false`, 1),
-	); cmd == nil ||
-		a.errFlash != "" {
-		t.Errorf("copy_from under --readonly was refused: flash %q", a.errFlash)
-	}
-}
-
-func TestCopyResult(t *testing.T) {
-	a := newTestApp(t)
-	loadContainers(a)
-	step(a, key("C"))
-	spec := views.CopySpec{ID: "x", Name: "web", Container: "/nope", Local: "./out"}
-	step(a, copyDoneMsg{spec: spec, err: errors.New("Could not find the file /nope in container web")})
-	if a.view != style.ViewCopyForm || !strings.Contains(render(a), "Could not find the file /nope") {
-		t.Fatalf("a failed copy did not land in the form:\n%s", render(a))
-	}
-	spec.Container = "/etc"
-	step(a, copyDoneMsg{spec: spec})
-	if a.view != style.ViewContainers || !strings.Contains(a.flash, "copied web:/etc → ") ||
-		!strings.HasSuffix(a.flash, "/out") {
-		t.Errorf("after a copy: view %v flash %q", a.view, a.flash)
+// TestCopyInLogsIsStillTheLog: c in a log copies the log's text, not a
+// row: the log view binds c itself, and a view's own key wins.
+func TestCopyInLogsIsStillTheLog(t *testing.T) {
+	a, _ := openLogs(t)
+	step(a, key("c"))
+	if a.flash == "copied web" {
+		t.Error("c in a log copied the container's name instead of the log")
 	}
 }

@@ -79,6 +79,7 @@ Digits pick the resource; `?` shows everything.
 
 The log keys are k9s's. Where k9s and Docker mean different things the key stays dockmaster's: `p` pauses (k9s's previous-container logs have no Docker equivalent — an exited container's logs are kept), `a` shows stopped containers, and `ctrl-k` shows Kubernetes containers rather than killing one (`K` kills, after a confirm).
 | `ctrl-s` | save the table as text (`~/.local/state/dockmaster/dumps`) | `shift-←/→` / `shift-↑/↓` | sort column / direction |
+| `c` | copy the row's name to the clipboard | `i` | copy its full ID |
 | `space` / `ctrl-space` | mark a row / a range — lifecycle and remove keys then act on every marked row | `ctrl-\` | clear marks |
 | `ctrl-g` | toggle breadcrumbs | `ctrl-e` | toggle the header |
 | `j` `k` `h` `l` | move (arrows work too) | `g` / `G` | top / bottom |
