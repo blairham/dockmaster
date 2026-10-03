@@ -20,25 +20,51 @@ import (
 // keys have passed on them: ctrl+s saves the table, shift+arrows sort it,
 // and space, ctrl+space and ctrl+\ mark rows. It reports whether the
 // key was one of them.
-func (a *App) tableKey(key string) bool {
+func (a *App) tableKey(key string) (tea.Cmd, bool) {
 	tv, ok := a.activeView().(views.Tabler)
 	if !ok {
-		return false
+		return nil, false
 	}
 	if key == chrome.KeySave {
 		a.saveTable(tv)
-		return true
+		return nil, true
+	}
+	if key == "c" || key == "i" {
+		if c, ok := tv.(views.Copier); ok {
+			return a.copyRow(c, key == "i"), true
+		}
 	}
 	if s, ok := tv.(views.SortKeyer); ok && s.SortKey(key) {
-		return true
+		return nil, true
 	}
 	if m, ok := tv.(views.Marker); ok && m.MarkKey(key) {
 		if n := m.MarkCount(); n > 0 {
 			a.flash = fmt.Sprintf("%d marked", n)
 		}
-		return true
+		return nil, true
 	}
-	return false
+	return nil, false
+}
+
+// copyRow puts the selected row's name — or, with id, its full ID — on the
+// clipboard, as k9s's c copies a resource's name (#5). The terminal does
+// the copy, through OSC 52, so it works over ssh too.
+func (a *App) copyRow(c views.Copier, id bool) tea.Cmd {
+	name, full, ok := c.CopyFields()
+	if !ok {
+		a.errFlash = "nothing selected to copy"
+		return nil
+	}
+	what, text := "", name
+	if id {
+		if full == "" {
+			a.errFlash = "these rows have no ID — c copies the name"
+			return nil
+		}
+		what, text = "ID ", full
+	}
+	a.flash = "copied " + what + text
+	return tea.SetClipboard(text)
 }
 
 // saveTable writes every row of the table — the filtered set, not only

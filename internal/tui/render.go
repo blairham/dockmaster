@@ -642,6 +642,8 @@ func generalHelp() chrome.HelpSection {
 		g.Entries,
 		chrome.HelpEntry{Key: "<r>", Desc: "Reload"},
 		chrome.HelpEntry{Key: "<ctrl-s>", Desc: "Save"},
+		chrome.HelpEntry{Key: "<c>", Desc: "Copy name"},
+		chrome.HelpEntry{Key: "<i>", Desc: "Copy ID"},
 		chrome.HelpEntry{Key: "<space>", Desc: "Mark"},
 		chrome.HelpEntry{Key: "<ctrl-space>", Desc: "Mark range"},
 		chrome.HelpEntry{Key: "<ctrl-\\>", Desc: "Clear marks"},

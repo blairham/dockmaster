@@ -303,8 +303,8 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a.handleAction(action, param)
 	}
 	// Then the keys every table shares.
-	if a.tableKey(key) {
-		return a, nil
+	if cmd, ok := a.tableKey(key); ok {
+		return a, cmd
 	}
 	// Then the user's plugins and hotkeys — after the view's own keys, so a
 	// view that binds the same key keeps it.
