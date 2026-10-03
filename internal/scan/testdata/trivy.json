@@ -1,0 +1,25 @@
+{
+  "Results": [
+    {
+      "Target": "bin/registry",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2024-24790",
+          "Severity": "CRITICAL",
+          "PkgName": "stdlib",
+          "InstalledVersion": "v1.20.8",
+          "FixedVersion": "1.21.11, 1.22.4",
+          "Title": "golang: net/netip: Unexpected behavior from Is methods for IPv4-mapped IPv6 addresses"
+        },
+        {
+          "VulnerabilityID": "CVE-2025-68121",
+          "Severity": "CRITICAL",
+          "PkgName": "stdlib",
+          "InstalledVersion": "v1.20.8",
+          "FixedVersion": "1.24.13, 1.25.7, 1.26.0-rc.3",
+          "Title": "crypto/tls: crypto/tls: Incorrect certificate validation during TLS session resumption"
+        }
+      ]
+    }
+  ]
+}

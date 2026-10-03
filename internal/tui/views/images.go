@@ -152,6 +152,12 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 		return "inspect_image", im.ID
 	case "U":
 		return "used_by", UsedByParam("image", im.ID, im.Ref())
+	case "v":
+		// Scan by reference, or by ID for an untagged image (#11).
+		if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
+			return "scan_image", im.ID
+		}
+		return "scan_image", im.Ref()
 	case "u":
 		// Run it: by reference, or by ID for a dangling image.
 		if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
