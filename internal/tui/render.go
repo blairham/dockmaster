@@ -207,6 +207,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<enter>", Desc: "Layers"},
 			{Key: "<u>", Desc: "Run"},
 			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<U>", Desc: "Used by"},
 			{Key: "<a>", Desc: "All"},
 			{Key: "<P>", Desc: "Prune"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
@@ -215,6 +216,7 @@ func (a *App) renderShortcuts(info []string) []string {
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Browse"},
 			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<U>", Desc: "Used by"},
 			{Key: "<z>", Desc: "Sizes"},
 			{Key: "<P>", Desc: "Prune"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
@@ -222,6 +224,7 @@ func (a *App) renderShortcuts(info []string) []string {
 	case style.ViewNetworks:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Inspect"},
+			{Key: "<U>", Desc: "Used by"},
 			{Key: "<P>", Desc: "Prune"},
 			{Key: "<ctrl-d>", Desc: "Remove"},
 		}
@@ -561,6 +564,8 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<o>", Desc: "Inspect"},
 					{Key: "<d>", Desc: "Describe (inspect)"},
 					{Key: "<y>", Desc: "YAML (inspect)"},
+					{Key: "<U>", Desc: "Used by"},
+					{Key: "<J>", Desc: "Jump to project"},
 					{Key: "<a>", Desc: "Toggle stopped/all"},
 					{Key: "<ctrl-k>", Desc: "K8s containers"},
 					{Key: "<ctrl-z>", Desc: "Faults"},

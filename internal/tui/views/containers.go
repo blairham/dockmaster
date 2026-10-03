@@ -89,6 +89,12 @@ type ContainersView struct {
 	client *docker.Client
 	err    error
 
+	// scopeMatch, when set, keeps only the containers it accepts, and
+	// scopeLabel names that in the title: the users of an image, volume
+	// or network (#8).
+	scopeMatch func(docker.Container) bool
+	scopeLabel string
+
 	// wide shows the ID, command, networks and address columns (ctrl+w);
 	// width is the last width, to refit the columns when they change.
 	wide  bool
@@ -216,6 +222,9 @@ func (v *ContainersView) ShowKube() bool { return v.showKube }
 // empty.
 func (v *ContainersView) Status() string {
 	var parts []string
+	if v.scopeLabel != "" {
+		parts = append(parts, v.scopeLabel)
+	}
 	if v.showFaults {
 		parts = append(parts, "faults")
 	}
@@ -395,6 +404,13 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "logs", c.ID
 	case "o":
 		return "inspect_container", c.ID
+	case "J":
+		// k9s's shift-j jumps to a resource's owner; a container's is its
+		// compose project.
+		if c.Project == "" {
+			return "no_project", c.Name
+		}
+		return "jump_project", c.Project
 	case "H":
 		return "health", c.ID
 	case "T":
@@ -520,6 +536,9 @@ func (v *ContainersView) rebuildRows() {
 			continue
 		}
 		if v.showFaults && !c.Fault() {
+			continue
+		}
+		if v.scopeMatch != nil && !v.scopeMatch(c) {
 			continue
 		}
 		if !f.Empty() && !f.MatchesAny(c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),
@@ -751,3 +770,23 @@ func (v *ContainersView) BulkKey(key string) []Action {
 		return Action{Name: name, Param: param, Label: c.Name}
 	})
 }
+
+// SetScope narrows the list to the containers match accepts — the users of
+// an image, a volume or a network (#8) — and names the narrowing in the
+// title, as "using image nginx". It lasts until ClearScope.
+func (v *ContainersView) SetScope(label string, match func(docker.Container) bool) {
+	v.scopeLabel, v.scopeMatch = label, match
+	v.rebuildRows()
+}
+
+// ClearScope lifts SetScope's narrowing.
+func (v *ContainersView) ClearScope() {
+	if v.scopeMatch == nil {
+		return
+	}
+	v.scopeLabel, v.scopeMatch = "", nil
+	v.rebuildRows()
+}
+
+// Scope is the active narrowing's label, "" when there is none.
+func (v *ContainersView) Scope() string { return v.scopeLabel }

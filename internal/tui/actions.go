@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -157,6 +158,18 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.setActiveFilter(param)
 		a.flash = "filtered to project " + param
 		return a, cmd
+
+	case "used_by":
+		return a, a.showUsedBy(param)
+	case "jump_project":
+		cmd := a.switchView(style.ViewProjects)
+		a.filter = "^" + regexp.QuoteMeta(param) + "$"
+		a.setActiveFilter(a.filter)
+		a.flash = "project " + param
+		return a, cmd
+	case "no_project":
+		a.errFlash = param + " is not part of a compose project"
+		return a, nil
 
 	case "switch_context":
 		name, host, _ := strings.Cut(param, "\x00")
@@ -829,4 +842,41 @@ func removeDump(path string) tea.Cmd {
 		}
 		return actionDoneMsg{verb: "deleted", subject: name, err: err}
 	}
+}
+
+// showUsedBy opens the containers that use an image, a volume or a network
+// (#8): every one, stopped included, since a stopped container still holds
+// what it uses. It is a drill-in, so esc goes back to the list it came from.
+func (a *App) showUsedBy(param string) tea.Cmd {
+	kind, key, name := splitUsedBy(param)
+	var match func(docker.Container) bool
+	switch kind {
+	case "image":
+		match = func(c docker.Container) bool { return c.UsesImage(key) }
+	case "volume":
+		match = func(c docker.Container) bool { return c.UsesVolume(key) }
+	case "network":
+		match = func(c docker.Container) bool { return c.OnNetwork(key) }
+	default:
+		return nil
+	}
+	cv := typedView[*views.ContainersView](a, style.ViewContainers)
+	if cv == nil {
+		return nil
+	}
+	cv.SetScope("using "+kind+" "+name, match)
+	var cmds []tea.Cmd
+	if !cv.ShowAll() {
+		cmds = append(cmds, cv.ToggleAll())
+	}
+	a.pushView(style.ViewContainers)
+	a.setActiveFilter("")
+	cmds = append(cmds, cv.Refresh())
+	return tea.Batch(cmds...)
+}
+
+func splitUsedBy(p string) (kind, key, name string) {
+	kind, rest, _ := strings.Cut(p, "\x00")
+	key, name, _ = strings.Cut(rest, "\x00")
+	return kind, key, name
 }
