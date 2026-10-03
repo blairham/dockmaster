@@ -20,8 +20,8 @@ brew install blairham/tap/dockmaster   # installs dockmaster and the dm short na
 ```
 
 Or download an archive from [Releases](https://github.com/blairham/dockmaster/releases)
-— `checksums.txt` is signed with cosign; [SECURITY.md](SECURITY.md#verifying-a-release)
-shows how to verify it. From source:
+— `checksums.txt` is signed with cosign and each archive carries SLSA build
+provenance; [SECURITY.md](SECURITY.md#verifying-a-release) shows how to verify both. From source:
 
 ```bash
 go install github.com/blairham/dockmaster@latest

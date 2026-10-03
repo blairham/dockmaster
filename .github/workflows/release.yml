@@ -23,9 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # the GitHub release and its assets
-      # Keyless cosign: the OIDC token is the signing identity — see signs in
-      # .goreleaser.yaml.
+      # Keyless cosign and the provenance attestation both sign with the
+      # workflow's OIDC identity — see signs in .goreleaser.yaml.
       id-token: write
+      attestations: write # store the provenance in the repository's attestations
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -79,3 +82,23 @@ jobs:
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
           MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+
+      # SLSA build provenance for every archive checksums.txt lists. GitHub
+      # stores it (`gh attestation verify`), and the bundle is also attached
+      # to the release as an .intoto.jsonl, so it can be checked offline and
+      # is found by tools (OpenSSF Scorecard's Signed-Releases) that look for
+      # provenance beside the artifacts.
+      - name: Attest build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: dist/checksums.txt
+
+      - name: Attach the provenance to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          cp "$BUNDLE" "$RUNNER_TEMP/dockmaster-$TAG.intoto.jsonl"
+          gh release upload "$TAG" "$RUNNER_TEMP/dockmaster-$TAG.intoto.jsonl" --clobber

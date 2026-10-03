@@ -76,5 +76,5 @@ including that no employer holds rights to it.
 
 Maintainers only. Tag a signed `vX.Y.Z` on `main`; the release workflow
 builds the binaries, signs `checksums.txt` with cosign, publishes the GitHub
-release, and updates the formula in
+release with SLSA build provenance attached, and updates the formula in
 [blairham/homebrew-tap](https://github.com/blairham/homebrew-tap).

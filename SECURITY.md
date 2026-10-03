@@ -31,8 +31,10 @@ Releases are signed with [cosign](https://github.com/sigstore/cosign) keyless
 signing: the signature is tied to the GitHub Actions workflow that built the
 release, not to a key someone could leak.
 
-`checksums.txt` is signed; it lists the digest of every archive. Verify the
-signature, then the archives against it:
+`checksums.txt` is signed; it lists the digest of every archive. Each archive
+also carries SLSA build provenance tying it to the workflow run and commit that
+built it. Verify the signature, then the archives against it, then the
+provenance:
 
 ```sh
 VERSION=v0.0.0
@@ -41,7 +43,18 @@ cosign verify-blob \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --bundle checksums.txt.sigstore.json checksums.txt
 sha256sum --check --ignore-missing checksums.txt
+gh attestation verify dockmaster_Darwin_arm64.tar.gz --repo blairham/dockmaster
 ```
+
+The provenance bundle is also attached to the release as
+`dockmaster-$VERSION.intoto.jsonl`, for checking offline:
+
+```sh
+gh attestation verify dockmaster_Darwin_arm64.tar.gz --repo blairham/dockmaster \
+  --bundle "dockmaster-$VERSION.intoto.jsonl"
+```
+
+v0.0.0 predates the provenance and has the cosign signature only.
 
 ## Reporting a vulnerability
 
