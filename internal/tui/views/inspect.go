@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/blairham/tuikit/tail"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
@@ -67,6 +68,10 @@ type InspectView struct {
 
 	loading  bool
 	inFlight bool
+
+	// autoSet records that a was pressed here; until then the view
+	// refreshes on the poll exactly when liveViewAutoRefresh says so.
+	autoSet, auto bool
 
 	// fetch, when set, replaces the daemon call: the view shows whatever
 	// it returns — a runtime's own description of a machine, say.
@@ -155,8 +160,38 @@ func (v *InspectView) Loading() bool { return v.loading }
 // SetFilter applies a regex filter over the JSON lines.
 func (v *InspectView) SetFilter(f string) { v.tail.SetFilter(f) }
 
-// HandleKey maps a keystroke to an app action.
+// AutoRefresh reports this view's own auto-refresh choice, and whether one
+// has been made; without one the app's liveViewAutoRefresh decides.
+func (v *InspectView) AutoRefresh() (on, set bool) { return v.auto, v.autoSet }
+
+// SetAutoRefresh makes this view refresh on the poll, or stop, whatever
+// liveViewAutoRefresh says.
+func (v *InspectView) SetAutoRefresh(on bool) { v.auto, v.autoSet = on, true }
+
+// PlainText is what the view shows — every line the filter lets through,
+// styling stripped — and how many lines that is, for copy and save.
+func (v *InspectView) PlainText() (string, int) {
+	lines := v.tail.VisibleLines()
+	for i, l := range lines {
+		lines[i] = ansi.Strip(l)
+	}
+	return strings.Join(lines, "\n"), len(lines)
+}
+
+// HandleKey maps a keystroke to an app action. c, ctrl-s and f are k9s's
+// keys on a describe view, as they are on a log (#6); a toggles refreshing
+// on the poll.
 func (v *InspectView) HandleKey(key string) (string, string) {
+	switch key {
+	case "c":
+		return "inspect_copy", ""
+	case "ctrl+s":
+		return "inspect_save", ""
+	case "f":
+		return "fullscreen", ""
+	case "a":
+		return "inspect_auto", ""
+	}
 	if v.kind == InspectContainer {
 		switch key {
 		case "l":

@@ -316,7 +316,15 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<ctrl-d>", Desc: "Remove Exited"},
 			{Key: "<esc>", Desc: "Back"},
 		}
-	case style.ViewInspect, style.ViewLayers:
+	case style.ViewInspect:
+		actions = []chrome.Shortcut{
+			{Key: "<c>", Desc: "Copy"},
+			{Key: "<ctrl-s>", Desc: "Save"},
+			{Key: "<f>", Desc: "Fullscreen"},
+			{Key: "<a>", Desc: "Auto-refresh"},
+			{Key: "<esc>", Desc: "Back"},
+		}
+	case style.ViewLayers:
 		actions = []chrome.Shortcut{
 			{Key: "<ctrl-f>", Desc: "PgDn"},
 			{Key: "<ctrl-b>", Desc: "PgUp"},

@@ -167,7 +167,7 @@ var polled = map[style.ViewType]bool{
 // refreshPolledView is the tick's refresh: a no-op unless the active view
 // is one that benefits from polling.
 func (a *App) refreshPolledView() tea.Cmd {
-	if !polled[a.view] && (!a.liveRefresh || a.view != style.ViewInspect) {
+	if !polled[a.view] && !a.inspectAutoRefresh() {
 		return nil
 	}
 	return a.refreshActiveView()
