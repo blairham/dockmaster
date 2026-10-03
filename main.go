@@ -209,6 +209,7 @@ func run() error {
 		Engines:         providers,
 		StartOnRuntimes: startOnRuntimes,
 		Notice:          notice,
+		HistoryFile:     historyFile(),
 	})
 
 	// Alt-screen and mouse mode are per-View in bubbletea v2 (set in
@@ -304,4 +305,14 @@ func contextHost(name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// historyFile is where the command and filter bars remember what was typed
+// between runs, "" when there is no state directory to keep it in.
+func historyFile() string {
+	dir, err := config.StateDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "history.json")
 }
