@@ -287,21 +287,45 @@ func toPodmanRow(t *testing.T, a *App) {
 	t.Fatal("no podman row")
 }
 
-// TestRuntimesListInParallel: two runtimes each slow to answer cost the
-// refresh one wait, not two, and the rows keep provider order.
+// TestRuntimesListInParallel: two runtimes slow to answer are asked at the
+// same time, not one after the other, and the rows keep provider order.
+//
+// Each fake waits until both are in flight before answering — a rendezvous
+// only a parallel refresh can reach. A serial one leaves the first waiting
+// alone until its timeout, which the test sees as a miss. Unlike timing the
+// refresh, this cannot fail because the machine is busy (#23).
 func TestRuntimesListInParallel(t *testing.T) {
-	const delay = 300 * time.Millisecond
+	var (
+		mu      sync.Mutex
+		waiting int
+		met     = make(chan struct{})
+		alone   []string
+	)
 	slow := func(name string) engines.Single {
 		return engines.Single{
 			Engine: name, Host: "tcp://" + name,
-			Ping: func(context.Context, string) bool { time.Sleep(delay); return true },
+			Ping: func(context.Context, string) bool {
+				mu.Lock()
+				waiting++
+				if waiting == 2 {
+					close(met)
+				}
+				mu.Unlock()
+				select {
+				case <-met:
+				case <-time.After(2 * time.Second):
+					mu.Lock()
+					alone = append(alone, name)
+					mu.Unlock()
+				}
+				return true
+			},
 		}
 	}
 	v := views.NewRuntimesView([]engines.Provider{slow(engines.OrbStackName), slow(engines.RancherDesktopName)}, "")
-	start := time.Now()
 	msg, ok := v.Refresh()().(views.RuntimesRefreshMsg)
-	if el := time.Since(start); el >= 2*delay {
-		t.Errorf("refresh took %v; the runtimes were listed one after another", el)
+	if len(alone) > 0 {
+		t.Errorf("%v was asked with no other runtime in flight; the runtimes were listed one after another", alone)
 	}
 	if !ok || len(msg.Machines) != 2 || msg.Machines[0].Name != engines.OrbStackName ||
 		msg.Machines[1].Name != engines.RancherDesktopName {
