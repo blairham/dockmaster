@@ -6,12 +6,14 @@ package docker
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/client"
 )
 
@@ -25,6 +27,7 @@ type Container struct {
 	ID      string
 	Name    string
 	Image   string
+	ImageID string // the image's full ID, which names it exactly
 	Command string
 	State   string // created|running|paused|restarting|removing|exited|dead
 	Status  string // human blurb, e.g. "Up 3 hours (healthy)"
@@ -39,6 +42,9 @@ type Container struct {
 	// address on each, sorted by network name. PortList is its port map.
 	Endpoints []Endpoint
 	PortList  []PortMapping
+	// Volumes are the named volumes mounted, sorted; bind mounts and
+	// tmpfs are not volumes and are left out.
+	Volumes []string
 
 	SizeRw int64
 }
@@ -55,6 +61,24 @@ type PortMapping struct {
 	Type    string
 	Private uint16
 	Public  uint16
+}
+
+// UsesImage reports whether the container was created from the image with
+// this full ID. The ID, not the name: a tag can move, and the container
+// keeps the image it was created from.
+func (c Container) UsesImage(id string) bool { return id != "" && c.ImageID == id }
+
+// UsesVolume reports whether the named volume is mounted in the container.
+func (c Container) UsesVolume(name string) bool { return slices.Contains(c.Volumes, name) }
+
+// OnNetwork reports whether the container is attached to the named network.
+func (c Container) OnNetwork(name string) bool {
+	for _, e := range c.Endpoints {
+		if e.Network == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Running reports whether this container is currently executing. Paused
@@ -140,11 +164,20 @@ func newContainer(s container.Summary) Container {
 	if net == "" {
 		net = s.HostConfig.NetworkMode
 	}
+	var volumes []string
+	for _, m := range s.Mounts {
+		if m.Type == mount.TypeVolume && m.Name != "" {
+			volumes = append(volumes, m.Name)
+		}
+	}
+	sort.Strings(volumes)
 
 	return Container{
 		ID:        s.ID,
 		Name:      name,
 		Image:     s.Image,
+		ImageID:   s.ImageID,
+		Volumes:   volumes,
 		Command:   s.Command,
 		Created:   time.Unix(s.Created, 0),
 		State:     string(s.State),

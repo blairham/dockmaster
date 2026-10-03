@@ -24,6 +24,7 @@ func (a *App) showView(v style.ViewType) tea.Cmd {
 	a.stopStoppableViews()
 	// Fullscreen belongs to the log it was turned on in.
 	a.setFullscreen(false)
+	a.clearContainerScope()
 	a.viewStack = nil
 	a.view = v
 	a.showHelp = false
@@ -59,6 +60,9 @@ func (a *App) popView() {
 	}
 	// Fullscreen belongs to the log it was turned on in.
 	a.setFullscreen(false)
+	if a.view == style.ViewContainers {
+		a.clearContainerScope()
+	}
 	// The view being left is a drill-in; if it holds a stream, it is
 	// genuinely finished with, so stop that one specifically.
 	if s, ok := a.viewMap[a.view].(views.Stoppable); ok {
@@ -258,4 +262,12 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewLogs
 	}
 	return true
+}
+
+// clearContainerScope lifts a "used by" narrowing when the containers view
+// it was opened for is left, so the next visit lists everything again.
+func (a *App) clearContainerScope() {
+	if cv := typedView[*views.ContainersView](a, style.ViewContainers); cv != nil {
+		cv.ClearScope()
+	}
 }

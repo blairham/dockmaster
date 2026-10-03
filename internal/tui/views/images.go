@@ -150,6 +150,8 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 		return "layers", im.ID
 	case "o":
 		return "inspect_image", im.ID
+	case "U":
+		return "used_by", UsedByParam("image", im.ID, im.Ref())
 	case "u":
 		// Run it: by reference, or by ID for a dangling image.
 		if im.Dangling || im.Repo == "" || im.Repo == "<none>" {

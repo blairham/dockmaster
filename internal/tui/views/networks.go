@@ -131,6 +131,8 @@ func (v *NetworksView) HandleKey(key string) (string, string) {
 // keyFor is the action key asks for on one row.
 func (v *NetworksView) keyFor(key string, n docker.Network) (string, string) {
 	switch key {
+	case "U":
+		return "used_by", UsedByParam("network", n.Name, n.Name)
 	case KeyEnter, "o":
 		return "inspect_network", n.ID
 	case "P":
