@@ -192,7 +192,7 @@ func (v *VolumesView) rebuildRows() {
 	v.visible = v.visible[:0]
 
 	for _, vol := range v.all {
-		if !f.Empty() && !f.MatchesAny(vol.Name, vol.Driver, vol.Project, vol.Mountpoint) {
+		if !f.Empty() && !f.Match([]string{vol.Name, vol.Driver, vol.Project, vol.Mountpoint}, vol.Labels) {
 			continue
 		}
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 )
 
@@ -29,6 +30,9 @@ type Image struct {
 	Containers int64 // -1 when the daemon did not calculate it
 
 	Dangling bool
+
+	// Labels are the image's own labels (its LABEL lines), for -l filters.
+	Labels map[string]string
 }
 
 // Ref is the repo:tag reference, or <none>:<none> for a dangling layer.
@@ -70,47 +74,7 @@ func (c *Client) Images(ctx context.Context, all bool) ([]Image, error) {
 		return nil, fmt.Errorf("listing images: %w", err)
 	}
 
-	out := make([]Image, 0, len(res.Items))
-	for _, s := range res.Items {
-		digest := ""
-		if len(s.RepoDigests) > 0 {
-			if _, d, ok := strings.Cut(s.RepoDigests[0], "@"); ok {
-				digest = shortID(d)
-			}
-		}
-		base := Image{
-			ID:         s.ID,
-			Digest:     digest,
-			Created:    time.Unix(s.Created, 0),
-			Size:       s.Size,
-			Containers: s.Containers,
-		}
-
-		tags := s.RepoTags
-		// A dangling image has no RepoTags at all — or the daemon reports
-		// the literal "<none>:<none>" placeholder, which must not be shown
-		// as if it were a real repository name.
-		tags = keepRealTags(tags)
-		if len(tags) == 0 {
-			base.Dangling = true
-			out = append(out, base)
-			continue
-		}
-		for _, t := range tags {
-			row := base
-			repo, tag, ok := strings.Cut(t, ":")
-			// Cut on the LAST colon: a registry with a port (localhost:5000/x)
-			// puts a colon in the repo half too.
-			if idx := strings.LastIndexByte(t, ':'); idx > strings.LastIndexByte(t, '/') {
-				repo, tag, ok = t[:idx], t[idx+1:], true
-			}
-			if !ok {
-				repo, tag = t, "latest"
-			}
-			row.Repo, row.Tag = repo, tag
-			out = append(out, row)
-		}
-	}
+	out := imageRows(res.Items)
 
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Repo != out[j].Repo {
@@ -229,4 +193,52 @@ func (c *Client) PruneImages(ctx context.Context, danglingOnly bool) (deleted in
 		return 0, 0, fmt.Errorf("pruning images: %w", err)
 	}
 	return len(res.Report.ImagesDeleted), res.Report.SpaceReclaimed, nil
+}
+
+// imageRows flattens the daemon's image summaries into rows: one per tag,
+// and one for an image with no real tag, marked dangling.
+func imageRows(items []image.Summary) []Image {
+	out := make([]Image, 0, len(items))
+	for _, s := range items {
+		digest := ""
+		if len(s.RepoDigests) > 0 {
+			if _, d, ok := strings.Cut(s.RepoDigests[0], "@"); ok {
+				digest = shortID(d)
+			}
+		}
+		base := Image{
+			ID:         s.ID,
+			Digest:     digest,
+			Created:    time.Unix(s.Created, 0),
+			Size:       s.Size,
+			Containers: s.Containers,
+			Labels:     s.Labels,
+		}
+
+		tags := s.RepoTags
+		// A dangling image has no RepoTags at all — or the daemon reports
+		// the literal "<none>:<none>" placeholder, which must not be shown
+		// as if it were a real repository name.
+		tags = keepRealTags(tags)
+		if len(tags) == 0 {
+			base.Dangling = true
+			out = append(out, base)
+			continue
+		}
+		for _, t := range tags {
+			row := base
+			repo, tag, ok := strings.Cut(t, ":")
+			// Cut on the LAST colon: a registry with a port (localhost:5000/x)
+			// puts a colon in the repo half too.
+			if idx := strings.LastIndexByte(t, ':'); idx > strings.LastIndexByte(t, '/') {
+				repo, tag, ok = t[:idx], t[idx+1:], true
+			}
+			if !ok {
+				repo, tag = t, "latest"
+			}
+			row.Repo, row.Tag = repo, tag
+			out = append(out, row)
+		}
+	}
+	return out
 }

@@ -541,8 +541,10 @@ func (v *ContainersView) rebuildRows() {
 		if v.scopeMatch != nil && !v.scopeMatch(c) {
 			continue
 		}
-		if !f.Empty() && !f.MatchesAny(c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),
-			k.Namespace, k.Pod, k.Container) {
+		if !f.Empty() && !f.Match([]string{
+			c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),
+			k.Namespace, k.Pod, k.Container,
+		}, c.Labels) {
 			continue
 		}
 

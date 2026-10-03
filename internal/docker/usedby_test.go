@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/mount"
 )
 
@@ -32,5 +33,22 @@ func TestContainerUsage(t *testing.T) {
 	}
 	if !c.UsesVolume("pgdata") || c.UsesVolume("/srv/www") {
 		t.Error("UsesVolume matched a bind mount, or missed a volume")
+	}
+}
+
+// TestImageRowsKeepLabels: each row of an image carries the image's labels,
+// which -l filters read (#7).
+func TestImageRowsKeepLabels(t *testing.T) {
+	rows := imageRows([]image.Summary{{
+		ID: "sha256:a", RepoTags: []string{"app:1", "app:latest"},
+		Labels: map[string]string{"org.opencontainers.image.source": "x"},
+	}})
+	if len(rows) != 2 {
+		t.Fatalf("got %d rows, want one per tag", len(rows))
+	}
+	for _, r := range rows {
+		if r.Labels["org.opencontainers.image.source"] != "x" {
+			t.Errorf("%s:%s lost the image's labels: %v", r.Repo, r.Tag, r.Labels)
+		}
 	}
 }

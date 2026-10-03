@@ -215,7 +215,7 @@ func (v *ImagesView) rebuildRows() {
 	v.visible = v.visible[:0]
 
 	for _, im := range v.all {
-		if !f.Empty() && !f.MatchesAny(im.Repo, im.Tag, im.Ref(), im.Short()) {
+		if !f.Empty() && !f.Match([]string{im.Repo, im.Tag, im.Ref(), im.Short()}, im.Labels) {
 			continue
 		}
 
