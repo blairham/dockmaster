@@ -438,6 +438,11 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "pause", c.ID
 	case "s":
 		return "exec", c.ID
+	case "A":
+		if !c.Running() {
+			return "not_running", c.Name
+		}
+		return "attach", c.ID
 	case "a":
 		return "toggle_all", ""
 	case "ctrl+k":
