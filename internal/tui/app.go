@@ -122,6 +122,7 @@ type App struct {
 	requestTimeout time.Duration
 	// thresholds survive a context switch, which rebuilds the views.
 	thresholds      views.Thresholds
+	historyFile     string
 	commandBar      *chrome.CommandBar
 	filterBar       *chrome.FilterBar
 	prompt          *chrome.Prompt
@@ -210,6 +211,9 @@ type Options struct {
 	LogSince  time.Duration
 	// LiveRefresh refreshes inspect views on the tick.
 	LiveRefresh bool
+	// HistoryFile is where the command and filter bars' history is kept
+	// between runs; "" keeps it for this run only.
+	HistoryFile string
 	// Aliases are the user's `:` command names (aliases.yaml), validated by
 	// ValidateAliases.
 	Aliases map[string]string
@@ -302,6 +306,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 	a := &App{
 		client:         client,
 		viewMap:        vm,
+		historyFile:    opts.HistoryFile,
 		commandBar:     commandBar,
 		filterBar:      filterBar,
 		prompt:         chrome.NewPrompt(t, chrome.PromptOpts{CharLimit: 256}),
@@ -331,6 +336,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		thresholds:     opts.Thresholds,
 	}
 	a.history.Visit(viewfsm.ViewID(startView))
+	a.loadHistory(opts.HistoryFile)
 	return a
 }
 
@@ -498,6 +504,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 
 // shutdown is the single teardown path (ctrl-c, :q).
 func (a *App) shutdown() {
+	_ = a.saveHistory(a.historyFile) //nolint:errcheck // a convenience; the process is exiting
 	a.stopStoppableViews()
 	a.stopSessionForwards()
 	if a.client != nil {
