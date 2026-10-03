@@ -224,6 +224,8 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, nil
 	case "log_range", "log_wrap", "log_clear", "log_copy", "log_save", "log_mark":
 		return a, a.logAction(action, param)
+	case "inspect_copy", "inspect_save", "inspect_auto":
+		return a, a.inspectAction(action)
 	case "fullscreen":
 		a.setFullscreen(!a.fullscreen)
 		return a, nil

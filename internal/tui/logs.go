@@ -90,3 +90,55 @@ func (a *App) setFullscreen(on bool) {
 	}
 	a.resizeActiveView()
 }
+
+// inspectAction carries out the inspect view's own keys: copy and save
+// what it shows, and toggle refreshing on the poll (#6).
+func (a *App) inspectAction(action string) tea.Cmd {
+	iv := typedView[*views.InspectView](a, style.ViewInspect)
+	if iv == nil {
+		return nil
+	}
+	switch action {
+	case "inspect_copy":
+		text, n := iv.PlainText()
+		if n == 0 {
+			a.errFlash = "nothing to copy"
+			return nil
+		}
+		a.flash = fmt.Sprintf("copied %d lines", n)
+		return tea.SetClipboard(text)
+	case "inspect_save":
+		text, n := iv.PlainText()
+		if n == 0 {
+			a.errFlash = "nothing to save"
+			return nil
+		}
+		path, err := saveDump("dumps", iv.Title(), text)
+		if err != nil {
+			a.errFlash = "saving " + iv.Title() + ": " + err.Error()
+			return nil
+		}
+		a.flash = fmt.Sprintf("saved %d lines to %s", n, path)
+	case "inspect_auto":
+		on := !a.inspectAutoRefresh()
+		iv.SetAutoRefresh(on)
+		a.flash = "auto-refresh " + onOff(on)
+	}
+	return nil
+}
+
+// inspectAutoRefresh reports whether the open inspect view refreshes on the
+// poll: its own a toggle when pressed, liveViewAutoRefresh otherwise.
+func (a *App) inspectAutoRefresh() bool {
+	if a.view != style.ViewInspect {
+		return false
+	}
+	iv := typedView[*views.InspectView](a, style.ViewInspect)
+	if iv == nil {
+		return a.liveRefresh
+	}
+	if on, set := iv.AutoRefresh(); set {
+		return on
+	}
+	return a.liveRefresh
+}
