@@ -252,6 +252,8 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewContexts
 	case views.DumpsRefreshMsg:
 		return a.view == style.ViewDumps
+	case views.LintRefreshMsg:
+		return a.view == style.ViewLint
 	case views.DiskUsageRefreshMsg:
 		return a.view == style.ViewDiskUsage
 	case views.PortForwardsRefreshMsg:

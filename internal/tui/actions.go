@@ -142,6 +142,25 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.setView(style.ViewDumps, views.NewDumpsView(root))
 		a.pushView(style.ViewDumps)
 		return a, a.viewMap[style.ViewDumps].Init()
+	case "lint":
+		a.setView(style.ViewLint, views.NewLintView(a.client))
+		a.pushView(style.ViewLint)
+		return a, a.viewMap[style.ViewLint].Init()
+	case "lint_detail":
+		lv := typedView[*views.LintView](a, style.ViewLint)
+		if lv == nil {
+			return a, nil
+		}
+		r, ok := lv.Result(param)
+		if !ok {
+			return a, nil
+		}
+		report := views.LintReport(r)
+		v := views.NewInspectFetchView(r.Container.Name+" lint", func(context.Context) ([]byte, error) {
+			return []byte(report), nil
+		})
+		v.SetPlain()
+		return a.openReport(v)
 	case "open_dump":
 		return a.openReport(views.NewDumpFileView(param))
 
