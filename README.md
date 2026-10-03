@@ -66,7 +66,7 @@ Digits pick the resource; `?` shows everything.
 | `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats; `C` copies files in or out (`docker cp`); `e` edits CPU/memory limits, restart policy and name, live (`docker update`, no restart) | `r` | refresh |
 | `u` / `x` | start ("up") / stop; on an image, `u` runs it (name, ports, env, volumes, command, `--rm`) | `R` | restart |
 | `K` | kill (SIGKILL — confirms) | `p` | pause / unpause |
-| `s` | shell into the container | `ctrl-d` | remove (confirms) |
+| `s` | shell into the container; `A` attaches to its main process (signals not forwarded, so ctrl-c never stops it) | `ctrl-d` | remove (confirms) |
 | `a` | toggle stopped containers / all images | `P` | prune (confirms) |
 | `ctrl-k` | show the containers a runtime's built-in Kubernetes runs pods in (hidden by default) | `ctrl-z` | faults only: unhealthy, restarting, dead, or exited non-zero (stopped ones included) |
 | `ctrl-w` | wide columns: ID, command, networks and IP | | |

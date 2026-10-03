@@ -44,7 +44,7 @@ type execDoneMsg struct{ err error }
 // refuses exactly these, in one place, rather than per view.
 var mutating = map[string]bool{
 	"start": true, "stop": true, "restart": true, "kill": true,
-	"pause": true, "unpause": true, "exec": true,
+	"pause": true, "unpause": true, "exec": true, "attach": true,
 	"confirm_remove_container": true, "confirm_remove_image": true,
 	"confirm_remove_volume": true, "confirm_remove_network": true,
 	"confirm_prune_images": true, "confirm_prune_volumes": true,
@@ -272,6 +272,11 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	case "exec":
 		return a, a.execShell(param)
+	case "attach":
+		return a, a.attach(param)
+	case "not_running":
+		a.errFlash = param + " is not running — start it (u) to attach"
+		return a, nil
 
 	// ---- Kubernetes nodes: the containers inside a kind/k3d node -------
 
@@ -718,6 +723,51 @@ const shellProbe = `if command -v bash >/dev/null 2>&1; then exec bash; else exe
 
 func (a *App) execShell(id string) tea.Cmd {
 	return a.dockerExecIt(id, "sh", "-c", shellProbe)
+}
+
+// attachDetachHint is printed before docker takes the terminal, because the
+// way out depends on the container: one started with a terminal (-it)
+// detaches on ctrl-p ctrl-q, and its process reads ctrl-c as a keystroke;
+// one without — most compose services — never sees the detach keys, and
+// with signals not proxied, ctrl-c just ends the attach.
+const attachDetachHint = "attached — ctrl-p ctrl-q detaches (a container with a terminal); " +
+	"without one, ctrl-c detaches and the container keeps running"
+
+// attach connects the terminal to a running container's main process,
+// docker attach, as k9s's a does (#16), never forwarding a signal to it. It
+// goes through the docker CLI with
+// --host, as s does, and through a one-line sh that prints the detach keys
+// first; the arguments reach docker as positional parameters, so no shell
+// ever parses them.
+func (a *App) attach(id string) tea.Cmd {
+	bin, err := exec.LookPath("docker")
+	if err != nil {
+		a.errFlash = "attach needs the `docker` CLI on PATH"
+		return nil
+	}
+	args := []string{"-c", `printf '%s\n' "$0"; exec "$@"`, attachDetachHint, bin}
+	if host := a.dockerHostArg(); host != "" {
+		args = append(args, "--host", host)
+	}
+	// --sig-proxy=false: by default docker attach forwards a ctrl-c to the
+	// container as SIGINT, which stops most services; off, it only ends
+	// the attach.
+	args = append(args, "attach", "--sig-proxy=false", id)
+	// context.Background() on purpose, as in dockerExecIt: the session is
+	// the user's, not the poll's.
+	cmd := exec.CommandContext(
+		context.Background(),
+		"/bin/sh",
+		args...) //nolint:gosec // fixed script; id comes from the daemon's listing
+	return a.inTerminal(cmd, func(err error) tea.Msg {
+		// Detaching, and the container exiting under ctrl-c, both end the
+		// session with a non-zero status; neither is an error worth a flash.
+		var exitErr *exec.ExitError
+		if err != nil && !asExitError(err, &exitErr) {
+			return execDoneMsg{err: fmt.Errorf("attach: %w", err)}
+		}
+		return execDoneMsg{}
+	})
 }
 
 // nodeShell opens a shell in container id inside Kubernetes node node:
