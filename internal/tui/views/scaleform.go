@@ -110,11 +110,8 @@ func (v *ScaleFormView) HandleKey(key string) (string, string) {
 }
 
 // parseReplicas reads a count: digits only — no sign, no space inside —
-// and small enough to be an int.
+// and small enough to be an int. Atoi refuses the empty string.
 func parseReplicas(s string) (int, bool) {
-	if s == "" {
-		return 0, false
-	}
 	for _, r := range s {
 		if r < '0' || r > '9' {
 			return 0, false

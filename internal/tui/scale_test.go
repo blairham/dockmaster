@@ -373,3 +373,21 @@ func TestProjectsViewGuardsScaleWhileBusy(t *testing.T) {
 		t.Errorf("busy s = (%q, %q)", act, param)
 	}
 }
+
+// TestXrayScaleRefusesWhileBusy: from xray there is no projects-view key
+// guard in the way, so the app's own busy check is what refuses.
+func TestXrayScaleRefusesWhileBusy(t *testing.T) {
+	a, f, dir := newScaleApp(t, Options{}, true)
+	typedView[*views.ProjectsView](a, style.ViewProjects).SetBusy("shop", "pulling")
+	a.dispatchCommand("xray")
+	xv := typedView[*views.XrayView](a, style.ViewXray)
+	step(a, views.XrayRefreshMsg{Containers: scaleContainers(dir)})
+	gotoNode(t, a, xv, "p:shop/s:web")
+	step(a, key("s"))
+	if a.view != style.ViewXray || a.errFlash != "shop is already pulling — wait for it to finish" {
+		t.Errorf("view %v, flash %q", style.ViewName(a.view), a.errFlash)
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("ran %q", f.calls)
+	}
+}
