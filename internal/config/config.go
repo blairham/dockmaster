@@ -80,6 +80,12 @@ type Config struct {
 	NoStats        bool          `yaml:"noStats"`
 
 	LiveViewAutoRefresh bool `yaml:"liveViewAutoRefresh"`
+	// NoExitOnCtrlC makes ctrl-c do nothing; :q still quits (k9s's
+	// noExitOnCtrlC).
+	NoExitOnCtrlC bool `yaml:"noExitOnCtrlC"`
+	// ScreenDumpDir is where ctrl-s saves go, and what :sd lists, instead
+	// of the state directory (k9s's screenDumpDir). ~ is the home directory.
+	ScreenDumpDir string `yaml:"screenDumpDir"`
 }
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
@@ -93,6 +99,13 @@ type UI struct {
 	Splashless bool   `yaml:"splashless"`
 	// Invert turns the skin dark to light or light to dark (--invert).
 	Invert bool `yaml:"invert"`
+	// EnableMouse turns mouse reporting on: wheel scrolling, and the
+	// terminal not selecting text on a plain drag. Off, a drag selects as
+	// in any other program (k9s's ui.enableMouse).
+	EnableMouse bool `yaml:"enableMouse"`
+	// DefaultsToFullScreen opens log views fullscreen (k9s's
+	// ui.defaultsToFullScreen).
+	DefaultsToFullScreen bool `yaml:"defaultsToFullScreen"`
 }
 
 // Thresholds colour the containers view's CPU% and MEM columns, as k9s's
@@ -121,6 +134,11 @@ type Logger struct {
 	SinceSeconds int `yaml:"sinceSeconds"`
 	// ShowTime starts log views with timestamps on.
 	ShowTime bool `yaml:"showTime"`
+	// TextWrap starts log views with long lines wrapped.
+	TextWrap bool `yaml:"textWrap"`
+	// DisableAutoscroll starts log views paused at the end of the backlog
+	// rather than following new lines.
+	DisableAutoscroll bool `yaml:"disableAutoscroll"`
 }
 
 // Default is the configuration with no file.
@@ -128,6 +146,7 @@ func Default() Config {
 	return Config{
 		RefreshRate: DefaultRefreshRate,
 		Logger:      Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
+		UI:          UI{EnableMouse: true},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
 			Memory: Threshold{Warn: 70, Critical: 90},
@@ -261,6 +280,10 @@ dockmaster:
   showAll: false
   # Disable the CPU/MEM poll, one request per running container (--no-stats).
   noStats: false
+  # ctrl-c does nothing; :q still quits.
+  noExitOnCtrlC: false
+  # Where ctrl-s saves go and :sd looks; empty is the state directory.
+  screenDumpDir: ""
   ui:
     # A skin in skins/ beside this file, by name — a k9s skin works as is
     # (DOCKMASTER_SKIN overrides).
@@ -271,6 +294,10 @@ dockmaster:
     logoless: false
     crumbsless: false
     splashless: false
+    # Mouse wheel scrolling. Off, a plain drag selects text as anywhere else.
+    enableMouse: true
+    # Open log views fullscreen.
+    defaultsToFullScreen: false
   logger:
     # Lines of backlog a log view opens with.
     tail: 500
@@ -280,6 +307,10 @@ dockmaster:
     sinceSeconds: -1
     # Start log views with timestamps on.
     showTime: false
+    # Start log views with long lines wrapped.
+    textWrap: false
+    # Start log views paused rather than following new lines.
+    disableAutoscroll: false
   # CPU% and MEM turn orange at warn and red at critical (percent). CPU is
   # a share of the CPUs the container can use; memory of its limit, or of
   # the host's memory when it has none.

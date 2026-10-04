@@ -77,7 +77,7 @@ func (a *App) saveTable(tv views.Tabler) {
 		a.errFlash = "nothing to save"
 		return
 	}
-	path, err := saveDump("dumps", a.viewName(), tktable.PlainText(t.Columns(), rows))
+	path, err := a.saveDump("dumps", a.viewName(), tktable.PlainText(t.Columns(), rows))
 	if err != nil {
 		a.errFlash = "saving " + a.viewName() + ": " + err.Error()
 		return
@@ -85,10 +85,19 @@ func (a *App) saveTable(tv views.Tabler) {
 	a.flash = fmt.Sprintf("saved %d rows to %s", len(rows), path)
 }
 
-// saveDump writes content under <state>/<kind> with tuikit's naming:
+// dumpRoot is where saves go and :sd looks: screenDumpDir when it is set,
+// else the state directory.
+func (a *App) dumpRoot() (string, error) {
+	if a.dumpDir != "" {
+		return a.dumpDir, nil
+	}
+	return config.StateDir()
+}
+
+// saveDump writes content under <root>/<kind> with tuikit's naming:
 // <name>-<timestamp>.txt, never overwriting an earlier save.
-func saveDump(kind, name, content string) (string, error) {
-	dir, err := config.StateDir()
+func (a *App) saveDump(kind, name, content string) (string, error) {
+	dir, err := a.dumpRoot()
 	if err != nil {
 		return "", err
 	}

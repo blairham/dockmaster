@@ -185,7 +185,7 @@ func run() error {
 		client.ContextName = *contextName
 	}
 
-	app := tui.NewApp(client, tui.Options{
+	opts := tui.Options{
 		Version:         version.Version,
 		ReadOnly:        cfg.ReadOnly,
 		ShowAll:         cfg.ShowAll,
@@ -210,7 +210,9 @@ func run() error {
 		StartOnRuntimes: startOnRuntimes,
 		Notice:          notice,
 		HistoryFile:     historyFile(),
-	})
+	}
+	behaviorOptions(cfg, &opts)
+	app := tui.NewApp(client, opts)
 
 	// Alt-screen and mouse mode are per-View in bubbletea v2 (set in
 	// App.View), not program options.
@@ -315,4 +317,27 @@ func historyFile() string {
 		return ""
 	}
 	return filepath.Join(dir, "history.json")
+}
+
+// expandHome turns a leading ~ into the home directory, for paths in
+// config.yaml.
+func expandHome(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, strings.TrimPrefix(p, "~"))
+		}
+	}
+	return p
+}
+
+// behaviorOptions carries config.yaml's k9s behavior keys (#17) into the
+// app's options — noExitOnCtrlC, screenDumpDir, the log view's opening
+// state and the mouse.
+func behaviorOptions(cfg config.Config, o *tui.Options) {
+	o.NoExitOnCtrlC = cfg.NoExitOnCtrlC
+	o.DumpDir = expandHome(cfg.ScreenDumpDir)
+	o.LogWrap = cfg.Logger.TextWrap
+	o.LogPaused = cfg.Logger.DisableAutoscroll
+	o.LogFullscreen = cfg.UI.DefaultsToFullScreen
+	o.NoMouse = !cfg.UI.EnableMouse
 }

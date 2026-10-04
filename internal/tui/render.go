@@ -66,7 +66,9 @@ func (a *App) View() tea.View {
 	// Cell-motion mouse mode gives the tables and log viewport wheel
 	// scrolling. It is set per-View in bubbletea v2, not as a program
 	// option.
-	v.MouseMode = tea.MouseModeCellMotion
+	if !a.noMouse {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	return v
 }
 

@@ -50,7 +50,7 @@ func (a *App) logAction(action, param string) tea.Cmd {
 		a.flash = fmt.Sprintf("copied %d lines", n)
 		return tea.SetClipboard(text)
 	case "log_save":
-		path, n, err := saveLog(lv)
+		path, n, err := a.saveLog(lv)
 		if err != nil {
 			a.errFlash = "saving logs: " + err.Error()
 			return nil
@@ -62,12 +62,12 @@ func (a *App) logAction(action, param string) tea.Cmd {
 
 // saveLog writes what the log view shows, styling stripped, to
 // <state>/logs/<container>-<time>.txt.
-func saveLog(lv *views.LogsView) (string, int, error) {
+func (a *App) saveLog(lv *views.LogsView) (string, int, error) {
 	text, n := lv.PlainText()
 	if n == 0 {
 		return "", 0, errors.New("nothing to save")
 	}
-	path, err := saveDump("logs", lv.Title(), text)
+	path, err := a.saveDump("logs", lv.Title(), text)
 	return path, n, err
 }
 
@@ -113,7 +113,7 @@ func (a *App) inspectAction(action string) tea.Cmd {
 			a.errFlash = "nothing to save"
 			return nil
 		}
-		path, err := saveDump("dumps", iv.Title(), text)
+		path, err := a.saveDump("dumps", iv.Title(), text)
 		if err != nil {
 			a.errFlash = "saving " + iv.Title() + ": " + err.Error()
 			return nil
@@ -149,4 +149,23 @@ func (a *App) inspectAutoRefresh() bool {
 		return on
 	}
 	return a.liveRefresh
+}
+
+// openLogs opens lv with the log settings: backlog, timestamps, buffer and
+// range, and k9s's textWrap, disableAutoscroll and defaultsToFullScreen.
+// Every log view opens here, so a new one cannot miss a setting.
+func (a *App) openLogs(lv *views.LogsView) tea.Cmd {
+	lv.Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince)
+	if a.logWrap {
+		lv.ToggleWrap()
+	}
+	if a.logPaused {
+		lv.ToggleFollow()
+	}
+	a.setView(style.ViewLogs, lv)
+	a.pushView(style.ViewLogs)
+	if a.logFullscreen {
+		a.setFullscreen(true)
+	}
+	return lv.Init()
 }

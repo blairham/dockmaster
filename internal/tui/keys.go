@@ -148,6 +148,10 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
 	if key == "ctrl+c" {
+		if a.noExitOnCtrlC {
+			a.flash = "ctrl-c does not quit (noExitOnCtrlC) — :q quits"
+			return a, nil
+		}
 		a.shutdown()
 		return a, tea.Quit
 	}

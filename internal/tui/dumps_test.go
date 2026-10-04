@@ -138,7 +138,7 @@ func TestRemoveDumpStaysInside(t *testing.T) {
 	if err := os.WriteFile(outside, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	msg, ok := removeDump(outside)().(actionDoneMsg)
+	msg, ok := removeDump(root, outside)().(actionDoneMsg)
 	if !ok || msg.err == nil {
 		t.Errorf("deleting %s was not refused: %+v", outside, msg)
 	}
