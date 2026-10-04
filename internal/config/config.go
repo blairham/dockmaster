@@ -318,9 +318,9 @@ dockmaster:
   readOnly: false
   # Refresh inspect views on the tick, keeping their scroll and filter.
   liveViewAutoRefresh: false
-  # View to open on (-c): containers, images, volumes, networks, projects,
-  # runtimes, events, ...
-  defaultView: containers
+  # Command to open on (-c): a view such as containers or images, xray, an
+  # alias... Empty opens the view last used on the context, else containers.
+  defaultView: ""
   # Docker context to use when neither --host nor --context is given.
   # Empty follows DOCKER_HOST / DOCKER_CONTEXT / the CLI's current context.
   context: ""

@@ -173,8 +173,10 @@ a skin of its own keeps that skin on screen.
   startup setting and does not apply to a switch;
 - the runtimes view's reconnect stays on the runtimes view.
 
-Note that `dockmaster config init` writes `defaultView: containers`, which
-is an explicit `defaultView`: remove it to start on the remembered view.
+`dockmaster config init` writes `defaultView: ""`, so a fresh config starts
+on the remembered view. A config written by v0.0.9 or earlier has
+`defaultView: containers`, which is explicit and wins: delete the line to
+start on the remembered view.
 
 **The last view** is kept in the state directory, never in `config.yaml`
 (nothing writes `config.yaml`): `$XDG_STATE_HOME/dockmaster/contexts.json`,

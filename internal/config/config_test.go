@@ -98,8 +98,9 @@ func TestSampleIsTheDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sample does not parse: %v", err)
 	}
+	// Exactly the defaults: defaultView stays empty, because an empty one
+	// opens the view last used on the context and "containers" would not.
 	want := Default()
-	want.DefaultView = "containers" // the sample names the view the empty value opens on
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Sample = %+v\nwant %+v", got, want)
 	}
