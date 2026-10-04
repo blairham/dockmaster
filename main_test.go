@@ -6,6 +6,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/blairham/dockmaster/internal/config"
@@ -70,5 +71,80 @@ func TestLoadSettingsTwice(t *testing.T) {
 	}
 	if _, err := loadSettings(cfgPath, nil, config.FlagValues{}); err == nil {
 		t.Error("a reload accepted a key startup refuses")
+	}
+}
+
+// TestLoadSettingsContexts: the contexts: block reaches the app's options
+// with each skin loaded, a missing skin or bad defaultView stops startup
+// naming the context, DOCKMASTER_SKIN beats a context's skin, and only a
+// --readonly given on the command line forces read-only everywhere.
+func TestLoadSettingsContexts(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKMASTER_CONFIG_DIR", dir)
+	t.Setenv("DOCKMASTER_SKIN", "")
+	if err := os.MkdirAll(filepath.Join(dir, "skins"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "skins", "red.yaml"),
+		[]byte("k9s:\n  frame:\n    menu:\n      keyColor: red\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfgPath := filepath.Join(dir, "config.yaml")
+	writeCfg := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeCfg(
+		"dockmaster:\n  contexts:\n    prod:\n      skin: red\n      readOnly: false\n      defaultView: images\n    dev: {}\n",
+	)
+
+	st, err := loadSettings(cfgPath, nil, config.FlagValues{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := settingsOptions(st)
+	prod, dev := o.Contexts["prod"], o.Contexts["dev"]
+	if prod.Theme == nil || prod.Theme.MenuKey == style.DefaultBase().MenuKey || prod.ReadOnly == nil ||
+		*prod.ReadOnly || prod.DefaultView != "images" {
+		t.Errorf("prod did not arrive whole: %+v", prod)
+	}
+	if dev.Theme != nil || dev.ReadOnly != nil || len(o.Contexts) != 2 {
+		t.Errorf("dev: %+v (contexts %v)", dev, o.Contexts)
+	}
+	if o.ForceReadOnly {
+		t.Error("forced read-only with no --readonly")
+	}
+
+	if st, err = loadSettings(cfgPath, map[string]bool{"readonly": true}, config.FlagValues{ReadOnly: true}); err != nil ||
+		!settingsOptions(st).ForceReadOnly {
+		t.Errorf("--readonly did not force read-only: %v", err)
+	}
+	if st, err = loadSettings(cfgPath, map[string]bool{"readonly": true}, config.FlagValues{}); err != nil ||
+		settingsOptions(st).ForceReadOnly {
+		t.Errorf("--readonly=false forced read-only: %v", err)
+	}
+
+	t.Setenv("DOCKMASTER_SKIN", "red")
+	if st, err = loadSettings(
+		cfgPath,
+		nil,
+		config.FlagValues{},
+	); err != nil ||
+		settingsOptions(st).Contexts["prod"].Theme != nil {
+		t.Errorf("DOCKMASTER_SKIN did not beat prod's skin: %v", err)
+	}
+	t.Setenv("DOCKMASTER_SKIN", "")
+
+	for body, want := range map[string]string{
+		"dockmaster:\n  contexts:\n    prod:\n      skin: blue\n":               "contexts.prod.skin",
+		"dockmaster:\n  contexts:\n    prod:\n      defaultView: bogus\n":       "contexts.prod.defaultView",
+		"dockmaster:\n  contexts:\n    prod:\n      defaultView: images @dev\n": "contexts.prod.defaultView",
+	} {
+		writeCfg(body)
+		if _, err := loadSettings(cfgPath, nil, config.FlagValues{}); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: %v, want an error naming %s", body, err, want)
+		}
 	}
 }

@@ -15,9 +15,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -67,17 +69,21 @@ type File struct {
 //   - LiveViewAutoRefresh: refresh inspect views on the tick, as k9s's
 //     liveViewAutoRefresh does its describe views; they keep the reader's
 //     scroll position and filter.
+//   - Contexts: settings for one docker context, by its name (#55), as
+//     k9s keeps per-context settings. An entry for a context the docker
+//     store does not have is unused, not an error: contexts come and go.
 type Config struct {
-	DefaultView    string        `yaml:"defaultView"`
-	Context        string        `yaml:"context"`
-	Logger         Logger        `yaml:"logger"`
-	Thresholds     Thresholds    `yaml:"thresholds"`
-	RequestTimeout time.Duration `yaml:"requestTimeout"`
-	RefreshRate    int           `yaml:"refreshRate"`
-	UI             UI            `yaml:"ui"`
-	ReadOnly       bool          `yaml:"readOnly"`
-	ShowAll        bool          `yaml:"showAll"`
-	NoStats        bool          `yaml:"noStats"`
+	Contexts       map[string]ContextSettings `yaml:"contexts"`
+	DefaultView    string                     `yaml:"defaultView"`
+	Context        string                     `yaml:"context"`
+	Logger         Logger                     `yaml:"logger"`
+	Thresholds     Thresholds                 `yaml:"thresholds"`
+	RequestTimeout time.Duration              `yaml:"requestTimeout"`
+	RefreshRate    int                        `yaml:"refreshRate"`
+	UI             UI                         `yaml:"ui"`
+	ReadOnly       bool                       `yaml:"readOnly"`
+	ShowAll        bool                       `yaml:"showAll"`
+	NoStats        bool                       `yaml:"noStats"`
 
 	LiveViewAutoRefresh bool `yaml:"liveViewAutoRefresh"`
 	// NoExitOnCtrlC makes ctrl-c do nothing; :q still quits (k9s's
@@ -149,10 +155,26 @@ type Logger struct {
 	DisableAutoscroll bool `yaml:"disableAutoscroll"`
 }
 
+// ContextSettings is one docker context's entry under `contexts:` — what
+// changes while dockmaster is on that context (#55).
+//
+//   - Skin: a skin in SkinsDir by name, as ui.skin, used on this context
+//     instead of it. DOCKMASTER_SKIN still beats it.
+//   - ReadOnly: when set, replaces the top-level readOnly on this context;
+//     unset (nil) follows it. --readonly beats both.
+//   - DefaultView: the command a switch to this context, or a start on it,
+//     opens, as the top-level defaultView; -c beats it at startup.
+type ContextSettings struct {
+	ReadOnly    *bool  `yaml:"readOnly"`
+	Skin        string `yaml:"skin"`
+	DefaultView string `yaml:"defaultView"`
+}
+
 // Default is the configuration with no file.
 func Default() Config {
 	return Config{
 		RefreshRate: DefaultRefreshRate,
+		Contexts:    map[string]ContextSettings{},
 		Logger:      Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
 		UI:          UI{EnableMouse: true},
 		Thresholds: Thresholds{
@@ -245,6 +267,7 @@ func (c Config) Validate() error {
 	if strings.ContainsAny(c.UI.Skin, `/\`) {
 		errs = append(errs, fmt.Sprintf("ui.skin is a skin's name in %s, not a path, got %q", SkinsDirName, c.UI.Skin))
 	}
+	errs = append(errs, c.validateContexts()...)
 	if c.Logger.Buffer < c.Logger.Tail || c.Logger.Buffer > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.buffer must be between logger.tail (%d) and %d, got %d",
 			c.Logger.Tail, MaxLogTail, c.Logger.Buffer))
@@ -262,6 +285,23 @@ func (c Config) Validate() error {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+// validateContexts checks each contexts: entry the way the top-level keys
+// it mirrors are checked; whether its skin loads is ContextThemes'.
+func (c Config) validateContexts() []string {
+	var errs []string
+	for _, name := range slices.Sorted(maps.Keys(c.Contexts)) {
+		if strings.TrimSpace(name) == "" {
+			errs = append(errs, "contexts has an entry with no context name")
+			continue
+		}
+		if s := c.Contexts[name].Skin; strings.ContainsAny(s, `/\`) {
+			errs = append(errs, fmt.Sprintf("contexts.%s.skin is a skin's name in %s, not a path, got %q",
+				name, SkinsDirName, s))
+		}
+	}
+	return errs
 }
 
 // Sample is a commented config.yaml holding the defaults, for
@@ -324,6 +364,16 @@ dockmaster:
     textWrap: false
     # Start log views paused rather than following new lines.
     disableAutoscroll: false
+  # Settings for one docker context, by name, used while dockmaster is on
+  # it: a skin (DOCKMASTER_SKIN still wins), readOnly (--readonly still
+  # wins) and the view a switch to it opens. A context not listed uses the
+  # settings above; one listed that docker does not have is ignored.
+  #   contexts:
+  #     prod:
+  #       skin: red
+  #       readOnly: true
+  #       defaultView: containers
+  contexts: {}
   # CPU% and MEM turn orange at warn and red at critical (percent). CPU is
   # a share of the CPUs the container can use; memory of its limit, or of
   # the host's memory when it has none.

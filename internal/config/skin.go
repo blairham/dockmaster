@@ -6,9 +6,11 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 
 	"github.com/blairham/tuikit/theme"
 	"go.yaml.in/yaml/v3"
@@ -63,10 +65,42 @@ func LoadSkin(name string) (theme.Skin, string, error) {
 	return theme.Skin{}, "", fmt.Errorf("no skin named %q in %s", name, dir)
 }
 
+// ContextThemes is the theme of every context under contexts: that names a
+// skin — base with that skin over it, inverted when ui.invert is — by
+// context name. Every such skin is loaded, so a missing or bad one fails
+// here as a bad ui.skin fails Theme, naming its context. With
+// DOCKMASTER_SKIN set the result is empty: the environment's skin is the
+// session's on every context.
+func (c Config) ContextThemes(base theme.Theme) (map[string]theme.Theme, error) {
+	out := map[string]theme.Theme{}
+	for _, name := range slices.Sorted(maps.Keys(c.Contexts)) {
+		skin := c.Contexts[name].Skin
+		if skin == "" {
+			continue
+		}
+		t, err := skinTheme(base, skin, c.UI.Invert)
+		if err != nil {
+			return nil, fmt.Errorf("contexts.%s.skin: %w", name, err)
+		}
+		out[name] = t
+	}
+	if os.Getenv(EnvSkin) != "" {
+		return map[string]theme.Theme{}, nil
+	}
+	return out, nil
+}
+
 // Theme is base with the configured skin over it, inverted when asked.
 func (c Config) Theme(base theme.Theme) (theme.Theme, error) {
+	return skinTheme(base, c.SkinName(), c.UI.Invert)
+}
+
+// skinTheme is base with the skin called name over it ("" for none),
+// inverted when invert is: the skin is always laid over base, never over
+// another skin.
+func skinTheme(base theme.Theme, name string, invert bool) (theme.Theme, error) {
 	t := base
-	if name := c.SkinName(); name != "" {
+	if name != "" {
 		s, path, err := LoadSkin(name)
 		if err != nil {
 			return base, err
@@ -75,7 +109,7 @@ func (c Config) Theme(base theme.Theme) (theme.Theme, error) {
 			return base, fmt.Errorf("skin %s: %w", path, err)
 		}
 	}
-	if c.UI.Invert {
+	if invert {
 		t = t.Inverted()
 	}
 	return t, nil

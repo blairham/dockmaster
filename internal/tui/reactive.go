@@ -118,8 +118,11 @@ func (a *App) applyReload(m reloadedMsg) {
 			pv.SetInterval(a.refresh)
 		}
 	}
-	if n.ReadOnly != prev.ReadOnly {
-		a.readonly = n.ReadOnly
+	// readOnly — top-level, the context's, --readonly — counts as changed
+	// only when what it comes to on this context did.
+	ctxName := a.contextName()
+	if ro := n.readOnlyFor(ctxName); ro != prev.readOnlyFor(ctxName) {
+		a.readonly = ro
 	}
 	if n.Logoless != prev.Logoless {
 		a.logoless = n.Logoless
@@ -133,9 +136,13 @@ func (a *App) applyReload(m reloadedMsg) {
 	}
 
 	// The skin: every style re-derives from the new base, and the frame
-	// and bars, built on the old one, are built again.
-	style.SetBase(m.r.Theme)
-	a.buildChrome(m.r.Theme, headless, crumbsless)
+	// and bars, built on the old one, are built again. On a context with a
+	// skin of its own it is that one; the top-level one is kept for the
+	// next switch.
+	a.globalTheme = m.r.Theme
+	th := n.themeFor(a.globalTheme, ctxName)
+	style.SetBase(th)
+	a.buildChrome(th, headless, crumbsless)
 	a.applyColumnLayouts(n.ColumnLayouts)
 	a.resizeActiveView()
 	a.applied = n

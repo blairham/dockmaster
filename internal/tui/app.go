@@ -200,6 +200,13 @@ type App struct {
 	showAll      bool
 	// startCommand is a non-view -c, run once by Init.
 	startCommand string
+	// globalTheme is the top-level skin's theme (ui.skin, DOCKMASTER_SKIN),
+	// put back on leaving a context with a skin of its own (#55).
+	globalTheme theme.Theme
+	// lastViews is the top-level view last open on each docker context, by
+	// name, kept in contextStateFile between runs.
+	lastViews        map[string]string
+	contextStateFile string
 }
 
 // Options configures a new App.
@@ -276,6 +283,18 @@ type Options struct {
 	Thresholds views.Thresholds
 	// Logger is the log file (--log-file, --log-level); nil logs nothing.
 	Logger *slog.Logger
+	// Contexts are config.yaml's per-context settings (#55), by docker
+	// context name: applied at startup and on every context switch.
+	Contexts map[string]ContextSettings
+	// ContextStateFile is where the view last open on each context is kept
+	// between runs; "" keeps it for this run only.
+	ContextStateFile string
+	// ForceReadOnly is --readonly on the command line: read-only on every
+	// context, whatever its readOnly says. ReadOnly is the top-level value.
+	ForceReadOnly bool
+	// CommandFromFlag says Command came from -c, which beats a context's
+	// defaultView; from config.yaml's defaultView, the context's wins.
+	CommandFromFlag bool
 }
 
 // ThresholdsFrom converts config.yaml's thresholds block for the views.
@@ -313,14 +332,20 @@ func NewApp(client *docker.Client, opts Options) *App {
 		style.ViewEvents:       views.NewEventsView(client),
 		style.ViewPulses:       views.NewPulsesView(client, statsOn, refresh),
 	}
+	ctxName := ""
+	if client != nil {
+		ctxName = client.ContextName
+	}
+	lastViews := readContextState(opts.ContextStateFile)
 	startView := style.ViewContainers
 	startCommand := ""
-	if vt, ok := ViewForCommand(opts.Command); ok {
+	command := startingCommand(opts, ctxName, lastViews)
+	if vt, ok := ViewForCommand(command); ok {
 		startView = vt
-	} else if strings.TrimSpace(opts.Command) != "" {
+	} else if strings.TrimSpace(command) != "" {
 		// Any other command (-c xray, -c pg, -c "images @prod"): run
 		// from Init, as if typed at the palette (#57).
-		startCommand = opts.Command
+		startCommand = command
 	}
 	if opts.StartOnRuntimes {
 		startView = style.ViewRuntimes
@@ -350,7 +375,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		view:           startView,
 		loading:        true,
 		splashActive:   !opts.Splashless,
-		readonly:       opts.ReadOnly,
+		readonly:       opts.readOnlyFor(ctxName),
 		logoless:       opts.Logoless,
 		statsOn:        statsOn,
 		showAll:        opts.ShowAll,
@@ -366,16 +391,40 @@ func NewApp(client *docker.Client, opts Options) *App {
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 		log:            opts.Logger,
+		// main has put the top-level skin in already.
+		globalTheme:      style.Base(),
+		lastViews:        lastViews,
+		contextStateFile: opts.ContextStateFile,
 	}
 	if a.log == nil {
 		a.log = slog.New(slog.DiscardHandler)
 	}
 	views.SetColumnLayouts(opts.ColumnLayouts)
-	a.buildChrome(style.Base(), opts.Headless, opts.Crumbsless)
+	// The starting context's skin, if it has one, before the chrome is
+	// built on it.
+	th := opts.themeFor(a.globalTheme, ctxName)
+	style.SetBase(th)
+	a.buildChrome(th, opts.Headless, opts.Crumbsless)
 	a.history.Visit(viewfsm.ViewID(startView))
 	a.startCommand = startCommand
 	a.loadHistory(opts.HistoryFile)
 	return a
+}
+
+// startingCommand is what the app opens on (#55): -c, else the starting
+// context's defaultView, else config.yaml's defaultView, else the view last
+// open on that context; "" is containers.
+func startingCommand(opts Options, ctxName string, lastViews map[string]string) string {
+	if opts.CommandFromFlag && strings.TrimSpace(opts.Command) != "" {
+		return opts.Command
+	}
+	if dv := opts.Contexts[ctxName].DefaultView; dv != "" {
+		return dv
+	}
+	if strings.TrimSpace(opts.Command) != "" {
+		return opts.Command
+	}
+	return lastViews[ctxName]
 }
 
 // buildChrome builds the frame and the bars on theme t. NewApp builds them
@@ -671,6 +720,11 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		msg.client.RequestTimeout = a.requestTimeout
 	}
 	a.client = msg.client
+	if a.client != nil {
+		a.client.ContextName = msg.name
+	}
+	// The context's skin and readOnly, or the top-level ones (#55).
+	a.applyContextSettings(msg.name)
 
 	// The runtimes view survives the rebuild: it lists VMs, not daemon
 	// objects, and dropping it would lose the busy state of a machine that
@@ -698,10 +752,18 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		style.ViewPulses:       views.NewPulsesView(a.client, a.statsOn, a.refresh),
 	}
 	a.flash = fmt.Sprintf("switched to context %s", msg.name)
+	if a.applied.readOnlyFromContext(msg.name) {
+		a.flash += " — readonly (its contexts: setting)"
+	}
 	if msg.keepView && a.view == style.ViewRuntimes {
 		a.viewStack = nil
 		a.resizeActiveView()
 		return a, cv.Refresh()
+	}
+	if msg.land == nil {
+		// :ctx, the picker: the context's own defaultView, else the view
+		// last open on it.
+		msg.land = a.contextLanding(msg.name)
 	}
 	if msg.land != nil && msg.land.command == "" && msg.land.view != style.ViewContainers {
 		cmd := a.switchView(msg.land.view)
