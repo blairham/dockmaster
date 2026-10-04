@@ -376,6 +376,10 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<esc>", Desc: "Back"},
 		}
+	case style.ViewPulses:
+		// Nothing to act on: the dashboard reads, and r, the digits and :
+		// are the app's.
+		actions = []chrome.Shortcut{}
 	case style.ViewDumps:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "View"},
@@ -611,6 +615,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<:lint>", Desc: "Container lint"},
 					{Key: "<:dir>", Desc: "Compose files"},
 					{Key: "<:xray>", Desc: "Xray tree"},
+					{Key: "<:pu>", Desc: "Pulses dashboard"},
 					{Key: "<v>", Desc: "Scan image"},
 				},
 			},

@@ -32,6 +32,10 @@ func (a *App) showView(v style.ViewType) tea.Cmd {
 	a.filter = ""
 	a.setActiveFilter("")
 	a.resizeActiveView()
+	if pv := typedView[*views.PulsesView](a, style.ViewPulses); pv != nil && v == style.ViewPulses {
+		// t in the containers view may have turned the poll off or on.
+		pv.SetStatsEnabled(a.statsOn)
+	}
 
 	if av := a.activeView(); av != nil {
 		return av.Refresh()
@@ -168,6 +172,9 @@ var polled = map[style.ViewType]bool{
 	style.ViewRuntimes:   true,
 	// One docker ps -a, like the containers view; the tree keeps its place.
 	style.ViewXray: true,
+	// The dashboard samples on the tick: one docker ps -a and its stats,
+	// with disk usage only every minute (views.PulsesView.Poll).
+	style.ViewPulses: true,
 }
 
 // refreshPolledView is the tick's refresh: a no-op unless the active view
@@ -175,6 +182,9 @@ var polled = map[style.ViewType]bool{
 func (a *App) refreshPolledView() tea.Cmd {
 	if !polled[a.view] && !a.inspectAutoRefresh() {
 		return nil
+	}
+	if p, ok := a.activeView().(views.Poller); ok {
+		return p.Poll()
 	}
 	return a.refreshActiveView()
 }
@@ -262,6 +272,8 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewDir
 	case views.XrayRefreshMsg:
 		return a.view == style.ViewXray
+	case views.PulsesListMsg, views.PulsesStatsMsg, views.PulsesDiskMsg, views.PulsesEventsMsg:
+		return a.view == style.ViewPulses
 	case views.DiskUsageRefreshMsg:
 		return a.view == style.ViewDiskUsage
 	case views.PortForwardsRefreshMsg:

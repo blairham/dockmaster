@@ -44,6 +44,7 @@ var knownCommands = []string{
 	"sd",
 	"lint",
 	"xray",
+	"pulses",
 	"help",
 	"dir",
 	"screendump",
@@ -83,6 +84,7 @@ var viewCommands = map[string]style.ViewType{
 	"pf": style.ViewPortForwards, "portforward": style.ViewPortForwards, "portforwards": style.ViewPortForwards,
 	"forwards": style.ViewPortForwards, "forward": style.ViewPortForwards,
 	"df": style.ViewDiskUsage, "disk": style.ViewDiskUsage, "usage": style.ViewDiskUsage, "system": style.ViewDiskUsage,
+	"pulses": style.ViewPulses, "pulse": style.ViewPulses, "pu": style.ViewPulses,
 }
 
 // ViewForCommand resolves a view name as the palette spells it.

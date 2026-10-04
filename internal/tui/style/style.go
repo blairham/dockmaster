@@ -196,6 +196,7 @@ const (
 	ViewScan
 	ViewDir
 	ViewXray
+	ViewPulses
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -253,6 +254,8 @@ func ViewName(v ViewType) string {
 		return "Dir"
 	case ViewXray:
 		return "Xray"
+	case ViewPulses:
+		return "Pulses"
 	default:
 		return "Unknown"
 	}
@@ -310,6 +313,8 @@ func ViewResource(v ViewType) string {
 		return "entrie"
 	case ViewXray:
 		return "node"
+	case ViewPulses:
+		return "pulse"
 	default:
 		return ""
 	}

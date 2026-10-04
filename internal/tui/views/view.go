@@ -22,11 +22,15 @@ var (
 	_ View = (*PortForwardsView)(nil)
 	_ View = (*PodsView)(nil)
 	_ View = (*EventsView)(nil)
+	_ View = (*PulsesView)(nil)
 
 	_ InputCapturer = (*RuntimeFormView)(nil)
 
 	_ Stoppable = (*LogsView)(nil)
 	_ Stoppable = (*EventsView)(nil)
+	_ Stoppable = (*PulsesView)(nil)
+
+	_ Poller = (*PulsesView)(nil)
 )
 
 // View is what every dockmaster view implements.
@@ -76,4 +80,12 @@ type Stoppable interface {
 // border title ("nginx" rather than "logs").
 type Titler interface {
 	Title() string
+}
+
+// Poller is a view whose poll tick is not the same as opening it or r: the
+// pulses dashboard closes a sample interval on each tick, and reads disk
+// usage only every so many. The app calls Poll on the tick instead of
+// Refresh.
+type Poller interface {
+	Poll() tea.Cmd
 }
