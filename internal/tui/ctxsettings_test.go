@@ -78,17 +78,22 @@ func isRed() bool {
 // level. Checked at startup on the context and after a switch onto it.
 func TestReadOnlyPrecedence(t *testing.T) {
 	for _, tc := range []struct {
-		ctx    *ContextSettings
-		name   string
-		force  bool
-		global bool
-		want   bool
+		ctx         *ContextSettings
+		name        string
+		force       bool
+		global      bool
+		want        bool
+		fromContext bool
 	}{
 		{name: "no entry, global off", want: false},
 		{name: "no entry, global on", global: true, want: true},
 		{name: "entry without readOnly follows global on", ctx: &ContextSettings{Theme: redTheme()}, global: true, want: true},
 		{name: "entry without readOnly follows global off", ctx: &ContextSettings{Theme: redTheme()}, want: false},
-		{name: "context on beats global off", ctx: &ContextSettings{ReadOnly: boolp(true)}, want: true},
+		{name: "context on beats global off", ctx: &ContextSettings{ReadOnly: boolp(true)}, want: true, fromContext: true},
+		{name: "context off with global off", ctx: &ContextSettings{ReadOnly: boolp(false)}, want: false},
+		{name: "--readonly alone beats context on", ctx: &ContextSettings{ReadOnly: boolp(true)}, force: true, want: true},
+		{name: "context on with global on", ctx: &ContextSettings{ReadOnly: boolp(true)}, global: true, want: true},
+		{name: "context on under --readonly", ctx: &ContextSettings{ReadOnly: boolp(true)}, force: true, global: true, want: true},
 		{name: "context off beats global on", ctx: &ContextSettings{ReadOnly: boolp(false)}, global: true, want: false},
 		{name: "--readonly beats context off", ctx: &ContextSettings{ReadOnly: boolp(false)}, force: true, global: true, want: true},
 		{name: "--readonly with no entry", force: true, global: true, want: true},
@@ -105,6 +110,11 @@ func TestReadOnlyPrecedence(t *testing.T) {
 			switchTo(t, a, "prod")
 			if a.readonly != tc.want {
 				t.Errorf("switched to prod: readonly %v, want %v", a.readonly, tc.want)
+			}
+			// The switch credits prod only when prod's own readOnly is what
+			// turned the session read-only.
+			if credited := strings.Contains(a.flash, "contexts: setting"); credited != tc.fromContext {
+				t.Errorf("switch flash %q credits the context: %v, want %v", a.flash, credited, tc.fromContext)
 			}
 		})
 	}
@@ -130,6 +140,9 @@ func TestLeavingAContextRestoresTheGlobals(t *testing.T) {
 	}
 	if strings.Contains(renderStyled(a), redSGR) {
 		t.Error("the frame on dev still carries prod's skin")
+	}
+	if strings.Contains(a.flash, "readonly") {
+		t.Errorf("the switch to dev, which is not read-only, says it is: %q", a.flash)
 	}
 
 	switchTo(t, a, "prod")

@@ -13,7 +13,8 @@ match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` 
 `logger.disableAutoscroll`, `ui.enableMouse`, `ui.defaultsToFullScreen`,
 `noExitOnCtrlC`, `screenDumpDir`, `liveViewAutoRefresh`). Settings
 k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
-spelling. `dockmaster config init` writes the commented defaults
+spelling. k9s's per-context `skin` and `readOnly` live under `contexts:`
+(see [Per-context settings](#per-context-settings)). `dockmaster config init` writes the commented defaults
 (`config.Sample`); `TestSampleIsTheDefaults` keeps that sample in step with
 `config.Default()`.
 
@@ -95,6 +96,109 @@ colors for good. Tables repaint with `tktable.FixRows` in the theme's own
 colors — the old fixed light-sky-blue and black left blocks of the
 terminal's background behind every styled cell on any other canvas.
 
+## Per-context settings
+
+k9s keeps settings per cluster context; dockmaster keeps them per **docker
+context**, in a `contexts:` block of `config.yaml` keyed by the context's
+name (#55):
+
+```yaml
+dockmaster:
+  readOnly: false
+  ui:
+    skin: dracula
+  contexts:
+    prod:
+      skin: red          # a skin in skins/, as ui.skin
+      readOnly: true     # replaces the top-level readOnly here
+      defaultView: containers   # what a switch to prod, or a start on it, opens
+    colima:
+      readOnly: false
+```
+
+`skin`, `readOnly` and `defaultView` are the only keys, and decoding is as
+strict as anywhere else in the file: any other key is an error. An entry
+does not have to name a context the docker store has — contexts come and
+go — and one that does not is simply never used. Each entry is checked at
+startup and on every reload (`main.go`'s `loadSettings`): its skin must
+load exactly as `ui.skin` must (`config.ContextThemes`; the error names the
+context), and its `defaultView` is checked as `-c` is, except that it may
+not name an `@context` of its own (`tui.ValidateContextCommand`).
+
+They apply whenever dockmaster is on that context: at startup, after
+`:ctx` or the picker, `:<command> @context`, the runtimes view's reconnect,
+and `--context`. Leaving it for a context with no entry puts the top-level
+skin and readOnly back. The context name is the one the info panel shows —
+`default` for the stock socket.
+
+**readOnly**, in order:
+
+1. `--readonly` on the command line forces it on, on every context, whatever
+   a context's `readOnly` says (`Options.ForceReadOnly`). `--readonly=false`
+   only sets the top-level value, so it does not undo a context's
+   `readOnly: true`.
+2. Else the context's `readOnly`, when its entry sets one — `false` as well
+   as `true`, so `readOnly: false` opens one context up under a top-level
+   `readOnly: true`.
+3. Else the top-level `readOnly`.
+
+`:readonly` flips it for the session **until the next context switch**,
+which applies the rules above again — a switch back to `prod` re-arms its
+`readOnly: true`. The switch's flash says so when the context's own setting
+is what made the session read-only; `[RO]` beside the context in the info
+panel shows it either way.
+
+**Skin**, in order: `DOCKMASTER_SKIN` (there is no skin flag) beats
+everything; else the context's `skin`; else `ui.skin`; else the default
+look. `--invert` / `ui.invert` applies on top of whichever wins. A context
+skin is still loaded, and so still checked, when `DOCKMASTER_SKIN` is set.
+
+The switch reskins without a restart exactly as a reload does
+(`App.reskin`): `style.SetBase` re-derives every style through the
+`style.OnBase` hooks, then `App.buildChrome` builds the frame and bars
+again on the new theme. Each context's theme is the context's skin laid
+over the **default** theme — never over the skin it replaces — so leaving
+and coming back is the same picture (`config.ContextThemes`, resolved by
+`main.go` into `tui.ContextSettings`). The app keeps the top-level theme
+(`App.globalTheme`) to put back; a reload replaces it, and on a context with
+a skin of its own keeps that skin on screen.
+
+**Where a switch lands.** An explicit landing always wins: `-c` at startup,
+`:<view> @context` on a switch. Otherwise:
+
+- at startup: `-c`, else the context's `defaultView`, else the top-level
+  `defaultView`, else the view last open on the context, else containers;
+- on a switch (`:ctx`, the picker): the context's `defaultView`, else the
+  view last open on it, else containers. The top-level `defaultView` is a
+  startup setting and does not apply to a switch;
+- the runtimes view's reconnect stays on the runtimes view.
+
+Note that `dockmaster config init` writes `defaultView: containers`, which
+is an explicit `defaultView`: remove it to start on the remembered view.
+
+**The last view** is kept in the state directory, never in `config.yaml`
+(nothing writes `config.yaml`): `$XDG_STATE_HOME/dockmaster/contexts.json`,
+else `~/.local/state/dockmaster/contexts.json`, next to `history.json`:
+
+```json
+{
+  "lastView": {
+    "colima": "images",
+    "prod": "containers"
+  }
+}
+```
+
+It records the top-level view switched to — a digit, `:images`, `[` / `]` /
+`-` — never a drill-in or a pushed view, and only views `-c` names (the
+palette names in `ViewCommandNames`). It is written when the view changes,
+through a temporary file, merged with what the file already holds so two
+dockmasters on different contexts do not erase each other. A write that
+fails is logged (`internal/applog`), never flashed; a missing or corrupt
+file is an empty one, and a name in it that is not a view is ignored. The
+path comes in as `Options.ContextStateFile`, set by `main.go`, so tests
+never touch the real state directory.
+
 ## Log buffer, log window, live views
 
 `logger.buffer` (5000, k9s's default) is how many lines a log view keeps;
@@ -155,7 +259,9 @@ A reskin rebuilds the frame and the bars (`App.buildChrome`), keeping their
 history and the header and crumbs; the skin is laid over the default theme,
 not over the previous skin, or `invert: true` would undo itself on every
 reload. Runtime toggles — `:readonly`, `ctrl-e`, `ctrl-g`, `:logo` — change
-only when their value in the file changed. The docker `context` and
+only when their value in the file changed; for `:readonly` that is what
+readOnly comes to on the current context, so a reload that changes only
+another context's entry leaves it alone. The docker `context` and
 `requestTimeout` are read at startup; changing them says a restart is
 needed.
 
