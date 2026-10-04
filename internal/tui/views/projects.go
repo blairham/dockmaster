@@ -140,7 +140,7 @@ func (v *ProjectsView) HandleKey(key string) (string, string) {
 		return "", ""
 	}
 	switch key {
-	case "u", "x", "R", "p", "e", KeyCtrlD:
+	case "u", "x", "R", "p", "e", "s", KeyCtrlD:
 		if op := v.busy[p.Name]; op != "" {
 			return "project_busy", p.Name + "\x00" + op
 		}
@@ -160,6 +160,8 @@ func (v *ProjectsView) HandleKey(key string) (string, string) {
 		return "compose_restart", p.Name
 	case "p":
 		return "compose_pull", p.Name
+	case "s":
+		return "scale_form", p.Name
 	case KeyCtrlD:
 		return "confirm_compose_down", p.Name
 	}

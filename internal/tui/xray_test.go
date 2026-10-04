@@ -172,9 +172,13 @@ func TestXrayKeysAskForTheContainersViewsActions(t *testing.T) {
 			"v": {}, "s": {}, "u": {}, "x": {}, "K": {}, "p": {}, "ctrl+d": {"xray_nav", ""},
 		}},
 		{node: "c:c1/n:shop_default", keys: map[string]want{"v": {}, "s": {}, "x": {}, "ctrl+d": {"xray_nav", ""}}},
-		{node: "p:shop", keys: map[string]want{"v": {}, "s": {}, "u": {}, "x": {}, "K": {}, "ctrl+d": {"xray_nav", ""}}},
-		{node: "p:shop/s:web", keys: map[string]want{"v": {}, "x": {}, "ctrl+d": {"xray_nav", ""}}},
-		{node: "standalone", keys: map[string]want{"x": {}, "ctrl+d": {"xray_nav", ""}}},
+		{node: "p:shop", keys: map[string]want{
+			"v": {}, "s": {"scale_form", "shop"}, "u": {}, "x": {}, "K": {}, "ctrl+d": {"xray_nav", ""},
+		}},
+		{node: "p:shop/s:web", keys: map[string]want{
+			"v": {}, "s": {"scale_form", "shop\x00web"}, "x": {}, "ctrl+d": {"xray_nav", ""},
+		}},
+		{node: "standalone", keys: map[string]want{"s": {}, "x": {}, "ctrl+d": {"xray_nav", ""}}},
 	}
 	for _, tc := range cases {
 		gotoNode(t, a, xv, tc.node)

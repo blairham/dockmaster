@@ -42,13 +42,26 @@ func (a *App) newCompose() (*docker.Compose, error) {
 	return docker.NewCompose(a.client.EndpointArgs())
 }
 
-// composeProject looks a project up in the projects view's last listing.
+// composeProject looks a project up in the projects view's last listing,
+// else xray's — a scale can start from either.
 func (a *App) composeProject(name string) (docker.Project, bool) {
-	pv := typedView[*views.ProjectsView](a, style.ViewProjects)
-	if pv == nil {
-		return docker.Project{}, false
+	if pv := typedView[*views.ProjectsView](a, style.ViewProjects); pv != nil {
+		if p, ok := pv.Project(name); ok {
+			return p, true
+		}
 	}
-	return pv.Project(name)
+	if xv := typedView[*views.XrayView](a, style.ViewXray); xv != nil {
+		return xv.Project(name)
+	}
+	return docker.Project{}, false
+}
+
+// projectBusy is the compose operation in flight on a project, "" if none.
+func (a *App) projectBusy(name string) string {
+	if pv := typedView[*views.ProjectsView](a, style.ViewProjects); pv != nil {
+		return pv.Busy(name)
+	}
+	return ""
 }
 
 // composeRun marks a project busy and runs a compose verb against it in the
@@ -298,5 +311,91 @@ func (a *App) composeFileEdit(file string) tea.Cmd {
 			err:     err,
 			changed: fileState([]string{file}) != before,
 		}
+	})
+}
+
+// openScaleForm opens the scale form on a project — param is the project,
+// then NUL and the service to start on when xray's service node asked. It
+// refuses up front what could never run: a project busy with another
+// verb, one with no services, and one whose compose files are not here —
+// unlike up or restart, a scale has no per-container fallback, since only
+// compose knows how to make another replica of a service.
+func (a *App) openScaleForm(param string) {
+	name, service, _ := strings.Cut(param, "\x00")
+	p, ok := a.composeProject(name)
+	if !ok {
+		a.errFlash = "project " + name + " is not in the last listing — refresh and try again"
+		return
+	}
+	if op := a.projectBusy(name); op != "" {
+		a.errFlash = fmt.Sprintf("%s is already %s — wait for it to finish", name, op)
+		return
+	}
+	if missing := p.MissingFile(); missing != "" {
+		a.errFlash = "cannot scale " + name + ": " + missing
+		return
+	}
+	if len(p.Services) == 0 {
+		a.errFlash = "cannot scale " + name + ": none of its containers carries a compose service label"
+		return
+	}
+	a.setView(style.ViewScaleForm, views.NewScaleForm(name, p.Services, p.Replicas, service))
+	a.pushView(style.ViewScaleForm)
+}
+
+// submitScale takes a submitted scale form. The form closes first, so the
+// confirm and the busy row are over the view it started from. A scale
+// that removes containers — down, or to 0 — confirms, naming the service
+// and the count change; a scale up or to the same count runs directly.
+func (a *App) submitScale(param string) tea.Cmd {
+	if a.view == style.ViewScaleForm {
+		a.popView()
+	}
+	sp, err := views.DecodeScaleSpec(param)
+	if err != nil {
+		a.errFlash = err.Error()
+		return nil
+	}
+	if sp.Replicas < sp.Current {
+		removed := sp.Current - sp.Replicas
+		q := fmt.Sprintf("scale %s in %s from %d to %d? %d container%s removed",
+			sp.Service, sp.Project, sp.Current, sp.Replicas, removed, plural(removed, " is", "s are"))
+		if sp.Replicas == 0 {
+			q = fmt.Sprintf("scale %s in %s from %d to 0? every one of its containers is removed",
+				sp.Service, sp.Project, sp.Current)
+		}
+		a.openConfirm("compose_scale", param, q)
+		return nil
+	}
+	return a.composeScale(sp)
+}
+
+// plural picks one or many.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
+
+// composeScale runs the scale, rechecking what may have changed since the
+// form opened: the project busy with another verb, its files gone.
+func (a *App) composeScale(sp views.ScaleSpec) tea.Cmd {
+	p, ok := a.composeProject(sp.Project)
+	if !ok {
+		a.errFlash = "project " + sp.Project + " is not in the last listing — refresh and try again"
+		return nil
+	}
+	if op := a.projectBusy(sp.Project); op != "" {
+		a.errFlash = fmt.Sprintf("%s is already %s — wait for it to finish", sp.Project, op)
+		return nil
+	}
+	if missing := p.MissingFile(); missing != "" {
+		a.errFlash = "cannot scale " + sp.Project + ": " + missing
+		return nil
+	}
+	verb := fmt.Sprintf("scaled %s to %d in", sp.Service, sp.Replicas)
+	return a.composeRun(p, "scaling", verb, func(c *docker.Compose, ctx context.Context, p docker.Project) error {
+		return c.Scale(ctx, p, sp.Service, sp.Replicas)
 	})
 }

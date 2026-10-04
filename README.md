@@ -85,6 +85,7 @@ Digits pick the resource; `?` shows everything.
 | in inspect: `f` | fullscreen | `a` | refresh on the poll |
 | on a project: `l` | every container's logs in one stream | `u` / `x` / `R` | compose up / stop / restart |
 | on a project: `p` / `e` | pull / edit the compose files, then up | `ctrl-d` | compose down (confirms) |
+| on a project: `s` | scale a service: pick it, set its container count (fewer confirms) | | |
 | `ctrl-s` | save the table as text (`~/.local/state/dockmaster/dumps`) | `shift-←/→` / `shift-↑/↓` | sort column / direction |
 | `c` | copy the row's name to the clipboard | `i` | copy its full ID |
 | in `:` or `/`: `↑` / `↓` | earlier commands / filters, kept across runs (`~/.local/state/dockmaster/history.json`) | `ctrl-n` / `ctrl-p` | cycle `:` suggestions (`tab` or `→` accepts) |
@@ -125,7 +126,7 @@ Your own `:` names go in `aliases.yaml`, your own keys in `hotkeys.yaml`, your o
 
 ## Notes
 
-- **Compose projects are labels**, folded from `com.docker.compose.project`. In the projects view `l` follows every container's logs in one stream, each line prefixed with its container as `docker compose logs -f` prints it (containers that start later join), `u` is `docker compose up -d`, `e` opens the compose file in `$EDITOR` and runs `up -d` when it comes back changed, `R` restart, `p` pull, `ctrl-d` `compose down` (confirms; volumes kept), run against the compose files the labels record. When those files are not on this machine — a remote daemon, a moved checkout — the keys fall back to acting on the containers directly. See [`docs/design/compose.md`](docs/design/compose.md).
+- **Compose projects are labels**, folded from `com.docker.compose.project`. In the projects view `l` follows every container's logs in one stream, each line prefixed with its container as `docker compose logs -f` prints it (containers that start later join), `u` is `docker compose up -d`, `e` opens the compose file in `$EDITOR` and runs `up -d` when it comes back changed, `R` restart, `p` pull, `s` scales a service (`up -d --scale svc=N --no-recreate svc`; fewer containers confirms), `ctrl-d` `compose down` (confirms; volumes kept), run against the compose files the labels record. When those files are not on this machine — a remote daemon, a moved checkout — the keys fall back to acting on the containers directly. See [`docs/design/compose.md`](docs/design/compose.md).
 - **Volumes are browsable.** `enter` on a volume lists its files through a short-lived helper container that mounts it read-only with no network — Docker has no API for a volume's files. See [`docs/design/volume-browser.md`](docs/design/volume-browser.md).
 - **Skins are k9s's.** Put a k9s skin in `~/.config/dockmaster/skins/` and name it in `config.yaml` (`ui.skin`) or `DOCKMASTER_SKIN`; `--invert` turns any skin, or the default look, dark to light. See [`docs/design/config.md`](docs/design/config.md#skins).
 - **Per-context settings.** A `contexts:` block gives a docker context its own skin, `readOnly` and `defaultView` — `prod: {skin: red, readOnly: true}` — applied whenever dockmaster is on it, and a `:ctx` switch opens the view you last had open there. See [`docs/design/config.md`](docs/design/config.md#per-context-settings).

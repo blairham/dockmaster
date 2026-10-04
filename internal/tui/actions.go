@@ -54,6 +54,7 @@ var mutating = map[string]bool{
 	"confirm_runtime_stop": true, "confirm_runtime_restart": true, "confirm_runtime_delete": true,
 	"runtime_new": true, "runtime_edit": true, "runtime_create": true, "runtime_apply": true,
 	"compose_up": true, "compose_edit": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
+	"scale_form": true, "compose_scale": true,
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
@@ -499,6 +500,11 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "confirm_compose_down":
 		a.confirmComposeDown(param)
 		return a, nil
+	case "scale_form":
+		a.openScaleForm(param)
+		return a, nil
+	case "compose_scale":
+		return a, a.submitScale(param)
 	case "start_project":
 		return a, a.runProject(param, "started", func(ctx context.Context, id string) error {
 			return a.client.StartContainer(ctx, id)
@@ -728,6 +734,13 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 		})
 	case "compose_down":
 		return a.composeDown(pa.param)
+	case "compose_scale":
+		sp, err := views.DecodeScaleSpec(pa.param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return nil
+		}
+		return a.composeScale(sp)
 	case "runtime_stop", "runtime_restart", "runtime_delete":
 		return a.runtimeConfirmed(strings.TrimPrefix(pa.action, "runtime_"), pa.param)
 	case "runtime_apply":

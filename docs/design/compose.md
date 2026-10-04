@@ -33,6 +33,7 @@ is showing rather than the shell's current context.
 | `e` | opens the compose files in the editor, then `compose up -d` if they changed | no |
 | `R` | `compose restart` | no |
 | `p` | `compose pull` | no |
+| `s` | a form for a service and its count, then `compose up -d --scale svc=N --no-recreate svc` | when it removes containers |
 | `ctrl-d` | `compose down` — containers and networks; **volumes are kept** | yes |
 | `x` | stops each container | yes |
 
@@ -50,7 +51,35 @@ machine", and the verbs fall back to what the Engine API can do on its own:
 - `R` restarts them one by one;
 - `ctrl-d` asks to force-remove them one by one;
 - `p` refuses, with the reason — there is nothing to pull without a file;
-- `e` refuses too — there is no file to edit.
+- `e` refuses too — there is no file to edit;
+- `s` refuses, with the reason — only compose knows how to make another
+  replica of a service, so there is nothing to fall back to.
+
+## Scaling
+
+`s` is k9s's scale. A form asks for the service — a choice over the
+services the project's containers carry in `com.docker.compose.service` —
+and the replicas, prefilled with that service's current container count.
+The count includes stopped containers, because `--scale` counts them too:
+a service of three with one stopped is at 3, not 2. Replicas must be a
+whole number, 0 or more; anything else stays in the form with the reason.
+On `:xray` the same form opens from a project node, or from a service node
+already on that service.
+
+Submitting runs
+
+    docker <endpoint> compose <project args> up -d --scale <svc>=<N> --no-recreate <svc>
+
+Naming the service keeps the rest of the project as it is — a bare `up`
+would also create or recreate every other service that drifted — and
+`--no-recreate` keeps the containers it leaves from being recreated when
+their definition changed: a scale is not an update.
+
+A scale below the current count removes containers, so it confirms,
+naming the service and both counts ("scale web in shop from 3 to 1? 2
+containers are removed"); to 0, the prompt says every container goes. A
+scale up, or to the same count, removes nothing and runs directly. The
+project's busy guard applies as for the other verbs, rechecked on submit.
 
 ## Editing
 
@@ -75,6 +104,6 @@ its reason is the flash, and the file stays as written for the next `e`.
 
 `up` pulls and builds what it needs, so compose calls get ten minutes, and
 the project's row shows `starting…` / `pulling…` / `removing…` until the call
-returns. A second lifecycle key on a busy project is refused. compose's
+returns. A second lifecycle key — scale included — on a busy project is refused. compose's
 failure reason is the last line of its stderr, and that is what the flash
 shows.

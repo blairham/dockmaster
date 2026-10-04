@@ -27,6 +27,12 @@ fails when the tag has none.
   and take the attributes `R`, `L`, `W` (containers' wide mode), `T` (an
   age) and `N` (sort as numbers); any other attribute, an unknown field or
   a title that clashes is refused at load. (#61)
+- `s` in the projects view scales a compose service, as k9s scales a
+  deployment: a form picks the service and its container count (prefilled
+  with the current one), then `docker compose up -d --scale svc=N
+  --no-recreate svc` runs against the project's files. Fewer containers
+  confirms; files not on this machine refuse it; `--readonly` refuses it.
+  `s` on an `:xray` project or service node opens the same form. (#62)
 
 ## [0.0.9] - 2026-10-04
 
