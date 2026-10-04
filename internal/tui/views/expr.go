@@ -387,7 +387,7 @@ const exprTimeLayout = "2006-01-02 15:04:05"
 // empty too.
 func (e ExprColumn) cell(view string, row any) string {
 	src, ok := exprSources[view]
-	if !ok || row == nil {
+	if !ok {
 		return ""
 	}
 	if e.Field == labelsField {
@@ -452,7 +452,8 @@ func alignRight(s string, width int) string {
 
 // numericCompare orders an N column: numbers by value, then everything
 // else — an empty cell, a label that is not a number — after them, in
-// tuikit's order.
+// tuikit's order. Every column already compares two numbers by value;
+// what N changes is that tuikit's order puts an empty cell first.
 func numericCompare(a, b string) int {
 	x, errA := strconv.ParseFloat(strings.TrimSpace(a), 64)
 	y, errB := strconv.ParseFloat(strings.TrimSpace(b), 64)

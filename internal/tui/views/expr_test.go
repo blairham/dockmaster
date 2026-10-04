@@ -164,6 +164,26 @@ func TestExprFieldsReadTheirOwnField(t *testing.T) {
 	}
 }
 
+// TestExprFieldKinds: each field takes the attributes its kind allows —
+// T on every time, N on every number, and neither on the rest.
+func TestExprFieldKinds(t *testing.T) {
+	times := map[string]bool{"Created": true}
+	numbers := map[string]bool{"SizeRw": true, "Size": true, "Containers": true, "Refs": true}
+	for _, view := range ExprViews() {
+		names, _ := ExprFields(view)
+		for _, name := range names {
+			if name == labelsField {
+				continue
+			}
+			_, errT := ParseExprColumn(view, "X:."+name+"|T")
+			_, errN := ParseExprColumn(view, "X:."+name+"|N")
+			if (errT == nil) != times[name] || (errN == nil) != numbers[name] {
+				t.Errorf("%s .%s: T %v, N %v", view, name, errT, errN)
+			}
+		}
+	}
+}
+
 // TestExprCells: a label present, absent and with dots in its key; ages,
 // unknown counts, and a row of another type.
 func TestExprCells(t *testing.T) {
@@ -249,8 +269,8 @@ func TestExprWidths(t *testing.T) {
 	}
 }
 
-// TestNumericCompare: N sorts numbers by value — 1.25 before 1.5, which
-// tuikit's natural order puts the other way round — and the rest after.
+// TestNumericCompare: N sorts numbers by value and the rest after them —
+// where tuikit's order, which every other column keeps, puts "" first.
 func TestNumericCompare(t *testing.T) {
 	in := []string{"b", "", "10", "1.5", "a", "-3", "1.25", " 2 "}
 	slices.SortStableFunc(in, numericCompare)
@@ -335,8 +355,15 @@ func TestExprColumnsProjectAndSort(t *testing.T) {
 	if got := []string{rows[0][3], rows[1][3], rows[2][3]}; !slices.Equal(got, []string{"1.25", "1.5", ""}) {
 		t.Errorf("REP not sorted as numbers: %q", got)
 	}
-	if s.compare(0, "1.5", "1.25") != cellCompare(0, "1.5", "1.25") {
-		t.Error("N reached a column it was not given on")
+	// "" before "5" in every column but an N one: NAME (the view's own)
+	// and SVC (an expression column without N) keep tuikit's order.
+	for col := range 3 {
+		if got := s.compare(col, "", "5"); got >= 0 {
+			t.Errorf("column %d (%s) put \"\" after \"5\": N reached a column it was not given on", col, s.shown[col])
+		}
+	}
+	if got := s.compare(3, "", "5"); got <= 0 {
+		t.Errorf("REP, an N column, put \"\" before \"5\"")
 	}
 }
 

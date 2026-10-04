@@ -357,3 +357,35 @@ func TestReloadAppliesExprColumns(t *testing.T) {
 		t.Errorf("PROJ after reload %q", got)
 	}
 }
+
+// TestExprColumnDocExample: the example in docs/design/config.md loads and
+// validates as written, and gives each of its four views expression
+// columns.
+func TestExprColumnDocExample(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "docs", "design", "config.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, after, ok := strings.Cut(string(b), "### Expression columns")
+	_, after, ok2 := strings.Cut(after, "```yaml\n")
+	example, _, ok3 := strings.Cut(after, "```")
+	if !ok || !ok2 || !ok3 {
+		t.Fatal("no yaml example under ### Expression columns")
+	}
+	dir := t.TempDir()
+	t.Setenv(config.EnvDir, dir)
+	write(t, filepath.Join(dir, config.ViewsFileName), example)
+	entries, err := config.LoadViews()
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := ColumnLayouts(entries)
+	if err != nil {
+		t.Fatalf("the documented example is refused: %v", err)
+	}
+	for _, view := range views.ExprViews() {
+		if len(l[view].Exprs) == 0 {
+			t.Errorf("the example gives %s no expression column", view)
+		}
+	}
+}
