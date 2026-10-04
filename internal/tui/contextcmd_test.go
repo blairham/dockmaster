@@ -25,6 +25,7 @@ func TestCutContextArg(t *testing.T) {
 		{in: "@prod images /nginx", name: "prod", rest: "images /nginx", ok: true},
 		{in: "volumes @prod /a @b", name: "prod", rest: "volumes /a @b", ok: true},
 		{in: "containers /user@host", rest: "containers /user@host"},
+		{in: "containers /x @prod", rest: "containers /x @prod"},
 		{in: "containers @", rest: "containers @"},
 		{in: "containers", rest: "containers"},
 	} {
