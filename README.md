@@ -47,7 +47,7 @@ dockmaster --headless             # no header at all — the table gets the rows
 dockmaster --crumbsless           # no breadcrumbs
 dockmaster -r 5                   # refresh every 5s (default 3)
 dockmaster --request-timeout 2m   # one limit for every daemon request
-dockmaster -c runtimes            # open on a view (containers, images, volumes, networks, projects, runtimes)
+dockmaster -c runtimes            # open on a view (containers, images, volumes, networks, projects, runtimes, events, pods, pf, df, pulses)
 ```
 
 **Settings persist in `config.yaml`**, shaped like k9s's: `dockmaster config init` writes a commented one with the defaults to `~/.config/dockmaster/config.yaml` (`dockmaster config path` shows where it is read from; `$DOCKMASTER_CONFIG_DIR` and `$XDG_CONFIG_HOME` move it). Every flag above has a key there, plus `context`, `thresholds` (CPU/MEM colours, k9s's 70/90), and `logger.tail` / `logger.showTime`. Flags given on the command line win. See [`docs/design/config.md`](docs/design/config.md).
@@ -78,8 +78,8 @@ Digits pick the resource; `?` shows everything.
 | in a log: `m` | mark: a stamped rule at the end, so later lines are easy to find | | |
 | in inspect: `/` | search: matches highlighted, nothing hidden, the title counts them; `n` / `N` next / previous | `c` / `ctrl-s` | copy / save the document (saves list in `:sd`) |
 | in inspect: `f` | fullscreen | `a` | refresh on the poll |
-
-The log keys are k9s's. Where k9s and Docker mean different things the key stays dockmaster's: `p` pauses (k9s's previous-container logs have no Docker equivalent — an exited container's logs are kept), `a` shows stopped containers, and `ctrl-k` shows Kubernetes containers rather than killing one (`K` kills, after a confirm).
+| on a project: `l` | every container's logs in one stream | `u` / `x` / `R` | compose up / stop / restart |
+| on a project: `p` / `e` | pull / edit the compose files, then up | `ctrl-d` | compose down (confirms) |
 | `ctrl-s` | save the table as text (`~/.local/state/dockmaster/dumps`) | `shift-←/→` / `shift-↑/↓` | sort column / direction |
 | `c` | copy the row's name to the clipboard | `i` | copy its full ID |
 | in `:` or `/`: `↑` / `↓` | earlier commands / filters, kept across runs (`~/.local/state/dockmaster/history.json`) | `ctrl-n` / `ctrl-p` | cycle `:` suggestions (`tab` or `→` accepts) |
@@ -89,6 +89,8 @@ The log keys are k9s's. Where k9s and Docker mean different things the key stays
 | `j` `k` `h` `l` | move (arrows work too) | `g` / `G` | top / bottom |
 | `ctrl-f` / `ctrl-b` | page down / up | `ctrl-r` | reload |
 | `q` | back out of a drill-in | `[` / `]` / `-` | view history back / forward / last |
+
+The log keys are k9s's. Where k9s and Docker mean different things the key stays dockmaster's: `p` pauses (k9s's previous-container logs have no Docker equivalent — an exited container's logs are kept), `a` shows stopped containers, and `ctrl-k` shows Kubernetes containers rather than killing one (`K` kills, after a confirm).
 
 Every destructive action asks first, and `--readonly` refuses them outright.
 

@@ -617,12 +617,6 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<z>", Desc: "Volume sizes"},
 					{Key: "<u>", Desc: "Run image"},
 					{Key: "<K>", Desc: "Kubernetes on/off"},
-					{Key: "<:ctx>", Desc: "Docker contexts"},
-					{Key: "<:sd>", Desc: "Saved dumps"},
-					{Key: "<:lint>", Desc: "Container lint"},
-					{Key: "<:dir>", Desc: "Compose files"},
-					{Key: "<:xray>", Desc: "Xray tree"},
-					{Key: "<:pu>", Desc: "Pulses dashboard"},
 					{Key: "<v>", Desc: "Scan image"},
 				},
 			},
@@ -644,6 +638,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<p>", Desc: "Pause/unpause"},
 					{Key: "<s>", Desc: "Shell into it"},
 					{Key: "<A>", Desc: "Attach"},
+					{Key: "<shift-f>", Desc: "Port-forward"},
 					{Key: "<l>", Desc: "Logs"},
 					{Key: "<t>", Desc: "CPU/MEM poll"},
 					{Key: "<ctrl-d>", Desc: "Remove"},
@@ -654,10 +649,13 @@ func (a *App) helpPanel() chrome.HelpPanel {
 			chrome.NavigationHelp(),
 		},
 	}
-	// In a log the CONTAINER column gives way to the log's own keys, as
-	// k9s's help follows the view it is opened over.
-	if a.view == style.ViewLogs {
+	// In a log or the projects view the CONTAINER column gives way to that
+	// view's own keys, as k9s's help follows the view it is opened over.
+	switch a.view {
+	case style.ViewLogs:
 		panel.Sections[1] = logsHelp()
+	case style.ViewProjects:
+		panel.Sections[1] = projectHelp()
 	}
 	if pl, ok := a.pluginsHelp(); ok {
 		panel.Sections = append(panel.Sections, pl)
@@ -669,6 +667,46 @@ func (a *App) helpPanel() chrome.HelpPanel {
 		sortHelpEntries(panel.Sections[i].Entries)
 	}
 	return panel
+}
+
+// commandsHelp is the `:` commands no key opens, listed under GENERAL
+// beside :cmd (a fifth column does not fit 120 columns, and GENERAL's key
+// column leaves a description 14 cells).
+// TestHelpCoversEveryCommand fails when a command is added to
+// knownCommands without a line here or a reason it needs none.
+func commandsHelp() []chrome.HelpEntry {
+	return []chrome.HelpEntry{
+		{Key: "<:ctx>", Desc: "Contexts"},
+		{Key: "<:pf>", Desc: "Port forwards"},
+		{Key: "<:df>", Desc: "Disk usage"},
+		{Key: "<:pods>", Desc: "Podman pods"},
+		{Key: "<:sd>", Desc: "Saved dumps"},
+		{Key: "<:lint>", Desc: "Container lint"},
+		{Key: "<:dir>", Desc: "Compose files"},
+		{Key: "<:xray>", Desc: "Xray tree"},
+		{Key: "<:pu>", Desc: "Pulses"},
+		{Key: "<:pull>", Desc: "Pull an image"},
+		{Key: "<:prune>", Desc: "Prune"},
+		{Key: "<:aliases>", Desc: "Your aliases"},
+		{Key: "<:readonly>", Desc: "Read-only mode"},
+	}
+}
+
+// projectHelp is the PROJECT column: the projects view's keys.
+func projectHelp() chrome.HelpSection {
+	return chrome.HelpSection{
+		Title: "PROJECT",
+		Entries: []chrome.HelpEntry{
+			{Key: "<enter>", Desc: "Its containers"},
+			{Key: "<l>", Desc: "Logs, merged"},
+			{Key: "<u>", Desc: "Compose up"},
+			{Key: "<x>", Desc: "Stop"},
+			{Key: "<R>", Desc: "Restart"},
+			{Key: "<p>", Desc: "Pull images"},
+			{Key: "<e>", Desc: "Edit, then up"},
+			{Key: "<ctrl-d>", Desc: "Compose down"},
+		},
+	}
 }
 
 // logsHelp is the LOGS column: every key a log view binds.
@@ -715,6 +753,7 @@ func generalHelp() chrome.HelpSection {
 		chrome.HelpEntry{Key: "<:logo>", Desc: "Toggle logo"},
 		chrome.HelpEntry{Key: "<ctrl-c>", Desc: "Quit"},
 	)
+	g.Entries = append(g.Entries, commandsHelp()...)
 	return g
 }
 
