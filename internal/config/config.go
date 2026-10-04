@@ -86,6 +86,9 @@ type Config struct {
 	// ScreenDumpDir is where ctrl-s saves go, and what :sd lists, instead
 	// of the state directory (k9s's screenDumpDir). ~ is the home directory.
 	ScreenDumpDir string `yaml:"screenDumpDir"`
+	// Shell is what s opens in a container — zsh, ash, fish — when the
+	// container has it; otherwise bash, then sh.
+	Shell string `yaml:"shell"`
 }
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
@@ -284,6 +287,8 @@ dockmaster:
   noExitOnCtrlC: false
   # Where ctrl-s saves go and :sd looks; empty is the state directory.
   screenDumpDir: ""
+  # The shell s opens in a container when it has it; empty is bash, then sh.
+  shell: ""
   ui:
     # A skin in skins/ beside this file, by name — a k9s skin works as is
     # (DOCKMASTER_SKIN overrides).

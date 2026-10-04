@@ -127,6 +127,7 @@ type App struct {
 	logWrap         bool
 	logPaused       bool
 	logFullscreen   bool
+	shell           string
 	noMouse         bool
 	historyFile     string
 	commandBar      *chrome.CommandBar
@@ -226,6 +227,9 @@ type Options struct {
 	LogWrap, LogPaused, LogFullscreen bool
 	// NoMouse leaves mouse reporting off.
 	NoMouse bool
+	// Shell is the shell s opens in a container when it has it, before the
+	// usual bash-then-sh.
+	Shell string
 	// HistoryFile is where the command and filter bars' history is kept
 	// between runs; "" keeps it for this run only.
 	HistoryFile string
@@ -326,6 +330,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logWrap:        opts.LogWrap,
 		logPaused:      opts.LogPaused,
 		logFullscreen:  opts.LogFullscreen,
+		shell:          opts.Shell,
 		noMouse:        opts.NoMouse,
 		historyFile:    opts.HistoryFile,
 		commandBar:     commandBar,

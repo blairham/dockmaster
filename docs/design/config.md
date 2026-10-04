@@ -126,6 +126,9 @@ These behave as k9s's do (#17):
   — how every log view opens: wrapped, paused rather than following, and
   fullscreen. All log views open through `App.openLogs`, so none can miss
   them.
+- `shell` — what `s` opens in a container (zsh, ash, fish) when the
+  container has it; otherwise bash, then sh. The name reaches the probe as
+  an argument, never as script.
 - `ui.enableMouse` — on by default, unlike k9s, because dockmaster has
   always had wheel scrolling; `false` turns mouse reporting off, so a
   plain drag selects text as in any other program.

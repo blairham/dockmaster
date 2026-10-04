@@ -27,10 +27,11 @@ func TestBehaviorOptions(t *testing.T) {
 	cfg.NoExitOnCtrlC = true
 	cfg.Logger.TextWrap, cfg.Logger.DisableAutoscroll, cfg.UI.DefaultsToFullScreen = true, true, true
 	cfg.ScreenDumpDir = "~/dumps"
+	cfg.Shell = "zsh"
 	behaviorOptions(cfg, &o)
 	home, _ := os.UserHomeDir()
 	if !o.NoMouse || !o.NoExitOnCtrlC || !o.LogWrap || !o.LogPaused || !o.LogFullscreen ||
-		o.DumpDir != filepath.Join(home, "dumps") {
+		o.DumpDir != filepath.Join(home, "dumps") || o.Shell != "zsh" {
 		t.Errorf("set keys did not all arrive: %+v", o)
 	}
 }
