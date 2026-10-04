@@ -12,6 +12,14 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- `-c` and `defaultView` take any `:` command or alias, not only a table
+  view (`-c xray`, `-c pg`), and `@context` goes with any command that opens
+  a view (`:xray @prod`). (#57)
+- Hotkeys take k9s's `override`, asked before the view's own keys; a k9s
+  `hotkeys.yaml` using it failed to load. (#58)
+
 ### Fixed
 
 - `:pull` keeps the reference's case: `:pull app:RC1` pulled `app:rc1`. (#52)

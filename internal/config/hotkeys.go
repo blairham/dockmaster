@@ -26,6 +26,8 @@ type HotKey struct {
 	Description string `yaml:"description"`
 	Command     string `yaml:"command"`
 	KeepHistory bool   `yaml:"keepHistory"`
+	// Override asks the hotkey before the view's own keys, as k9s's does.
+	Override bool `yaml:"override"`
 }
 
 // HotKeysPath is the hotkeys file's path.
