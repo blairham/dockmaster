@@ -79,7 +79,7 @@ docs/                      design notes (see Documentation)
 
 ## The docker context store — the thing that is easy to get wrong
 
-The Go SDK's `client.FromEnv` reads **only `DOCKER_HOST`**. It does not read docker *contexts*. On any machine using Colima, Rancher Desktop, Podman, or a remote host — where the endpoint lives in the context store and nowhere else — an SDK program therefore dials `/var/run/docker.sock` and reports "is the docker daemon running?" while `docker ps` two lines earlier worked fine.
+The Go SDK's `client.FromEnv` reads **only the environment** — `DOCKER_HOST`, plus `DOCKER_API_VERSION`, `DOCKER_CERT_PATH` and `DOCKER_TLS_VERIFY` (#35). It does not read docker *contexts*. On any machine using Colima, Rancher Desktop, Podman, or a remote host — where the endpoint lives in the context store and nowhere else — an SDK program therefore dials `/var/run/docker.sock` and reports "is the docker daemon running?" while `docker ps` two lines earlier worked fine.
 
 `internal/docker/context.go` closes that gap, following the CLI's own precedence:
 
@@ -90,6 +90,8 @@ The Go SDK's `client.FromEnv` reads **only `DOCKER_HOST`**. It does not read doc
 5. the platform default socket
 
 The store lives at `~/.docker/contexts/meta/<hex sha256 of the context name>/meta.json`. `TestContextDigestMatchesDockerCLI` pins that digest scheme against a real value, because if it ever drifts the failure is silent: dockmaster falls back to the default socket and declares a live daemon dead.
+
+A context's endpoint is more than its host (`internal/docker/endpoint.go`, #33, #34): its TLS files under `contexts/tls/<digest>/docker/` and `SkipTLSVerify` become the client's TLS config (`contextTLS`, the CLI's rules — a `ca.pem` replaces the system roots), and an `ssh://` host is dialed by running `ssh … docker system dial-stdio`, the CLI's connection helper, since the SDK has none. TLS is found by context *name*, so `--context` and `:ctx` dial with `NewForContext(name, host)`, and the docker CLI is pointed at the daemon with `Client.EndpointArgs` — `--context <name>` for a TLS context, else `--host`. The scanner, kind and plugins still get only the host. See `docs/design/docker-context-resolution.md`.
 
 ## Daemon calls are slow, and the design assumes it
 
@@ -145,7 +147,7 @@ In the runtimes view the same letters act on the machine, where its runtime supp
 
 `K` and every `ctrl-d` are uppercase or modified on purpose: the violent operations should not share a keystroke shape with navigation.
 
-`s` honors config's `shell` (#18): `preferredShellProbe` runs it when the container has it and falls back to bash-then-sh, with the name passed as `$0`. `dockerExecIt` hands the terminal over through `inTerminal`, so tests capture the command. `A` attaches to a running container's main process (#16): `App.attach` runs `docker attach --sig-proxy=false` through a one-line `sh` that prints the way out first and passes every argument positionally. `--sig-proxy=false` matters — by default a ctrl-c in the attached terminal becomes SIGINT to the container, which stops most services. It is in `mutating`, as `exec` is, so `--readonly` refuses it. `s` shells out to the `docker` CLI via `tea.ExecProcess` rather than driving the SDK's hijacked-stream exec. Interactive sessions need raw-mode TTY handling, window-resize propagation, and signal forwarding; the CLI already does all three correctly. It passes `--host` so an exec always lands on the daemon dockmaster is showing, not whatever context the user's shell happens to have.
+`s` honors config's `shell` (#18): `preferredShellProbe` runs it when the container has it and falls back to bash-then-sh, with the name passed as `$0`. `dockerExecIt` hands the terminal over through `inTerminal`, so tests capture the command. `A` attaches to a running container's main process (#16): `App.attach` runs `docker attach --sig-proxy=false` through a one-line `sh` that prints the way out first and passes every argument positionally. `--sig-proxy=false` matters — by default a ctrl-c in the attached terminal becomes SIGINT to the container, which stops most services. It is in `mutating`, as `exec` is, so `--readonly` refuses it. `s` shells out to the `docker` CLI via `tea.ExecProcess` rather than driving the SDK's hijacked-stream exec. Interactive sessions need raw-mode TTY handling, window-resize propagation, and signal forwarding; the CLI already does all three correctly. It passes `Client.EndpointArgs` (`--host`, or `--context` for a TLS context) so an exec always lands on the daemon dockmaster is showing, not whatever context the user's shell happens to have.
 
 ## Configuration
 

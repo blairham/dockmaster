@@ -27,27 +27,28 @@ type ComposeRunner func(ctx context.Context, args ...string) ([]byte, error)
 // project was brought up with. The labels on its containers record all
 // three.
 type Compose struct {
-	run  ComposeRunner
-	host string
+	run      ComposeRunner
+	endpoint []string
 }
 
 // ErrNoDockerCLI is returned when the docker CLI is not on PATH.
 var ErrNoDockerCLI = errors.New("compose actions need the `docker` CLI on PATH")
 
-// NewCompose finds the docker CLI. host is the endpoint dockmaster is
-// connected to; every invocation passes it as --host so compose acts on
-// the daemon on screen, not whatever context the shell has.
-func NewCompose(host string) (*Compose, error) {
+// NewCompose finds the docker CLI. endpoint is Client.EndpointArgs, the
+// flags that reach the daemon dockmaster is connected to; every invocation
+// passes them so compose acts on the daemon on screen, not whatever
+// context the shell has.
+func NewCompose(endpoint []string) (*Compose, error) {
 	bin, err := exec.LookPath("docker")
 	if err != nil {
 		return nil, ErrNoDockerCLI
 	}
-	return NewComposeWithRunner(composeExec(bin), host), nil
+	return NewComposeWithRunner(composeExec(bin), endpoint), nil
 }
 
 // NewComposeWithRunner builds a Compose over an arbitrary runner.
-func NewComposeWithRunner(run ComposeRunner, host string) *Compose {
-	return &Compose{run: run, host: host}
+func NewComposeWithRunner(run ComposeRunner, endpoint []string) *Compose {
+	return &Compose{run: run, endpoint: endpoint}
 }
 
 func composeExec(bin string) ComposeRunner {
@@ -131,11 +132,7 @@ func (p Project) MissingFile() string {
 }
 
 func (c *Compose) do(ctx context.Context, p Project, verb ...string) error {
-	args := []string{}
-	if c.host != "" {
-		args = append(args, "--host", c.host)
-	}
-	args = append(args, "compose")
+	args := append(append([]string{}, c.endpoint...), "compose")
 	args = append(args, p.ComposeArgs()...)
 	args = append(args, verb...)
 	_, err := c.run(ctx, args...)

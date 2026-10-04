@@ -37,9 +37,9 @@ type composeDoneMsg struct {
 // composeRunner to keep `docker` out of the loop.
 func (a *App) newCompose() (*docker.Compose, error) {
 	if a.composeRunner != nil {
-		return docker.NewComposeWithRunner(a.composeRunner, hostOf(a.client)), nil
+		return docker.NewComposeWithRunner(a.composeRunner, a.client.EndpointArgs()), nil
 	}
-	return docker.NewCompose(hostOf(a.client))
+	return docker.NewCompose(a.client.EndpointArgs())
 }
 
 // composeProject looks a project up in the projects view's last listing.

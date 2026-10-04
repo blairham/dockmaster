@@ -94,7 +94,7 @@ func TestComposeVerbs(t *testing.T) {
 		calls = append(calls, strings.Join(args, " "))
 		return nil, nil
 	}
-	c := NewComposeWithRunner(run, "unix:///h/docker.sock")
+	c := NewComposeWithRunner(run, []string{"--host", "unix:///h/docker.sock"})
 	p := Project{Name: "shop", WorkingDir: "/s", ConfigFiles: []string{"/s/c.yaml"}}
 	ctx := context.Background()
 	for _, fn := range []func(context.Context, Project) error{c.Up, c.Down, c.Restart, c.Pull} {

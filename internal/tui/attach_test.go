@@ -64,6 +64,26 @@ func TestAttach(t *testing.T) {
 	}
 }
 
+// TestShellGoesToTheDaemonOnScreen: s runs docker exec with the client's
+// endpoint flags first, so the shell opens on the daemon dockmaster shows
+// rather than the shell's own context.
+func TestShellGoesToTheDaemonOnScreen(t *testing.T) {
+	fakeDockerCLI(t)
+	a := newTestApp(t)
+	a.client = &docker.Client{Host: "unix:///run/fake.sock"}
+	var ran *exec.Cmd
+	a.execProcess = func(c *exec.Cmd, _ tea.ExecCallback) tea.Cmd { ran = c; return nil }
+	step(a, views.ContainersRefreshMsg{Containers: []docker.Container{{ID: "c1", Name: "web", State: "running"}}})
+	step(a, key("s"))
+	if ran == nil {
+		t.Fatalf("s handed over nothing (err %q)", a.errFlash)
+	}
+	want := []string{"--host", "unix:///run/fake.sock", "exec", "-it", "c1"}
+	if len(ran.Args) < 1+len(want) || strings.Join(ran.Args[1:1+len(want)], " ") != strings.Join(want, " ") {
+		t.Errorf("docker exec args %q, want %q first", ran.Args[1:], want)
+	}
+}
+
 // TestAttachRefused: a stopped container cannot be attached to, and
 // --readonly refuses attach as it refuses a shell — both send keystrokes to
 // the container.

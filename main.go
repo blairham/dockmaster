@@ -126,7 +126,12 @@ func run() error {
 		}
 	}
 
-	client, err := docker.New(endpoint)
+	newClient := docker.New
+	if *host == "" && *contextName != "" {
+		// The context's TLS material as well as its host (#33).
+		newClient = func(h string) (*docker.Client, error) { return docker.NewForContext(*contextName, h) }
+	}
+	client, err := newClient(endpoint)
 	if err != nil {
 		return err
 	}
