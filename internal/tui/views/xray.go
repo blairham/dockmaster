@@ -31,6 +31,9 @@ type xrayTarget struct {
 	inspect, inspectParam string
 	scan                  string
 	copyName, copyID      string
+	// scale is the scale form's param on a project or service node: the
+	// project, then NUL and the service the form starts on.
+	scale string
 }
 
 // XrayView is k9s's xray for Docker (#9): every compose project, its
@@ -44,6 +47,7 @@ type XrayView struct {
 	err      error
 	targets  map[string]xrayTarget
 	names    map[string]string
+	projects []docker.Project
 	inFlight bool
 	loading  bool
 }
@@ -88,6 +92,7 @@ func (v *XrayView) Update(msg tea.Msg) tea.Cmd {
 	v.inFlight, v.loading, v.err = false, false, m.Err
 	if m.Err == nil {
 		v.targets, v.names = map[string]xrayTarget{}, map[string]string{}
+		v.projects = docker.Projects(m.Containers)
 		v.tree.SetRoots(v.build(m.Containers))
 	}
 	return nil
@@ -112,11 +117,13 @@ func (v *XrayView) build(cs []docker.Container) []*tree.Node {
 	var roots []*tree.Node
 	for _, p := range sortedKeys(projects) {
 		pid := "p:" + p
-		v.targets[pid] = xrayTarget{enter: "project_containers", enterParam: p, copyName: p}
+		v.targets[pid] = xrayTarget{enter: "project_containers", enterParam: p, copyName: p, scale: p}
 		pn := &tree.Node{ID: pid, Label: style.Title.Render("⎔ " + p)}
 		for _, s := range sortedKeys(projects[p]) {
 			sid := pid + "/s:" + s
-			v.targets[sid] = xrayTarget{enter: "project_containers", enterParam: p, copyName: s}
+			v.targets[sid] = xrayTarget{
+				enter: "project_containers", enterParam: p, copyName: s, scale: p + "\x00" + s,
+			}
 			sn := &tree.Node{ID: sid, Label: "◇ " + s}
 			for _, c := range sortedContainers(projects[p][s]) {
 				sn.Children = append(sn.Children, v.containerNode(c))
@@ -198,7 +205,8 @@ func sortedContainers(cs []docker.Container) []docker.Container {
 // volume's files, the containers on a network, a project's containers — and
 // o inspects it. On a container the containers view's keys work as they do
 // there (#56) — the same actions, so --readonly, confirms and the refresh
-// after are the app's as everywhere — and v scans an image node's image.
+// after are the app's as everywhere — v scans an image node's image, and s
+// on a project or service node scales it (#62).
 func (v *XrayView) HandleKey(key string) (string, string) {
 	switch key {
 	case tree.KeyToggle, "h", "l", "left", "right":
@@ -219,6 +227,10 @@ func (v *XrayView) HandleKey(key string) (string, string) {
 		if t.scan != "" {
 			return "scan_image", t.scan
 		}
+	case "s":
+		if t.scale != "" {
+			return "scale_form", t.scale
+		}
 	}
 	if t.container != nil {
 		return containerAction(key, *t.container)
@@ -229,6 +241,17 @@ func (v *XrayView) HandleKey(key string) (string, string) {
 		return "xray_nav", ""
 	}
 	return "", ""
+}
+
+// Project returns the named compose project from the last listing, folded
+// as the projects view folds it — what a scale from here runs against.
+func (v *XrayView) Project(name string) (docker.Project, bool) {
+	for _, p := range v.projects {
+		if p.Name == name {
+			return p, true
+		}
+	}
+	return docker.Project{}, false
 }
 
 // CopyFields is the selected node's name and ID: a container's, an
