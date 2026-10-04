@@ -11,6 +11,7 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/docker/go-connections v0.8.1
 	github.com/docker/go-units v0.5.0
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/moby/go-archive v0.3.3
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.1

@@ -176,6 +176,11 @@ type App struct {
 	// execProcess replaces tea.ExecProcess, which hands a child the
 	// terminal; tests only.
 	execProcess func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+	// execPipelineFn replaces tea.Exec for a plugin's pipeline; tests only.
+	execPipelineFn func(tea.ExecCommand, tea.ExecCallback) tea.Cmd
+	// pluginPending is the plugin whose inputs form is open, with the
+	// variables of the row it was started on.
+	pluginPending *pendingPlugin
 	// sizedView, sizedW and sizedH record what the active view was last
 	// sized to; see syncViewSize.
 	sizedView    style.ViewType

@@ -255,7 +255,9 @@ runs nothing.
 - A plugin hands the terminal over, as `s` does; `background: true` runs it
   detached and flashes its outcome — the exit code and last line on
   failure.
-- `confirm: true` asks first, showing the command line.
+- `confirm: true` asks first, showing the command line (and its pipes).
+  With `inputs` it defaults to true, as k9s's does; `confirm: false` turns
+  it off.
 - `dangerous: true` is refused under `--readonly`; other plugins run there,
   being the user's own.
 - A plugin's key is asked after the view's own keys, so the view keeps a
@@ -263,12 +265,92 @@ runs nothing.
 - The active view's plugins join its header shortcuts and a PLUGINS column
   in help.
 
-Checked at startup: the key parses, is not one dockmaster keeps and is not
-taken by a hotkey or by another plugin in a view they share; there is a
-command and at least one scope, and every scope is a view. k9s's `pipes`
-and `inputs` are refused rather than ignored, which would run a different
-command than the one written; `overwriteOutput` is accepted and does
+### Inputs and pipes
+
+k9s's `inputs` ask for values before a plugin runs, and its `pipes` run the
+plugin's output through further commands. This one asks how far back to look,
+and whether to show timestamps, then keeps the last twenty error or warning
+lines of a container's log:
+
+```yaml
+plugins:
+  grep-logs:
+    shortCut: F2
+    description: Grep logs
+    scopes: [containers]
+    command: docker
+    args: [--host, $DOCKER_HOST, logs, --since, $INPUT_SINCE, --timestamps=$INPUT_TIMESTAMPS, $NAME]
+    inputs:
+      - name: since
+        label: Since
+        type: dropdown
+        options: [10m, 1h, 24h]
+        default: 1h
+        required: true
+      - name: timestamps
+        type: bool
+    pipes:
+      - grep -i -E error|warn
+      - tail -n 20
+```
+
+(Only the log's stdout goes through the pipes: `docker logs` writes a
+container's stderr to its own stderr, which goes straight to the terminal.)
+
+Pressing the key opens a form (`views.PluginFormView`) with every default
+filled in. `tab` moves between fields; a `bool` is a toggle (`space`, or
+`y` / `n`), starting false unless its default is `true`; a `dropdown` cycles
+its options with `←` / `→` / `space`, starting on its default, or on no
+choice if it has none; a `number` must parse as one (Go's `ParseFloat`,
+k9s's test). `enter` refuses an empty `required` field or a bad number in
+the form and runs nothing; `esc` abandons it and runs nothing. On submit
+each input becomes `INPUT_<NAME>` (the name upper-cased): in the command's
+environment, and filled into `args` like every other `$VAR` — once, so a
+typed `$NAME` stays literal text. Then the confirm, then the command. The
+row is the one selected when the key was pressed.
+
+Each `pipes` entry is split into words the way k9s splits it (shlex: quotes
+and backslashes group, no expansion) and the plugin runs as
+`command args | pipe | pipe …`, the last command's output and every
+command's errors on the terminal. dockmaster builds the pipeline itself —
+each command exec'd with its own argument list, joined by OS pipes — so no
+shell ever parses an input or a row's value. As in k9s, `$VAR`s are **not**
+filled into pipes: `grep $NAME` in a pipe greps for the text `$NAME`. Every
+command does get the plugin's environment, so a pipe that needs a value
+reads it there — `sh -c 'grep -F -- "$INPUT_PATTERN"'`, where the shell
+reads the variable and never sees the value as code. The pipeline's exit is
+its last command's, as a shell's is without `pipefail`: a `grep` that
+matches nothing fails the plugin; an upstream command ended by a closed
+pipe does not.
+
+### Checked at startup
+
+The key parses, is not one dockmaster keeps and is not taken by a hotkey or
+by another plugin in a view they share; there is a command and at least one
+scope, and every scope is a view. `overwriteOutput` is accepted and does
 nothing, as dockmaster does not capture output.
+
+Inputs are held to k9s's rules — no name twice, a `dropdown` default among
+its options, a `bool` default `true` or `false`, a `number` default that
+parses — and to a few more, each where k9s would accept a file and then
+behave unlike what it says:
+
+- a name is letters, digits and `_`, not starting with a digit, because it
+  becomes `$INPUT_<NAME>`, which neither dockmaster nor a shell could read
+  with a `-` or a space in it;
+- no two names that differ only in case, which would both be
+  `$INPUT_<NAME>`, one silently replacing the other;
+- `type` is `string` (the default when it is left out), `number`, `bool` or
+  `dropdown` — a typo such as `boolean` is refused, not run as free text;
+- a `dropdown` has `options`.
+
+Pipes: an entry that does not split (an unclosed quote), or that is fewer
+than two words, is refused. k9s skips such an entry silently, which would
+run a different pipeline than the one written — `sort` on its own has to be
+spelled with an argument (`sort -s`) or dropped. `background: true` with
+pipes is refused too: k9s starts that pipeline without giving it the
+terminal, so its output lands over the UI, and there is nothing sensible
+to match.
 
 ## Views
 

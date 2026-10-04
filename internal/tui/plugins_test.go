@@ -44,7 +44,6 @@ func TestPluginsValidation(t *testing.T) {
 		{entries: map[string]config.Plugin{"p": {ShortCut: "F2", Scopes: []string{"all"}}}, want: "no command"},
 		{entries: map[string]config.Plugin{"p": {ShortCut: "F2", Command: "x"}}, want: "no scopes"},
 		{entries: map[string]config.Plugin{"p": {ShortCut: "F2", Scopes: []string{"pods-ish"}, Command: "x"}}, want: `scope "pods-ish" is not a view`},
-		{entries: map[string]config.Plugin{"p": {ShortCut: "F2", Scopes: []string{"all"}, Command: "x", Pipes: []string{"less"}}}, want: "pipes and inputs are not supported"},
 		{entries: map[string]config.Plugin{
 			"a": {ShortCut: "F2", Scopes: []string{"images"}, Command: "x"},
 			"b": {ShortCut: "F2", Scopes: []string{"image", "volumes"}, Command: "x"},

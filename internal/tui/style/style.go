@@ -197,6 +197,7 @@ const (
 	ViewDir
 	ViewXray
 	ViewPulses
+	ViewPluginForm
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -256,6 +257,8 @@ func ViewName(v ViewType) string {
 		return "Xray"
 	case ViewPulses:
 		return "Pulses"
+	case ViewPluginForm:
+		return "Plugin"
 	default:
 		return "Unknown"
 	}
@@ -299,7 +302,7 @@ func ViewResource(v ViewType) string {
 		return "container"
 	case ViewTop:
 		return "process"
-	case ViewRunForm, ViewCopyForm, ViewEditForm:
+	case ViewRunForm, ViewCopyForm, ViewEditForm, ViewPluginForm:
 		return "field"
 	case ViewVolumeBrowse:
 		return "file"
