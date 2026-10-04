@@ -11,6 +11,7 @@ package docker
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"strings"
 	"sync"
@@ -52,6 +53,10 @@ type Client struct {
 	// names one image for good, so an entry never goes stale.
 	imageNames map[string]string
 	imageMu    sync.Mutex
+	// tlsContext is the store context whose TLS material this client
+	// carries, so the docker CLI is pointed at it with --context
+	// (EndpointArgs): --host would leave the certificates behind.
+	tlsContext string
 	// RequestTimeout, when non-zero, replaces every per-call deadline
 	// passed to RequestContext (--request-timeout): longer for a daemon
 	// that is slow but honest, shorter to fail fast on one that hangs.
@@ -73,25 +78,77 @@ func (c *Client) RequestContext(def time.Duration) (context.Context, context.Can
 // socket for the platform).
 func New(host string) (*Client, error) {
 	resolved, ctxName := ResolveHost(host)
+	store := ""
+	if host == "" && ctxName != "env" && ctxName != "default" {
+		store = ctxName
+	}
+	return newClient(resolved, ctxName, store)
+}
 
+// NewForContext dials the store context name with its TLS material, as
+// `docker --context name` would. host is the endpoint the caller resolved
+// for it: when the store has no such context, or a different host under
+// that name (a runtime profile that shares a context's name), host is
+// dialed as New would.
+func NewForContext(name, host string) (*Client, error) {
+	meta, err := readContextMeta(name)
+	if err != nil || (host != "" && meta.Endpoints.Docker.Host != host) {
+		return New(host)
+	}
+	return newClient(meta.Endpoints.Docker.Host, name, name)
+}
+
+// newClient dials host; store, when set, is the context store entry whose
+// TLS material and SkipTLSVerify apply.
+func newClient(host, ctxName, store string) (*Client, error) {
+	var tlsCfg *tls.Config
+	if store != "" {
+		if meta, err := readContextMeta(store); err == nil {
+			if tlsCfg, err = contextTLS(store, meta.Endpoints.Docker.SkipTLSVerify); err != nil {
+				return nil, err
+			}
+		}
+	}
 	// API version negotiation is the client's default (and
 	// WithAPIVersionNegotiation a deprecated no-op): the first request pings
 	// the daemon and settles on the lower of its version and the client's.
 	// DOCKER_API_VERSION, read by FromEnv, pins a version instead.
-	opts := []client.Opt{client.FromEnv}
-	if resolved != "" {
-		opts = append(opts, client.WithHost(resolved))
+	ep, err := endpointOpts(host, tlsCfg)
+	if err != nil {
+		return nil, err
 	}
-	api, err := client.New(opts...)
+	api, err := client.New(append([]client.Opt{client.FromEnv}, ep...)...)
 	if err != nil {
 		return nil, fmt.Errorf("creating docker client: %w", err)
 	}
-	return &Client{
+	c := &Client{
 		api:         api,
-		Host:        api.DaemonHost(),
+		Host:        host,
 		ContextName: ctxName,
 		stats:       make(map[string]Stats),
-	}, nil
+	}
+	if host == "" {
+		c.Host = api.DaemonHost()
+	}
+	if tlsCfg != nil {
+		c.tlsContext = store
+	}
+	return c, nil
+}
+
+// EndpointArgs are the docker CLI flags that reach this client's daemon:
+// --context for a store context with TLS material, which --host would
+// leave behind, otherwise --host. None for a nil client.
+func (c *Client) EndpointArgs() []string {
+	switch {
+	case c == nil:
+		return nil
+	case c.tlsContext != "":
+		return []string{"--context", c.tlsContext}
+	case c.Host != "":
+		return []string{"--host", c.Host}
+	}
+	return nil
 }
 
 // API exposes the raw SDK client for the few call sites that need it

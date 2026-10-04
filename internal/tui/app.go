@@ -659,7 +659,7 @@ func doSwitchContext(name, host string) tea.Cmd { return doSwitchContextKeep(nam
 // switch lands the user on the containers view.
 func doSwitchContextKeep(name, host string, keepView bool) tea.Cmd {
 	return func() tea.Msg {
-		c, err := docker.New(host)
+		c, err := docker.NewForContext(name, host)
 		if err != nil {
 			return switchContextMsg{name: name, err: err, keepView: keepView}
 		}

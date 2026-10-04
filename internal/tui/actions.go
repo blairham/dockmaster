@@ -803,9 +803,7 @@ func (a *App) attach(id string) tea.Cmd {
 		return nil
 	}
 	args := []string{"-c", `printf '%s\n' "$0"; exec "$@"`, attachDetachHint, bin}
-	if host := a.dockerHostArg(); host != "" {
-		args = append(args, "--host", host)
-	}
+	args = append(args, a.client.EndpointArgs()...)
 	// --sig-proxy=false: by default docker attach forwards a ctrl-c to the
 	// container as SIGINT, which stops most services; off, it only ends
 	// the attach.
@@ -857,10 +855,7 @@ func (a *App) dockerExecIt(target string, argv ...string) tea.Cmd {
 		return nil
 	}
 
-	args := []string{"exec", "-it"}
-	if host := a.dockerHostArg(); host != "" {
-		args = append([]string{"--host", host}, args...)
-	}
+	args := append(a.client.EndpointArgs(), "exec", "-it")
 	args = append(append(args, target), argv...)
 
 	// context.Background() on purpose: the shell's lifetime is the user's,
