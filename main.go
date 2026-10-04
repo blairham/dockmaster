@@ -340,4 +340,5 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.LogPaused = cfg.Logger.DisableAutoscroll
 	o.LogFullscreen = cfg.UI.DefaultsToFullScreen
 	o.NoMouse = !cfg.UI.EnableMouse
+	o.Shell = cfg.Shell
 }

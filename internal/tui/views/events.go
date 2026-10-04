@@ -43,12 +43,19 @@ type EventsView struct {
 	stream *docker.EventStream
 	err    error
 
+	// events is the feed as received, so ctrl-z can show only the faults
+	// and back without losing what was hidden. Capped at the tail's size.
+	events  []docker.Event
 	filter  string
 	gen     int
 	width   int
 	height  int
 	loading bool
+	faults  bool
 }
+
+// maxEvents caps what the feed remembers, as the tail caps its lines.
+const maxEvents = 5000
 
 // NewEventsView builds the view. The stream starts on Init.
 func NewEventsView(client *docker.Client) *EventsView {
@@ -76,6 +83,7 @@ func (v *EventsView) start() tea.Cmd {
 		// A restart replays the history window; a fresh feed keeps it from
 		// appearing twice.
 		follow := v.tail.Follow()
+		v.events = nil
 		v.tail = tail.New()
 		v.tail.SetFollow(follow)
 		v.tail.SetFilter(v.filter)
@@ -144,11 +152,11 @@ func (v *EventsView) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		v.loading = false
-		lines := make([]string, 0, len(m.Events))
-		for _, e := range m.Events {
-			lines = append(lines, renderEvent(e))
+		v.events = append(v.events, m.Events...)
+		if over := len(v.events) - maxEvents; over > 0 {
+			v.events = v.events[over:]
 		}
-		v.tail.AppendLines(lines)
+		v.tail.AppendLines(v.render(m.Events))
 		return v.drain()
 	case EventsClosedMsg:
 		if m.Gen != v.gen {
@@ -209,10 +217,47 @@ func (v *EventsView) SetFilter(f string) {
 	v.tail.SetFilter(f)
 }
 
-// HandleKey binds nothing of its own: f (follow) and the scroll keys reach
-// the tail through UpdateTable, where tuikit's HandleScrollKey owns them.
-// Toggling f here as well would cancel tuikit's toggle out.
-func (v *EventsView) HandleKey(string) (string, string) { return "", "" }
+// HandleKey binds ctrl-z, the faults filter, as the containers view does.
+// f (follow) and the scroll keys reach the tail through UpdateTable, where
+// tuikit's HandleScrollKey owns them; toggling f here as well would cancel
+// tuikit's toggle out.
+func (v *EventsView) HandleKey(key string) (string, string) {
+	if key == "ctrl+z" {
+		return "toggle_event_faults", ""
+	}
+	return "", ""
+}
+
+// ToggleFaults shows only the events that mean something failed or was
+// destroyed — a die with a non-zero exit, a kill, an OOM, an unhealthy
+// check — or everything again, rebuilding the feed from what it received.
+func (v *EventsView) ToggleFaults() {
+	v.faults = !v.faults
+	v.tail.ReplaceLines(v.render(v.events))
+}
+
+// Faults reports whether only faults are shown.
+func (v *EventsView) Faults() bool { return v.faults }
+
+// Status names the faults filter in the border title.
+func (v *EventsView) Status() string {
+	if v.faults {
+		return "faults"
+	}
+	return ""
+}
+
+// render is the feed lines for es, only the faults while that is on.
+func (v *EventsView) render(es []docker.Event) []string {
+	lines := make([]string, 0, len(es))
+	for _, e := range es {
+		if v.faults && e.Severity() != "bad" {
+			continue
+		}
+		lines = append(lines, renderEvent(e))
+	}
+	return lines
+}
 
 // Follow reports whether the feed is pinned to the newest event.
 func (v *EventsView) Follow() bool { return v.tail.Follow() }

@@ -215,6 +215,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- view toggles ---------------------------------------------------
 
+	case "toggle_event_faults":
+		if v := typedView[*views.EventsView](a, style.ViewEvents); v != nil {
+			v.ToggleFaults()
+			a.flash = "faults only " + onOff(v.Faults())
+		}
+		return a, nil
 	case "toggle_wide":
 		if v := typedView[*views.ContainersView](a, style.ViewContainers); v != nil {
 			v.ToggleWide()
@@ -758,7 +764,15 @@ func (a *App) runPrune(kind string, fn func(context.Context) (int, uint64, error
 // and a hard-coded bash fails on every alpine container.
 const shellProbe = `if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi`
 
+// preferredShellProbe runs the configured shell when the container has it,
+// and falls back to shellProbe's bash-then-sh when it does not. The shell's
+// name arrives as $0, so it is never parsed as part of the script.
+const preferredShellProbe = `if command -v "$0" >/dev/null 2>&1; then exec "$0"; fi; ` + shellProbe
+
 func (a *App) execShell(id string) tea.Cmd {
+	if a.shell != "" {
+		return a.dockerExecIt(id, "sh", "-c", preferredShellProbe, a.shell)
+	}
 	return a.dockerExecIt(id, "sh", "-c", shellProbe)
 }
 
@@ -850,7 +864,7 @@ func (a *App) dockerExecIt(target string, argv ...string) tea.Cmd {
 	ctx := context.Background()
 	cmd := exec.CommandContext(ctx, bin, args...) //nolint:gosec // see above
 
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+	return a.inTerminal(cmd, func(err error) tea.Msg {
 		// A non-zero exit is the ordinary way to leave a shell (ctrl-d
 		// after a failed command), so it is not surfaced as an error.
 		var exitErr *exec.ExitError
