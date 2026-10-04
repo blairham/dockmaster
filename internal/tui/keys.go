@@ -95,7 +95,10 @@ func ViewForCommand(name string) (style.ViewType, bool) {
 
 // ViewCommandNames lists the canonical view names, for error messages.
 func ViewCommandNames() []string {
-	return []string{"containers", "images", "volumes", "networks", "projects", "runtimes"}
+	return []string{
+		"containers", "images", "volumes", "networks", "projects", "runtimes",
+		"events", "pods", "pf", "df", "pulses",
+	}
 }
 
 // fuzzyMatch picks the best command for a partial input: exact prefixes
@@ -406,7 +409,8 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	}
 
 	// Commands taking an argument.
-	if rest, ok := strings.CutPrefix(lower, "pull "); ok {
+	// The reference keeps its case: a tag may hold capitals (`app:RC1`).
+	if rest, ok := cutPrefixFold(raw, "pull "); ok {
 		_, cmd := a.handleAction("pull", strings.TrimSpace(rest))
 		return "", cmd
 	}
@@ -595,4 +599,13 @@ func (a *App) setLogoless(v bool) {
 		a.chrome.Logo = dmLogo
 	}
 	a.resizeActiveView()
+}
+
+// cutPrefixFold is strings.CutPrefix with the prefix matched without
+// regard to case and the rest returned as written.
+func cutPrefixFold(s, prefix string) (string, bool) {
+	if len(s) < len(prefix) || !strings.EqualFold(s[:len(prefix)], prefix) {
+		return s, false
+	}
+	return s[len(prefix):], true
 }

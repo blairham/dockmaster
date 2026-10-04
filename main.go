@@ -56,7 +56,7 @@ func run() error {
 			"how long one daemon request may take, as 30s or 2m (0 keeps each request's own: 20s for a list, 5m for images)")
 		showVersion = flag.Bool("version", false, "print version and exit")
 	)
-	const commandUsage = "view to open on: containers, images, volumes, networks, projects or runtimes"
+	commandUsage := "view to open on: " + strings.Join(tui.ViewCommandNames(), ", ")
 	flag.StringVar(&command, "command", "", commandUsage)
 	flag.StringVar(&command, "c", "", commandUsage+" (shorthand)")
 	const refreshUsage = "auto-refresh interval in seconds (default 3)"

@@ -12,6 +12,14 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Fixed
+
+- `:pull` keeps the reference's case: `:pull app:RC1` pulled `app:rc1`. (#52)
+- `?` lists every `:` command, `shift-f`, and, over the projects view, the
+  project keys; a test now fails when a command is added without one. (#53)
+- The README's key table renders whole again, and `-c` names all eleven
+  views it opens, in its usage, its error and the README. (#54)
+
 ## [0.0.8] - 2026-10-04
 
 ### Added
