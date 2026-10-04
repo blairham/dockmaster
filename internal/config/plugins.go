@@ -18,24 +18,34 @@ import (
 // plugins.yaml.
 const PluginsFileName = "plugins.yaml"
 
-// Plugin is one entry under plugins:, in k9s's shape. Pipes and Inputs are
-// decoded so a k9s file loads, and refused by the UI: dockmaster runs
-// neither, and ignoring them would run a different command than the one
-// written. OverwriteOutput has no effect — dockmaster does not capture a
-// plugin's output.
+// Plugin is one entry under plugins:, in k9s's shape. Whether its inputs
+// and pipes make sense is the UI's to say (tui.Plugins). OverwriteOutput
+// has no effect — dockmaster does not capture a plugin's output.
 type Plugin struct {
-	Confirm         *bool    `yaml:"confirm"`
-	ShortCut        string   `yaml:"shortCut"`
-	Description     string   `yaml:"description"`
-	Command         string   `yaml:"command"`
-	Scopes          []string `yaml:"scopes"`
-	Args            []string `yaml:"args"`
-	Pipes           []string `yaml:"pipes"`
-	Inputs          []any    `yaml:"inputs"`
-	Background      bool     `yaml:"background"`
-	Dangerous       bool     `yaml:"dangerous"`
-	Override        bool     `yaml:"override"`
-	OverwriteOutput bool     `yaml:"overwriteOutput"`
+	Confirm         *bool         `yaml:"confirm"`
+	ShortCut        string        `yaml:"shortCut"`
+	Description     string        `yaml:"description"`
+	Command         string        `yaml:"command"`
+	Scopes          []string      `yaml:"scopes"`
+	Args            []string      `yaml:"args"`
+	Pipes           []string      `yaml:"pipes"`
+	Inputs          []PluginInput `yaml:"inputs"`
+	Background      bool          `yaml:"background"`
+	Dangerous       bool          `yaml:"dangerous"`
+	Override        bool          `yaml:"override"`
+	OverwriteOutput bool          `yaml:"overwriteOutput"`
+}
+
+// PluginInput is one field of the form a plugin with inputs shows before
+// it runs, in k9s's shape: Type is string, number, bool or dropdown, and a
+// dropdown picks from Options.
+type PluginInput struct {
+	Name     string   `yaml:"name"`
+	Label    string   `yaml:"label"`
+	Type     string   `yaml:"type"`
+	Default  string   `yaml:"default"`
+	Options  []string `yaml:"options"`
+	Required bool     `yaml:"required"`
 }
 
 // PluginsPath is the plugins file's path.

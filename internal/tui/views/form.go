@@ -23,6 +23,7 @@ type form struct {
 	fields     []formField
 	focus      int
 	valueWidth int
+	labelWidth int // 0: 10 cells
 }
 
 // cycleChoice steps the focused choice field with ←/→ (h/l, space); a
@@ -117,8 +118,9 @@ func (v *form) field(key string) *formField {
 
 // render draws the fields, a footer line, and the error if any.
 func (v *form) render(footer string) string {
-	label := lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Width(10)
-	focused := lipgloss.NewStyle().Foreground(style.ColorCyan).Bold(true).Width(10)
+	lw := cmp.Or(v.labelWidth, 10)
+	label := lipgloss.NewStyle().Foreground(style.ColorDockerBlue).Width(lw)
+	focused := lipgloss.NewStyle().Foreground(style.ColorCyan).Bold(true).Width(lw)
 	box := lipgloss.NewStyle().Foreground(style.ColorWhite).Bold(true)
 
 	var b strings.Builder
