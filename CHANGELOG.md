@@ -12,6 +12,8 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-10-04
+
 ### Added
 
 - Plugins take k9s's `inputs` and `pipes`. Inputs open a form before the
@@ -114,7 +116,8 @@ machines under the daemon — Colima, Podman, Docker Desktop, Rancher Desktop,
 OrbStack — managed from the runtimes view. Archives are cosign-signed and
 the formula is in `blairham/homebrew-tap`.
 
-[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.7...HEAD
+[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.8...HEAD
+[0.0.8]: https://github.com/blairham/dockmaster/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/blairham/dockmaster/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/blairham/dockmaster/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/blairham/dockmaster/compare/v0.0.4...v0.0.5
