@@ -596,6 +596,15 @@ type switchContextMsg struct {
 	// containers: a reconnect after starting a colima profile happens while
 	// they are looking at the profiles, possibly to start another.
 	keepView bool
+	// land, from `:<view> @context`, is the view (and filter) the switch
+	// opens instead of containers.
+	land *landing
+}
+
+// landing is where a context switch puts the user.
+type landing struct {
+	filter string
+	view   style.ViewType
 }
 
 // applySwitchContext swaps in a client for a different docker context and
@@ -649,10 +658,20 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		a.resizeActiveView()
 		return a, cv.Refresh()
 	}
+	if msg.land != nil && msg.land.view != style.ViewContainers {
+		cmd := a.switchView(msg.land.view)
+		a.filter = msg.land.filter
+		a.setActiveFilter(a.filter)
+		return a, cmd
+	}
 	a.viewStack = nil
 	a.view = style.ViewContainers
 	a.filter = ""
 	a.closeAllBars()
+	if msg.land != nil {
+		a.filter = msg.land.filter
+		a.setActiveFilter(a.filter)
+	}
 	a.resizeActiveView()
 	return a, a.viewMap[style.ViewContainers].Init()
 }
@@ -663,19 +682,34 @@ func doSwitchContext(name, host string) tea.Cmd { return doSwitchContextKeep(nam
 // doSwitchContextKeep is doSwitchContext with control over whether the
 // switch lands the user on the containers view.
 func doSwitchContextKeep(name, host string, keepView bool) tea.Cmd {
+	return dialContext(switchContextMsg{name: name, keepView: keepView}, host)
+}
+
+// doSwitchContextTo is doSwitchContext landing on land rather than on
+// containers: `:<view> @context`.
+func doSwitchContextTo(name, host string, land *landing) tea.Cmd {
+	return dialContext(switchContextMsg{name: name, land: land}, host)
+}
+
+// dialContext dials msg.name's endpoint and returns msg with the client,
+// or the error, filled in.
+func dialContext(msg switchContextMsg, host string) tea.Cmd {
 	return func() tea.Msg {
-		c, err := docker.NewForContext(name, host)
+		c, err := docker.NewForContext(msg.name, host)
 		if err != nil {
-			return switchContextMsg{name: name, err: err, keepView: keepView}
+			msg.err = err
+			return msg
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := c.Negotiate(ctx); err != nil {
 			_ = c.Close() //nolint:errcheck // dial failed; nothing to salvage
-			return switchContextMsg{name: name, err: err, keepView: keepView}
+			msg.err = err
+			return msg
 		}
-		c.ContextName = name
-		return switchContextMsg{name: name, client: c, keepView: keepView}
+		c.ContextName = msg.name
+		msg.client = c
+		return msg
 	}
 }
 

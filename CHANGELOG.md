@@ -22,6 +22,8 @@ fails when the tag has none.
   builds itself, so no shell parses a value. A pipe of one word, `background`
   with pipes, and inputs that k9s would accept but run differently are
   refused when `plugins.yaml` loads. (#18)
+- `:<view> @context`, k9s's: switch to a docker context and open a view in
+  one command, with an optional filter — `:containers @prod /web`. (#18)
 
 ## [0.0.7] - 2026-10-04
 
