@@ -156,7 +156,8 @@ Keys every view shares:
 
 `enter` its containers, `l` every container's logs in one stream, `u`
 compose up, `x` stop, `R` restart, `p` pull, `e` edit the compose files then
-up, `ctrl-d` compose down (confirms).
+up, `s` scale a service (a form: the service and its container count; a
+scale down or to 0 confirms), `ctrl-d` compose down (confirms).
 
 ### Runtimes
 
@@ -183,7 +184,7 @@ the poll.
 `space`, `h` / `l` fold, `enter` opens what is selected, `o` inspects. On a
 container: `s` shell, `A` attach, `u` / `x` / `R` start / stop / restart,
 `K` kill, `p` pause, `ctrl-d` remove; `v` scans an image or a container's
-image.
+image; on a project or service, `s` opens the scale form (on that service).
 
 ### Events
 
