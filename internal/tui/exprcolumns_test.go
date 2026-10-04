@@ -389,3 +389,32 @@ func TestExprColumnDocExample(t *testing.T) {
 		}
 	}
 }
+
+// TestExprColumnNumericThroughTheKeys: an N column chosen with the sort
+// keys sorts as numbers — an empty cell after every number — and still
+// does after wide mode moves the sort to it by title.
+func TestExprColumnNumericThroughTheKeys(t *testing.T) {
+	a, v := layoutApp(t, map[string]config.ViewColumns{
+		"containers": {Columns: []string{"NAME", "REP:.Labels.rep|N"}},
+	})
+	cs := labeledContainers()
+	for i, n := range []string{"10", "", "2", "-1"} {
+		if n != "" {
+			cs[i].Labels = map[string]string{"rep": n}
+		}
+	}
+	step(a, views.ContainersRefreshMsg{Containers: cs})
+	step(a, key("shift+right"))
+	step(a, key("shift+right"))
+	want := []string{"-1", "2", "10", ""}
+	if got := column(v.Table(), "REP"); !slices.Equal(got, want) {
+		t.Errorf("REP by the sort keys %q, want %q", got, want)
+	}
+	step(a, key("ctrl+w"))
+	if got := column(v.Table(), "REP"); !slices.Equal(got, want) {
+		t.Errorf("REP after wide mode %q, want %q", got, want)
+	}
+	if c, _ := v.Selected(); c.Name != "standalone" {
+		t.Errorf("selected %q, want standalone (-1, drawn first)", c.Name)
+	}
+}
