@@ -211,7 +211,9 @@ k9s's files and does nothing; every view switch is already in the history.
 
 A hotkey is asked after the view's own keys and before navigation, so in a
 view that binds the same key the view keeps it — a hotkey on `x` stops a
-container in the containers view and opens its command elsewhere. Keys that
+container in the containers view and opens its command elsewhere — unless
+it sets `override: true`, as in k9s, which asks it before the view's keys
+(after an `override` plugin on the same key). Keys that
 could never reach it (`?`, `:`, `/`, the digits, `esc`, `q`, `r`, the
 chrome and table keys) or that would take navigation away (`j`/`k`, arrows,
 page keys) are refused at startup, as are a key taken twice and a command

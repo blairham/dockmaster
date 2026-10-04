@@ -67,7 +67,7 @@ func run() error {
 			"log file (default <state dir>/"+applog.FileName+"; dockmaster info shows it)",
 		)
 	)
-	commandUsage := "view to open on: " + strings.Join(tui.ViewCommandNames(), ", ")
+	commandUsage := "view or : command to open on (" + strings.Join(tui.ViewCommandNames(), ", ") + ", xray, an alias…)"
 	flag.StringVar(&command, "command", "", commandUsage)
 	flag.StringVar(&command, "c", "", commandUsage+" (shorthand)")
 	const refreshUsage = "auto-refresh interval in seconds (default 3)"
@@ -111,13 +111,12 @@ func run() error {
 	style.SetBase(st.theme)
 
 	if cfg.DefaultView != "" {
-		if _, ok := tui.ViewForCommand(cfg.DefaultView); !ok {
+		if verr := tui.ValidateCommand(cfg.DefaultView, st.aliases); verr != nil {
 			src := "-c"
 			if command == "" {
 				src = "defaultView in " + cfgPath
 			}
-			return fmt.Errorf("unknown view %q for %s — one of: %s",
-				cfg.DefaultView, src, strings.Join(tui.ViewCommandNames(), ", "))
+			return fmt.Errorf("%s: %w", src, verr)
 		}
 	}
 	// config.yaml's context is a default --context: the command line and

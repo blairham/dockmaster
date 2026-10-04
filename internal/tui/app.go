@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -197,6 +198,8 @@ type App struct {
 	logoless     bool
 	statsOn      bool
 	showAll      bool
+	// startCommand is a non-view -c, run once by Init.
+	startCommand string
 }
 
 // Options configures a new App.
@@ -311,8 +314,13 @@ func NewApp(client *docker.Client, opts Options) *App {
 		style.ViewPulses:       views.NewPulsesView(client, statsOn, refresh),
 	}
 	startView := style.ViewContainers
+	startCommand := ""
 	if vt, ok := ViewForCommand(opts.Command); ok {
 		startView = vt
+	} else if strings.TrimSpace(opts.Command) != "" {
+		// Any other command (-c xray, -c pg, -c "images @prod"): run
+		// from Init, as if typed at the palette (#57).
+		startCommand = opts.Command
 	}
 	if opts.StartOnRuntimes {
 		startView = style.ViewRuntimes
@@ -365,6 +373,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 	views.SetColumnLayouts(opts.ColumnLayouts)
 	a.buildChrome(style.Base(), opts.Headless, opts.Crumbsless)
 	a.history.Visit(viewfsm.ViewID(startView))
+	a.startCommand = startCommand
 	a.loadHistory(opts.HistoryFile)
 	return a
 }
@@ -427,6 +436,19 @@ func typedView[T views.View](a *App, vt style.ViewType) T {
 
 // Init starts the first fetch, the splash timer, and the spinner.
 func (a *App) Init() tea.Cmd {
+	if a.startCommand != "" {
+		errMsg, cmd := a.dispatchCommand(a.startCommand)
+		a.startCommand = ""
+		if errMsg != "" {
+			a.errFlash = errMsg
+		}
+		return tea.Batch(a.init(), cmd)
+	}
+	return a.init()
+}
+
+// init is Init's start of the first view, the spinner and the poll.
+func (a *App) init() tea.Cmd {
 	if !a.splashActive {
 		// Splashless: straight to the first frame, so the poll starts now
 		// rather than when a splash that never showed would have ended.
@@ -621,10 +643,12 @@ type switchContextMsg struct {
 	land *landing
 }
 
-// landing is where a context switch puts the user.
+// landing is where a context switch puts the user: a view and filter, or
+// a command that opens one (`:xray @prod`), run once the switch is done.
 type landing struct {
-	filter string
-	view   style.ViewType
+	filter  string
+	command string
+	view    style.ViewType
 }
 
 // applySwitchContext swaps in a client for a different docker context and
@@ -679,7 +703,7 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		a.resizeActiveView()
 		return a, cv.Refresh()
 	}
-	if msg.land != nil && msg.land.view != style.ViewContainers {
+	if msg.land != nil && msg.land.command == "" && msg.land.view != style.ViewContainers {
 		cmd := a.switchView(msg.land.view)
 		a.filter = msg.land.filter
 		a.setActiveFilter(a.filter)
@@ -694,7 +718,15 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		a.setActiveFilter(a.filter)
 	}
 	a.resizeActiveView()
-	return a, a.viewMap[style.ViewContainers].Init()
+	initCmd := a.viewMap[style.ViewContainers].Init()
+	if msg.land != nil && msg.land.command != "" {
+		errMsg, cmd := a.dispatchCommand(msg.land.command)
+		if errMsg != "" {
+			a.errFlash = errMsg
+		}
+		return a, tea.Batch(initCmd, cmd)
+	}
+	return a, initCmd
 }
 
 // doSwitchContext dials a context's endpoint on a background goroutine.

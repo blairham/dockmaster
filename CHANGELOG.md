@@ -14,6 +14,11 @@ fails when the tag has none.
 
 ### Added
 
+- `-c` and `defaultView` take any `:` command or alias, not only a table
+  view (`-c xray`, `-c pg`), and `@context` goes with any command that opens
+  a view (`:xray @prod`). (#57)
+- Hotkeys take k9s's `override`, asked before the view's own keys; a k9s
+  `hotkeys.yaml` using it failed to load. (#58)
 - `:xray` acts on the container under the cursor with the containers view's
   keys: `s` shell, `A` attach, `u` start, `x` stop, `R` restart, `K` kill
   and `ctrl-d` remove (both confirm), `p` pause / unpause, `c` / `i` copy its

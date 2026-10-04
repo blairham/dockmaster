@@ -96,3 +96,32 @@ func TestHotKeyRunsItsCommandWhereTheViewLetsIt(t *testing.T) {
 		t.Errorf("help has no HOTKEYS column:\n%s", out)
 	}
 }
+
+// TestHotKeyOverrideBeatsTheViewsKey: an override hotkey is asked before
+// the view's own keys (k9s's override, #58); the same key without it
+// leaves the view's binding alone.
+func TestHotKeyOverrideBeatsTheViewsKey(t *testing.T) {
+	for _, override := range []bool{false, true} {
+		hk, err := HotKeys(map[string]config.HotKey{
+			"images": {ShortCut: "x", Command: "images", Override: override},
+		}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hk[0].Override != override {
+			t.Fatalf("Override not carried: %+v", hk[0])
+		}
+		a := NewApp(nil, Options{Version: "test", HotKeys: hk})
+		a.splashActive, a.loading = false, false
+		step(a, tea.WindowSizeMsg{Width: 160, Height: 40})
+		loadContainers(a)
+		step(a, key("x"))
+		want := style.ViewContainers // the view's own x: stop
+		if override {
+			want = style.ViewImages
+		}
+		if a.view != want {
+			t.Errorf("override %v: x went to %s, want %s", override, style.ViewName(a.view), style.ViewName(want))
+		}
+	}
+}
