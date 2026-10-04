@@ -17,7 +17,11 @@ type ColumnLayout struct {
 	// SortColumn, when set, is the column the view opens sorted by.
 	SortColumn string
 	// Columns are the titles to show, in order; empty shows them all.
-	Columns  []string
+	// An expression column's title is among them, in its place.
+	Columns []string
+	// Exprs are the expression columns (#61) Columns names, read from
+	// each row's own data.
+	Exprs    []ExprColumn
 	SortDesc bool
 }
 
@@ -121,6 +125,50 @@ func (s *tableSort) source() []table.Column {
 	return nil
 }
 
+// titlesOf is the titles a view's rows can be projected from: the column
+// set's, then the layout's expression columns shown with that set. A
+// row's expression cells sit at the same place after its own (sortRows).
+func (s *tableSort) titlesOf(cols []table.Column) []string {
+	titles := columnTitles(cols)
+	for _, e := range s.shownExprs(titles) {
+		titles = append(titles, e.Title)
+	}
+	return titles
+}
+
+// shownExprs are the layout's expression columns shown with a column set
+// of these titles: a wide-only one (W) only with the wide set. Wide is
+// read from the titles, never remembered: any set but the view's first.
+func (s *tableSort) shownExprs(titles []string) []ExprColumn {
+	l, ok := s.layoutFor()
+	if !ok || len(l.Exprs) == 0 {
+		return nil
+	}
+	sets := columnSets[s.layoutKey]
+	wide := len(sets) > 1 && !slices.Equal(titles, columnTitles(sets[0]()))
+	var out []ExprColumn
+	for _, e := range l.Exprs {
+		if !e.Wide || wide {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// exprNamed is the layout's expression column of this displayed title.
+func (s *tableSort) exprNamed(title string) (ExprColumn, bool) {
+	l, ok := s.layoutFor()
+	if !ok {
+		return ExprColumn{}, false
+	}
+	for _, e := range l.Exprs {
+		if e.Title == title {
+			return e, true
+		}
+	}
+	return ExprColumn{}, false
+}
+
 // projection maps the displayed columns onto titles, a view's full set: the
 // i-th displayed column is titles[idx[i]]. It is computed from the titles
 // each time, never cached by position, because the set changes under it —
@@ -158,6 +206,21 @@ func (s *tableSort) shownTitles(titles []string) []string {
 	return out
 }
 
+// withExprCells is r with expression cells inserted after its ncols
+// cells, before any past them that no column draws.
+func withExprCells(r table.Row, ncols int, cells []string) table.Row {
+	out := make(table.Row, 0, max(len(r), ncols)+len(cells))
+	out = append(out, r[:min(len(r), ncols)]...)
+	for len(out) < ncols {
+		out = append(out, "")
+	}
+	out = append(out, cells...)
+	if len(r) > ncols {
+		out = append(out, r[ncols:]...)
+	}
+	return out
+}
+
 // projectRow is r's cells in the displayed order. Cells past the column
 // set, which no column draws, are carried after them.
 func projectRow(r table.Row, idx []int, ncols int) table.Row {
@@ -176,33 +239,55 @@ func projectRow(r table.Row, idx []int, ncols int) table.Row {
 }
 
 // layout is a view's columns for a table width-wide: cols, the view's full
-// set, projected onto its views.yaml layout, fitted to the width, and
-// marked with the sort direction. It records cols as the set the rows are
-// built from, so sortRows projects them the same way.
+// set, projected onto its views.yaml layout — expression columns included
+// — fitted to the width, and marked with the sort direction. It records
+// cols as the set the rows are built from, so sortRows projects them the
+// same way, and each shown column's width, by title, for a right-aligned
+// expression column's cells.
 func (s *tableSort) layout(cols []table.Column, width int) []table.Column {
 	s.src, s.width = cols, width
-	idx := s.projection(columnTitles(cols))
+	titles := s.titlesOf(cols)
+	idx := s.projection(titles)
 	if idx == nil {
-		s.shown = columnTitles(cols)
+		s.shown, s.widths = columnTitles(cols), nil
 		return s.columns(fitColumns(cols, width))
 	}
 	shown := make([]table.Column, len(idx))
 	for i, j := range idx {
-		shown[i] = cols[j]
+		if j < len(cols) {
+			shown[i] = cols[j]
+			continue
+		}
+		e, _ := s.exprNamed(titles[j])
+		shown[i] = e.column(s.layoutKey)
 	}
 	s.shown = columnTitles(shown)
-	return s.columns(fillWidth(fitColumns(shown, width), width))
+	fitted := fillWidth(fitColumns(shown, width), width, func(title string) bool {
+		e, ok := s.exprNamed(title)
+		return ok && e.Right
+	})
+	s.widths = make(map[string]int, len(fitted))
+	for _, c := range fitted {
+		s.widths[c.Title] = c.Width
+	}
+	return s.columns(fitted)
 }
 
 // fillWidth widens the last column to take up any room fitColumns left:
 // a layout that keeps no free-text column has nothing for it to grow, and
-// would leave the table short of the screen.
-func fillWidth(cols []table.Column, width int) []table.Column {
+// would leave the table short of the screen. A right-aligned column is
+// passed over (fixed), so its cells stay against its edge.
+func fillWidth(cols []table.Column, width int, fixed func(title string) bool) []table.Column {
 	if width <= 0 || len(cols) == 0 {
 		return cols
 	}
 	if slack := width - tableWidth(cols); slack > 0 {
-		cols[len(cols)-1].Width += slack
+		for i := len(cols) - 1; i >= 0; i-- {
+			if i == 0 || !fixed(cols[i].Title) {
+				cols[i].Width += slack
+				break
+			}
+		}
 	}
 	return cols
 }
@@ -217,13 +302,13 @@ func (s *tableSort) ensureSorter() {
 	if !ok || l.SortColumn == "" {
 		return
 	}
-	col := slices.Index(s.shownTitles(columnTitles(s.source())), l.SortColumn)
+	col := slices.Index(s.shownTitles(s.titlesOf(s.source())), l.SortColumn)
 	if col < 0 {
 		// Not shown right now — a wide-mode column outside wide mode.
 		return
 	}
 	s.sorter = tktable.NewSorter(col, l.SortDesc)
-	s.sorter.SetCompare(cellCompare)
+	s.sorter.SetCompare(s.compare)
 	s.layoutSort = true
 }
 
@@ -233,7 +318,7 @@ func (s *tableSort) ensureSorter() {
 // replaced by the new layout's.
 func (s *tableSort) relayout(t *table.Model, rebuild func()) {
 	src := s.source()
-	s.followSort(s.shown, s.shownTitles(columnTitles(src)))
+	s.followSort(s.shown, s.shownTitles(s.titlesOf(src)))
 	cursor := t.Cursor()
 	// Rows are never wider than the columns: clear them, set the new
 	// columns, then rebuild the rows to match.

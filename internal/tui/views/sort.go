@@ -28,6 +28,9 @@ type tableSort struct {
 	// shown is the titles layout last displayed, before fitting: what the
 	// sorter's column index counted, for a relayout to follow by title.
 	shown []string
+	// widths are the shown columns' widths as last laid out, by title,
+	// for a right-aligned expression column to pad its cells to.
+	widths map[string]int
 	// layoutKey is the view's views.yaml key; "" never has a layout.
 	layoutKey string
 	sorter    *tktable.Sorter
@@ -57,7 +60,7 @@ func (s *tableSort) sortKey(key string, t *table.Model, rebuild func()) bool {
 	first := s.sorter == nil
 	if first {
 		s.sorter = tktable.NewSorter(0, false)
-		s.sorter.SetCompare(cellCompare)
+		s.sorter.SetCompare(s.compare)
 	}
 	switch {
 	case key == keySortAsc && s.sorter.Descending(), key == keySortDesc && !s.sorter.Descending():
@@ -90,11 +93,31 @@ func (s *tableSort) columns(cols []table.Column) []table.Column {
 // from, which Selected indexes by cursor — into the same order. nil items
 // sorts the rows alone. Projection comes first so the sort column counts
 // the columns the user sees.
+//
+// An expression column's cells (#61) are read here, from items: the i-th
+// row was built from items[i], so before the sort reorders either, each
+// row gains its expression cells after its own, where titlesOf puts their
+// titles, and is projected with them.
 func sortRows[T any](s *tableSort, rows []table.Row, items []T) {
-	if idx := s.projection(columnTitles(s.source())); idx != nil {
+	src := s.source()
+	titles := s.titlesOf(src)
+	if idx := s.projection(titles); idx != nil {
+		exprs := s.shownExprs(columnTitles(src))
 		for i, r := range rows {
-			rows[i] = projectRow(r, idx, len(s.source()))
+			if len(exprs) > 0 {
+				var item any
+				if i < len(items) {
+					item = items[i]
+				}
+				cells := make([]string, len(exprs))
+				for k, e := range exprs {
+					cells[k] = e.cell(s.layoutKey, item)
+				}
+				r = withExprCells(r, len(src), cells)
+			}
+			rows[i] = projectRow(r, idx, len(titles))
 		}
+		s.alignRight(rows, s.shownTitles(titles))
 	}
 	s.ensureSorter()
 	if s.sorter == nil || len(rows) < 2 {
@@ -120,6 +143,34 @@ func sortRows[T any](s *tableSort, rows []table.Row, items []T) {
 		}
 		rows[i] = r[:last]
 	}
+}
+
+// alignRight pads the cells of every right-aligned (R) expression column
+// shown to its width as last laid out, found by title.
+func (s *tableSort) alignRight(rows []table.Row, shown []string) {
+	for col, title := range shown {
+		e, ok := s.exprNamed(title)
+		if !ok || !e.Right {
+			continue
+		}
+		w := s.widths[title]
+		for _, r := range rows {
+			if col < len(r) {
+				r[col] = alignRight(r[col], w)
+			}
+		}
+	}
+}
+
+// compare is the sorter's comparison: an N expression column's, found by
+// the shown column's title, or cellCompare.
+func (s *tableSort) compare(col int, a, b string) int {
+	if col < len(s.shown) {
+		if e, ok := s.exprNamed(s.shown[col]); ok && e.Numeric {
+			return numericCompare(a, b)
+		}
+	}
+	return cellCompare(col, a, b)
 }
 
 // magnitudeRe matches the cells dockmaster writes as a number and a unit:
@@ -163,7 +214,7 @@ func cellCompare(_ int, a, b string) int {
 // as displayed — through the views.yaml layout — since that is what the
 // sorter's column counts.
 func (s *tableSort) remapSort(before, after []table.Column) {
-	s.followSort(s.shownTitles(columnTitles(before)), s.shownTitles(columnTitles(after)))
+	s.followSort(s.shownTitles(s.titlesOf(before)), s.shownTitles(s.titlesOf(after)))
 }
 
 // followSort moves the sorter from a column of before to the column of the
@@ -190,5 +241,5 @@ func (s *tableSort) followSort(before, after []string) {
 	}
 	desc := s.sorter.Descending()
 	s.sorter = tktable.NewSorter(col, desc)
-	s.sorter.SetCompare(cellCompare)
+	s.sorter.SetCompare(s.compare)
 }
