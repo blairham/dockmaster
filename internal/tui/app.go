@@ -720,9 +720,6 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		msg.client.RequestTimeout = a.requestTimeout
 	}
 	a.client = msg.client
-	if a.client != nil {
-		a.client.ContextName = msg.name
-	}
 	// The context's skin and readOnly, or the top-level ones (#55).
 	a.applyContextSettings(msg.name)
 
