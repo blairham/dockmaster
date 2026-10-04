@@ -96,7 +96,12 @@ func lastMeaningfulLine(s string) string {
 // ComposeArgs is the project-selecting part of a compose invocation: the
 // name, the directory, every compose file and env file the labels record.
 func (p Project) ComposeArgs() []string {
-	args := []string{"-p", p.Name}
+	// A project brought up from its file has no name yet: compose derives
+	// it, from the file's name: or its directory, as it would from a shell.
+	var args []string
+	if p.Name != "" {
+		args = append(args, "-p", p.Name)
+	}
 	if p.WorkingDir != "" {
 		args = append(args, "--project-directory", p.WorkingDir)
 	}

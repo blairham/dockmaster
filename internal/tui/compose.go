@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -157,6 +158,9 @@ func (a *App) composeDown(name string) tea.Cmd {
 
 // composeEditedMsg reports the editor closing on a project's compose files.
 type composeEditedMsg struct {
+	// file, when set, is a compose file edited from :dir: a change brings
+	// it up by the file, there being no project to look it up by yet.
+	file    string
 	err     error
 	project string
 	changed bool
@@ -240,8 +244,59 @@ func (a *App) handleComposeEdited(msg composeEditedMsg) (tea.Model, tea.Cmd) {
 		a.errFlash = "editor: " + msg.err.Error()
 	case !msg.changed:
 		a.flash = "no changes — " + msg.project + " left as is"
+	case msg.file != "":
+		return a, tea.Batch(a.composeFileUp(msg.file), tea.ClearScreen)
 	default:
 		return a, tea.Batch(a.composeUp(msg.project), tea.ClearScreen)
 	}
 	return a, tea.Batch(a.refreshActiveView(), tea.ClearScreen)
+}
+
+// fileProject is the project a compose file describes, before any of its
+// containers exist: run from the file's directory, named by compose itself.
+func fileProject(file string) docker.Project {
+	return docker.Project{WorkingDir: filepath.Dir(file), ConfigFiles: []string{file}}
+}
+
+// composeFileUp runs `docker compose -f file up -d` for a file found with
+// :dir (#15), so a project can be started before it has any containers.
+func (a *App) composeFileUp(file string) tea.Cmd {
+	c, err := a.newCompose()
+	if err != nil {
+		a.errFlash = err.Error()
+		return nil
+	}
+	name := filepath.Base(filepath.Dir(file)) + "/" + filepath.Base(file)
+	a.flash = "starting " + name + "…"
+	p := fileProject(file)
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), composeTimeout)
+		defer cancel()
+		return composeDoneMsg{project: name, verb: "up", err: c.Up(ctx, p)}
+	}
+}
+
+// composeFileEdit opens a compose file found with :dir in the user's editor
+// and, when it comes back changed, brings it up — composeEdit for a project
+// that may not have run yet.
+func (a *App) composeFileEdit(file string) tea.Cmd {
+	argv := editorArgv()
+	bin, err := exec.LookPath(argv[0])
+	if err != nil {
+		a.errFlash = "editor " + argv[0] + " is not on PATH — set $EDITOR"
+		return nil
+	}
+	before := fileState([]string{file})
+	cmd := exec.CommandContext(
+		context.Background(),
+		bin,
+		append(argv[1:], file)...) //nolint:gosec // the user's own editor on a file they chose
+	return a.inTerminal(cmd, func(err error) tea.Msg {
+		return composeEditedMsg{
+			project: filepath.Base(file),
+			file:    file,
+			err:     err,
+			changed: fileState([]string{file}) != before,
+		}
+	})
 }

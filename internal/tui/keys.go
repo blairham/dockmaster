@@ -5,6 +5,8 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -41,6 +43,7 @@ var knownCommands = []string{
 	"contexts",
 	"sd",
 	"lint",
+	"dir",
 	"screendump",
 	"logs",
 	"inspect",
@@ -395,6 +398,21 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		_, cmd := a.handleAction("pull", strings.TrimSpace(rest))
 		return "", cmd
 	}
+	// :dir <path> keeps the path's case; ~ is the home directory.
+	if rest, ok := strings.CutPrefix(raw, "dir "); ok {
+		dir := strings.TrimSpace(rest)
+		if home, err := os.UserHomeDir(); err == nil && (dir == "~" || strings.HasPrefix(dir, "~/")) {
+			dir = filepath.Join(home, strings.TrimPrefix(dir, "~"))
+		}
+		if abs, err := filepath.Abs(dir); err == nil {
+			dir = abs
+		}
+		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+			return "not a directory: " + dir, nil
+		}
+		_, cmd := a.handleAction("dir", dir)
+		return "", cmd
+	}
 	if rest, ok := strings.CutPrefix(lower, "ctx "); ok {
 		return a.switchContextByName(strings.TrimSpace(rest))
 	}
@@ -425,6 +443,13 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return "", cmd
 	case "lint":
 		_, cmd := a.handleAction("lint", "")
+		return "", cmd
+	case "dir":
+		dir, err := os.Getwd()
+		if err != nil {
+			return "no working directory: " + err.Error(), nil
+		}
+		_, cmd := a.handleAction("dir", dir)
 		return "", cmd
 	case "sd", "screendump", "screendumps", "dumps":
 		_, cmd := a.handleAction("dumps", "")
