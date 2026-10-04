@@ -329,6 +329,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 
 	// ---- Kubernetes nodes: the containers inside a kind/k3d node -------
 
+	case "plugin_inputs":
+		return a, a.submitPluginInputs(param)
+
 	case "edit_form":
 		return a, a.loadEditForm(param)
 	case "edit_apply":

@@ -300,6 +300,13 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<tab>", Desc: "Next field"},
 			{Key: "<esc>", Desc: "Cancel"},
 		}
+	case style.ViewPluginForm:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Run"},
+			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<space>", Desc: "Change choice"},
+			{Key: "<esc>", Desc: "Cancel"},
+		}
 	case style.ViewLogs:
 		actions = []chrome.Shortcut{
 			{Key: "<s>", Desc: "Autoscroll"},
