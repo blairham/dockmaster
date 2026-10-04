@@ -6,6 +6,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +18,7 @@ func TestParseEmptyIsDefault(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Parse(%q): %v", in, err)
 		}
-		if got != Default() {
+		if !reflect.DeepEqual(got, Default()) {
 			t.Errorf("Parse(%q) = %+v, want defaults %+v", in, got, Default())
 		}
 	}
@@ -46,7 +47,7 @@ func TestParseOverlaysDefaults(t *testing.T) {
 	want.RefreshRate, want.ReadOnly, want.DefaultView, want.Context = 7, true, "images", "colima"
 	want.UI.Logoless, want.Logger.ShowTime = true, true
 	want.Thresholds.CPU.Warn = 50 // critical keeps its default
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v\nwant %+v", got, want)
 	}
 	if got.Logger.Tail != DefaultLogTail {
@@ -97,16 +98,17 @@ func TestSampleIsTheDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sample does not parse: %v", err)
 	}
+	// Exactly the defaults: defaultView stays empty, because an empty one
+	// opens the view last used on the context and "containers" would not.
 	want := Default()
-	want.DefaultView = "containers" // the sample names the view the empty value opens on
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Sample = %+v\nwant %+v", got, want)
 	}
 }
 
 func TestLoadMissingFileIsDefault(t *testing.T) {
 	got, err := Load(filepath.Join(t.TempDir(), "nope", FileName))
-	if err != nil || got != Default() {
+	if err != nil || !reflect.DeepEqual(got, Default()) {
 		t.Errorf("Load(missing) = %+v, %v", got, err)
 	}
 }

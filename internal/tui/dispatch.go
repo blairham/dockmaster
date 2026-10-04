@@ -27,6 +27,7 @@ func (a *App) showView(v style.ViewType) tea.Cmd {
 	a.clearContainerScope()
 	a.viewStack = nil
 	a.view = v
+	a.rememberView(v)
 	a.showHelp = false
 	a.closeAllBars()
 	a.filter = ""

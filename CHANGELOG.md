@@ -12,6 +12,14 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- Per-docker-context settings: a `contexts:` block in `config.yaml` gives a
+  context its own `skin`, `readOnly` and `defaultView`, applied at startup
+  and on every context switch, and a switch with no landing of its own opens
+  the view last open on that context (kept in `<state>/contexts.json`).
+  `--readonly` still forces read-only everywhere. (#55)
+
 ## [0.0.9] - 2026-10-04
 
 ### Added

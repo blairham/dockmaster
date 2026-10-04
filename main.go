@@ -193,6 +193,8 @@ func run() error {
 	opts.StartOnRuntimes = startOnRuntimes
 	opts.Notice = notice
 	opts.HistoryFile = historyFile()
+	opts.ContextStateFile = stateFile("contexts.json")
+	opts.CommandFromFlag = flagSet["c"] || flagSet["command"]
 	opts.Logger = logger
 	if cfg.UI.Reactive {
 		opts.WatchDir = filepath.Dir(cfgPath)
@@ -311,12 +313,15 @@ func contextHost(name string) (string, bool) {
 
 // historyFile is where the command and filter bars remember what was typed
 // between runs, "" when there is no state directory to keep it in.
-func historyFile() string {
+func historyFile() string { return stateFile("history.json") }
+
+// stateFile is name in the state directory, "" when there is none.
+func stateFile(name string) string {
 	dir, err := config.StateDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "history.json")
+	return filepath.Join(dir, name)
 }
 
 // behaviorOptions carries config.yaml's k9s behavior keys (#17) into the
@@ -337,12 +342,17 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 // columns, and the skin's theme — validated, as dockmaster will not start
 // on a bad file.
 type settings struct {
-	theme   theme.Theme
-	aliases map[string]string
-	cfg     config.Config
-	hotKeys []tui.HotKey
-	plugins []tui.Plugin
-	columns map[string]views.ColumnLayout
+	theme theme.Theme
+	// ctxThemes are the contexts: entries' skins, by context name.
+	ctxThemes map[string]theme.Theme
+	aliases   map[string]string
+	cfg       config.Config
+	hotKeys   []tui.HotKey
+	plugins   []tui.Plugin
+	columns   map[string]views.ColumnLayout
+	// forceReadOnly is --readonly given on the command line, which beats
+	// every context's readOnly.
+	forceReadOnly bool
 }
 
 // loadSettings reads and validates the config directory. Startup and a live
@@ -392,7 +402,24 @@ func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagV
 	if err != nil {
 		return settings{}, err
 	}
-	return settings{cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, columns: columns, theme: th}, nil
+	// Each context's skin loads now, as ui.skin does, and its defaultView
+	// is checked as -c is: a bad entry stops startup and a reload.
+	ctxThemes, err := cfg.ContextThemes(style.DefaultBase())
+	if err != nil {
+		return settings{}, err
+	}
+	for name, cs := range cfg.Contexts {
+		if cs.DefaultView == "" {
+			continue
+		}
+		if verr := tui.ValidateContextCommand(cs.DefaultView, aliases); verr != nil {
+			return settings{}, fmt.Errorf("contexts.%s.defaultView: %w", name, verr)
+		}
+	}
+	return settings{
+		cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, columns: columns, theme: th,
+		ctxThemes: ctxThemes, forceReadOnly: flagSet["readonly"] && flagVals.ReadOnly,
+	}, nil
 }
 
 // settingsOptions is the part of the app's options that comes from the
@@ -417,5 +444,24 @@ func settingsOptions(st settings) tui.Options {
 		Thresholds:    tui.ThresholdsFrom(cfg.Thresholds),
 	}
 	behaviorOptions(cfg, &o)
+	o.ForceReadOnly = st.forceReadOnly
+	o.Contexts = contextOptions(cfg.Contexts, st.ctxThemes)
 	return o
+}
+
+// contextOptions resolves config.yaml's contexts: block for the app: each
+// context's loaded skin, its readOnly and defaultView.
+func contextOptions(
+	in map[string]config.ContextSettings,
+	themes map[string]theme.Theme,
+) map[string]tui.ContextSettings {
+	out := make(map[string]tui.ContextSettings, len(in))
+	for name, cs := range in {
+		o := tui.ContextSettings{ReadOnly: cs.ReadOnly, DefaultView: cs.DefaultView}
+		if th, ok := themes[name]; ok {
+			o.Theme = &th
+		}
+		out[name] = o
+	}
+	return out
 }

@@ -78,7 +78,7 @@ These act on the row selected in the current view, as their keys do.
 
 | Command | What it does |
 |---|---|
-| `:readonly` | Read-only mode on or off: every mutating action is refused |
+| `:readonly` | Read-only mode on or off: every mutating action is refused. It lasts until the next context switch, which applies that context's `readOnly` again (`docs/design/config.md`) |
 | `:all` | Stopped containers / all images shown or hidden, as `a` |
 | `:stats` | The CPU/MEM poll on or off, as `t` |
 | `:logo` | The header logo on or off |
