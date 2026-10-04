@@ -16,7 +16,8 @@ import (
 // The Docker CLI's daemon endpoint does not come from the environment
 // alone — it comes from the *context store*, a directory of JSON metadata
 // under ~/.docker/contexts keyed by the SHA-256 of the context name. The
-// Go SDK's client.FromEnv reads only DOCKER_HOST, so an SDK program on a
+// Go SDK's client.FromEnv reads only the environment (DOCKER_HOST and the
+// API-version and TLS variables), never a context, so an SDK program on a
 // machine using Colima, Rancher Desktop, Podman, or a remote context dials
 // /var/run/docker.sock and reports "is the docker daemon running?" while
 // `docker ps` two lines earlier worked fine.

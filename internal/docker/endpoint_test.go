@@ -164,14 +164,18 @@ func clientCert(t *testing.T) (certPEM, keyPEM []byte, cert *x509.Certificate) {
 		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), cert
 }
 
-// tlsDaemon is a daemon that speaks only TLS and only to a client holding
-// the given certificate, like a dockerd run with --tlsverify.
+// tlsDaemon is a daemon that speaks only TLS and, given a client
+// certificate, only to a client holding it, like a dockerd run with
+// --tlsverify; with none it asks for no client certificate (--tls).
 func tlsDaemon(t *testing.T, client *x509.Certificate) (host string, caPEM []byte) {
 	t.Helper()
 	srv := httptest.NewUnstartedServer(pingHandler())
-	pool := x509.NewCertPool()
-	pool.AddCert(client)
-	srv.TLS = &tls.Config{ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool, MinVersion: tls.VersionTLS12}
+	srv.TLS = &tls.Config{MinVersion: tls.VersionTLS12}
+	if client != nil {
+		pool := x509.NewCertPool()
+		pool.AddCert(client)
+		srv.TLS.ClientAuth, srv.TLS.ClientCAs = tls.RequireAndVerifyClientCert, pool
+	}
 	srv.Config.ErrorLog = log.New(io.Discard, "", 0) // the refused handshakes are the point
 	srv.StartTLS()
 	t.Cleanup(srv.Close)
@@ -191,25 +195,29 @@ func ping(t *testing.T, c *Client) error {
 // with nothing exported (#33).
 func TestContextTLS(t *testing.T) {
 	certPEM, keyPEM, cert := clientCert(t)
-	host, caPEM := tlsDaemon(t, cert)
+	mtls, caPEM := tlsDaemon(t, cert)
+	serverOnly, _ := tlsDaemon(t, nil)
 	full := map[string][]byte{"ca.pem": caPEM, "cert.pem": certPEM, "key.pem": keyPEM}
 	noCA := map[string][]byte{"cert.pem": certPEM, "key.pem": keyPEM}
 
 	cases := []struct {
 		files      map[string][]byte
 		name       string
+		host       string
 		wantErr    string
 		skipVerify bool
 		wantOK     bool
 	}{
-		{name: "ca, cert and key", files: full, wantOK: true},
-		{name: "no ca verifies against the system roots", files: noCA, wantErr: "certificate"},
-		{name: "no ca with SkipTLSVerify", files: noCA, skipVerify: true, wantOK: true},
-		{name: "no TLS files is plain TCP", files: nil},
+		{name: "ca, cert and key", host: mtls, files: full, wantOK: true},
+		{name: "no ca verifies against the system roots", host: mtls, files: noCA, wantErr: "certificate"},
+		{name: "no ca with SkipTLSVerify", host: mtls, files: noCA, skipVerify: true, wantOK: true},
+		{name: "SkipTLSVerify alone is TLS", host: serverOnly, skipVerify: true, wantOK: true},
+		{name: "no TLS files is plain TCP", host: serverOnly, wantErr: "HTTPS"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := isolate(t)
+			host := tc.host
 			writeContext(t, dir, "remote", host, tc.skipVerify, tc.files)
 
 			byName, err := NewForContext("remote", host)
@@ -235,7 +243,7 @@ func TestContextTLS(t *testing.T) {
 					t.Errorf("%s: ping: %v; want it to mention %q", how, err, tc.wantErr)
 				}
 				want := []string{"--host", host}
-				if tc.files != nil {
+				if tc.files != nil || tc.skipVerify {
 					want = []string{"--context", "remote"}
 				}
 				if got := c.EndpointArgs(); !slices.Equal(got, want) {
