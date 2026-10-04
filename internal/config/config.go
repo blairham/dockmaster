@@ -349,3 +349,14 @@ func StateDir() (string, error) {
 	}
 	return filepath.Join(home, ".local", "state", "dockmaster"), nil
 }
+
+// ExpandHome turns a leading ~ into the home directory, for paths in
+// config.yaml.
+func ExpandHome(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, strings.TrimPrefix(p, "~"))
+		}
+	}
+	return p
+}

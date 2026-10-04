@@ -21,7 +21,9 @@ spelling. `dockmaster config init` writes the commented defaults
 
 `$DOCKMASTER_CONFIG_DIR/config.yaml`, else `$XDG_CONFIG_HOME/dockmaster/config.yaml`,
 else `~/.config/dockmaster/config.yaml`. `dockmaster config path` prints the
-answer. k9s's own default on macOS is `~/Library/Application Support`;
+answer; `dockmaster info` prints it with every other path dockmaster uses —
+skins, the state directory with its dumps, saved logs, log file and
+history — and the docker endpoint it would dial, without dialing it. k9s's own default on macOS is `~/Library/Application Support`;
 dockmaster uses `~/.config` on every platform, where command-line tools keep
 their dotfiles.
 

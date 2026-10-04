@@ -424,6 +424,30 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "copy_form", c.ID
 	case "e":
 		return "edit_form", c.ID
+	case "a":
+		return "toggle_all", ""
+	case "ctrl+k":
+		return "toggle_kube", ""
+	case "ctrl+z":
+		return "toggle_faults", ""
+	case "ctrl+w":
+		return "toggle_wide", ""
+	case "t":
+		return "toggle_stats", ""
+	case "F":
+		return "portforward", c.ID
+	case "b":
+		return "open_published", c.ID
+	}
+	return containerAction(key, c)
+}
+
+// containerAction is what a container key asks for on one container —
+// lifecycle, shell, attach, scan and remove — wherever a container is
+// selected: the containers view and the xray tree (#56) share it, so the
+// two can never disagree about what a key does.
+func containerAction(key string, c docker.Container) (string, string) {
+	switch key {
 	case "u":
 		return "start", c.ID
 	case "x":
@@ -451,20 +475,6 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 			return "not_running", c.Name
 		}
 		return "attach", c.ID
-	case "a":
-		return "toggle_all", ""
-	case "ctrl+k":
-		return "toggle_kube", ""
-	case "ctrl+z":
-		return "toggle_faults", ""
-	case "ctrl+w":
-		return "toggle_wide", ""
-	case "t":
-		return "toggle_stats", ""
-	case "F":
-		return "portforward", c.ID
-	case "b":
-		return "open_published", c.ID
 	case KeyCtrlD:
 		return "confirm_remove_container", c.ID
 	}
