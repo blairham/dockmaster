@@ -240,6 +240,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<x>", Desc: "Stop"},
 			{Key: "<R>", Desc: "Restart"},
 			{Key: "<p>", Desc: "Pull"},
+			{Key: "<s>", Desc: "Scale"},
 			{Key: "<ctrl-d>", Desc: "Down"},
 		}
 	case style.ViewRuntimes:
@@ -298,6 +299,13 @@ func (a *App) renderShortcuts(info []string) []string {
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Run"},
 			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<esc>", Desc: "Cancel"},
+		}
+	case style.ViewScaleForm:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Scale"},
+			{Key: "<tab>", Desc: "Next field"},
+			{Key: "<←/→>", Desc: "Service"},
 			{Key: "<esc>", Desc: "Cancel"},
 		}
 	case style.ViewPluginForm:
@@ -361,7 +369,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<space>", Desc: "Toggle"},
 			{Key: "<h>/<l>", Desc: "Collapse/Expand"},
-			{Key: "<s>", Desc: "Shell"},
+			{Key: "<s>", Desc: "Shell/Scale"},
 			{Key: "<A>", Desc: "Attach"},
 			{Key: "<u>", Desc: "Start"},
 			{Key: "<x>", Desc: "Stop"},
@@ -713,6 +721,7 @@ func projectHelp() chrome.HelpSection {
 			{Key: "<R>", Desc: "Restart"},
 			{Key: "<p>", Desc: "Pull images"},
 			{Key: "<e>", Desc: "Edit, then up"},
+			{Key: "<s>", Desc: "Scale a service"},
 			{Key: "<ctrl-d>", Desc: "Compose down"},
 		},
 	}

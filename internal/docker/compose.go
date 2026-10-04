@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -151,3 +152,12 @@ func (c *Compose) Restart(ctx context.Context, p Project) error { return c.do(ct
 
 // Pull pulls the images the project's services use.
 func (c *Compose) Pull(ctx context.Context, p Project) error { return c.do(ctx, p, "pull") }
+
+// Scale sets service's container count to replicas: `up -d --scale
+// svc=N --no-recreate svc`. Naming the service keeps the rest of the
+// project as it is, and --no-recreate leaves the containers it keeps
+// alone even when their definition has changed — scaling is not an
+// update.
+func (c *Compose) Scale(ctx context.Context, p Project, service string, replicas int) error {
+	return c.do(ctx, p, "up", "-d", "--scale", service+"="+strconv.Itoa(replicas), "--no-recreate", service)
+}

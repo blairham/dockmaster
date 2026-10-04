@@ -68,6 +68,9 @@ type Project struct {
 	Age        string
 	WorkingDir string
 	Services   []string
+	// Replicas counts each service's containers, running or not — what
+	// `compose up --scale` measures a service by.
+	Replicas map[string]int
 	// ConfigFiles and EnvFiles are what `docker compose up` was given, read
 	// back from the labels. Empty when the containers predate the labels
 	// or were not made by the Compose CLI.
@@ -98,6 +101,7 @@ func Projects(containers []Container) []Project {
 				WorkingDir:  c.Labels[LabelWorkingDir],
 				ConfigFiles: splitLabelList(c.Labels[LabelConfigFiles]),
 				EnvFiles:    splitLabelList(c.Labels[LabelEnvFiles]),
+				Replicas:    map[string]int{},
 			}
 			byName[c.Project] = p
 			svcSeen[c.Project] = make(map[string]bool)
@@ -107,6 +111,9 @@ func Projects(containers []Container) []Project {
 			p.Running++
 		} else {
 			p.Stopped++
+		}
+		if c.Service != "" {
+			p.Replicas[c.Service]++
 		}
 		if c.Service != "" && !svcSeen[c.Project][c.Service] {
 			svcSeen[c.Project][c.Service] = true
