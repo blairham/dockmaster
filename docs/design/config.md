@@ -317,7 +317,11 @@ the order given while wide mode is on and are skipped while it is off, and
 a `sortColumn` among them sorts only while they are shown. A `sortColumn`
 opens the view sorted; `shift-←/→` and `shift-↑/↓` take over from it as
 usual, counting the columns as shown. Only shown columns are a plugin's
-`$COL-<HEADER>`.
+`$COL-<HEADER>`: a column `views.yaml` hides is not available to plugins
+as `$COL-<HEADER>` (or `$COL_<HEADER>`), which then reads as empty unless
+dockmaster's own environment has that name. A plugin that needs a hidden
+column's value should use the row's named variable where there is one
+(`$IMAGE`, `$STATE`, …), which does not depend on the columns shown.
 
 Checked at startup and on a reload: every view is one of the keys above,
 every column is one that view can show and is listed once, and `sortColumn`

@@ -281,6 +281,10 @@ func containersView(client *docker.Client, opts Options) *views.ContainersView {
 // NewApp builds the root model.
 func NewApp(client *docker.Client, opts Options) *App {
 	statsOn := !opts.NoStats
+	refresh := opts.RefreshRate
+	if refresh <= 0 {
+		refresh = pollInterval
+	}
 	vm := map[style.ViewType]views.View{
 		style.ViewContainers:   containersView(client, opts),
 		style.ViewImages:       views.NewImagesView(client, false),
@@ -292,6 +296,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		style.ViewPortForwards: views.NewPortForwardsView(client),
 		style.ViewPods:         views.NewPodsView(podmanOf(opts.Engines)),
 		style.ViewEvents:       views.NewEventsView(client),
+		style.ViewPulses:       views.NewPulsesView(client, statsOn, refresh),
 	}
 	startView := style.ViewContainers
 	if vt, ok := ViewForCommand(opts.Command); ok {
@@ -303,10 +308,6 @@ func NewApp(client *docker.Client, opts Options) *App {
 
 	if client != nil && opts.RequestTimeout > 0 {
 		client.RequestTimeout = opts.RequestTimeout
-	}
-	refresh := opts.RefreshRate
-	if refresh <= 0 {
-		refresh = pollInterval
 	}
 	a := &App{
 		client:         client,
@@ -541,6 +542,18 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 		}
 		return a, nil
 
+	// The dashboard's messages go to it whichever view is showing: a
+	// listing that landed on another view would leave its single-flight
+	// guard set for good, and an event count dropped would end its drain.
+	case views.PulsesListMsg, views.PulsesStatsMsg, views.PulsesDiskMsg, views.PulsesEventsMsg:
+		if !a.splashActive && a.refreshMsgMatchesView(msg) {
+			a.loading = false
+		}
+		if pv := typedView[*views.PulsesView](a, style.ViewPulses); pv != nil {
+			return a, pv.Update(msg)
+		}
+		return a, nil
+
 	// Data refresh messages: clear the spinner when they belong to the
 	// active view, then hand them down.
 	case views.ContainersRefreshMsg, views.ContainerStatsMsg,
@@ -623,6 +636,7 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		style.ViewPortForwards: views.NewPortForwardsView(a.client),
 		style.ViewPods:         views.NewPodsView(podmanOf(cv.Providers())),
 		style.ViewEvents:       views.NewEventsView(a.client),
+		style.ViewPulses:       views.NewPulsesView(a.client, a.statsOn, a.refresh),
 	}
 	a.flash = fmt.Sprintf("switched to context %s", msg.name)
 	if msg.keepView && a.view == style.ViewRuntimes {
