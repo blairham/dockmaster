@@ -322,6 +322,26 @@ func TestXrayKeysOffAContainerAreHarmless(t *testing.T) {
 	if !strings.Contains(a.errFlash, "no ID") {
 		t.Errorf("i on a network: %q", a.errFlash)
 	}
+	// The standalone root names nothing to copy.
+	for range 20 {
+		step(a, key("k"))
+	}
+	gotoNode(t, a, xv, "standalone")
+	if cmd := step(a, key("c")); cmd != nil || a.errFlash != "nothing selected to copy" {
+		t.Errorf("c on the standalone root: flash %q, err %q", a.flash, a.errFlash)
+	}
+
+	// h and l still fold: the container keys took nothing from the tree.
+	for range 20 {
+		step(a, key("k"))
+	}
+	gotoNode(t, a, xv, "c:c1")
+	before := xv.Count()
+	step(a, key("h"))
+	step(a, key("l"))
+	if xv.Count() != before || !strings.Contains(render(a), "volume pgdata") {
+		t.Errorf("h then l did not reopen the container: %d rows, was %d", xv.Count(), before)
+	}
 }
 
 // TestXrayReadonly: --readonly refuses every mutating container key on the

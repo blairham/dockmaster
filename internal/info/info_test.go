@@ -87,6 +87,7 @@ func TestInfoPaths(t *testing.T) {
 		"Dumps:       " + filepath.Join(dumps, "dumps") + "\n",
 		"Saved logs:  " + filepath.Join(dumps, "logs") + "\n",
 		"Log file:    /var/tmp/dm.log\n",
+		"History:     " + filepath.Join(stateDir, "dockmaster", "history.json") + "\n",
 		"Context:     nowhere\n",
 		"Endpoint:    (unknown)\n",
 		"Resolved by: context (config.yaml) — no such context in the store\n",

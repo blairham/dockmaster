@@ -94,7 +94,7 @@ func TestPluginInputValueIsNotLogged(t *testing.T) {
 	}
 	got := log()
 	for _, want := range []string{
-		`msg="plugin run" plugin=p`, "inputs=[token]", `level=WARN msg="plugin failed" plugin=p exit=3 reason="exited 3"`,
+		`msg="plugin run" plugin=p command=` + script + " background=true inputs=[token]\n", `level=WARN msg="plugin failed" plugin=p exit=3 reason="exited 3"`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("log lacks %q:\n%s", want, got)
