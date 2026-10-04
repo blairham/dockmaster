@@ -680,13 +680,11 @@ func (n *pulseNote) View() string {
 	if n.width <= 0 || n.height <= 0 {
 		return ""
 	}
-	lines := make([]string, n.height)
-	lines[0] = Theme().Title.Render(fitText(n.title, n.width))
-	for i := 1; i < n.height; i++ {
-		lines[i] = strings.Repeat(" ", n.width)
-	}
+	// The grid pads and cuts each line to the cell; the note is cut here
+	// so a narrow panel ends it in "…" rather than mid-word.
+	lines := []string{Theme().Title.Render(n.title)}
 	if n.height > 1 {
-		lines[1] = style.Muted.Render(fitText(n.note, n.width))
+		lines = append(lines, style.Muted.Render(fitText(n.note, n.width)))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -28,6 +28,7 @@ type fakePulses struct {
 	// listGate, when set, holds Containers until it is closed;
 	// listEntered is signaled each time Containers is called.
 	listGate    chan struct{}
+	diskGate    chan struct{} // holds DiskUsage until closed, when set
 	listEntered chan struct{}
 	feed        chan docker.Event
 	containers  []docker.Container
@@ -89,9 +90,13 @@ func (f *fakePulses) SampleStats(_ context.Context, ids []string) map[string]doc
 
 func (f *fakePulses) DiskUsage(context.Context) ([]docker.DiskUsageRow, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.disks++
-	return f.disk, f.diskErr
+	gate, rows, err := f.diskGate, f.disk, f.diskErr
+	f.mu.Unlock()
+	if gate != nil {
+		<-gate
+	}
+	return rows, err
 }
 
 func (f *fakePulses) StreamEvents(ctx context.Context, _ time.Duration) *docker.EventStream {
@@ -371,6 +376,13 @@ func TestPulsesNoStats(t *testing.T) {
 		t.Errorf("stats off sampled %d times", samples)
 	}
 
+	// A narrow panel cuts the note with a mark, not mid-word.
+	step(r.a, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if out := render(r.a); !strings.Contains(out, "poll is off (t in contain…") {
+		t.Errorf("at 80 columns the note is not cut with a mark:\n%s", out)
+	}
+	step(r.a, tea.WindowSizeMsg{Width: 120, Height: 40})
+
 	// t in the containers view turns it on; the dashboard follows.
 	r.a.switchView(style.ViewContainers)
 	r.run(nil)
@@ -403,7 +415,7 @@ func TestPulsesSingleFlight(t *testing.T) {
 	r := newPulseRig(t, Options{})
 	gate := make(chan struct{})
 	r.f.mu.Lock()
-	r.f.listGate = gate
+	r.f.listGate, r.f.diskGate = gate, gate
 	r.f.mu.Unlock()
 
 	msg, cmd := r.a.dispatchCommand("pulses")
@@ -417,14 +429,15 @@ func TestPulsesSingleFlight(t *testing.T) {
 	for range int(time.Minute/pollInterval) + 5 { // past when a disk read would be due
 		r.start(r.a.refreshPolledView())
 	}
+	r.start(r.a.refreshActiveView()) // and r, which reads disk too
 	if r.pumpUntil(r.f.listEntered, 100*time.Millisecond) {
 		t.Fatal("a poll listed while a listing was outstanding")
 	}
-	close(gate)
-	r.run(nil)
 	if lists, _, disks, _ := r.f.count(); lists != 1 || disks != 1 {
 		t.Errorf("%d lists and %d disk reads while one was outstanding; want 1 and 1", lists, disks)
 	}
+	close(gate)
+	r.run(nil)
 	r.poll()
 	if lists, _, _, _ := r.f.count(); lists != 2 {
 		t.Errorf("the next poll after the listing landed: %d lists, want 2", lists)
@@ -438,8 +451,9 @@ func TestPulsesStopsWhenLeft(t *testing.T) {
 	r := newPulseRig(t, Options{})
 	r.open()
 	r.sendEvents(2)
+	r.sendEvents(1) // a second batch: the drain re-arms after each
 	r.poll()
-	pulseFrame(t, r.a, "2 in the last 3s")
+	pulseFrame(t, r.a, "3 in the last 3s")
 	r.poll()
 	if _, _, _, streams := r.f.count(); streams != 1 {
 		t.Fatalf("polling subscribed %d times", streams)
@@ -508,4 +522,25 @@ func TestPulsesFitsNarrowTerminals(t *testing.T) {
 	}
 	step(r.a, tea.WindowSizeMsg{Width: 80, Height: 24})
 	pulseFrame(t, r.a, "Containers", "CPU", "Memory", "Events")
+}
+
+// TestPulsesUnderADrillIn: a view opened over the dashboard (:xray pushes)
+// does not take its messages — the events counted meanwhile are still the
+// dashboard's when it is back, and its drain is still running.
+func TestPulsesUnderADrillIn(t *testing.T) {
+	r := newPulseRig(t, Options{})
+	r.open()
+	if _, cmd := r.a.dispatchCommand("xray"); r.a.view != style.ViewXray {
+		t.Fatalf(":xray opened %v", r.a.view)
+	} else {
+		r.run(cmd)
+	}
+	r.sendEvents(2)
+	step(r.a, key("esc"))
+	if r.a.view != style.ViewPulses {
+		t.Fatalf("esc went to %v", r.a.view)
+	}
+	r.sendEvents(1)
+	r.poll()
+	pulseFrame(t, r.a, "3 in the last 3s")
 }
