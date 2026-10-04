@@ -63,7 +63,7 @@ func NewScanView(ref, host string) *ScanView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &ScanView{ref: ref, host: host, table: t}
+	return &ScanView{tableSort: tableSort{layoutKey: "scan"}, ref: ref, host: host, table: t}
 }
 
 func scanColumns() []table.Column {
@@ -240,7 +240,7 @@ func (v *ScanView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ScanView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(scanColumns(), width)))
+	v.table.SetColumns(v.layout(scanColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -282,3 +282,6 @@ func (v *ScanView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *ScanView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *ScanView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

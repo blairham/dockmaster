@@ -89,7 +89,7 @@ func (v *TopView) Resize(width, height int) {
 	v.table.SetHeight(height)
 	v.table.SetStyles(tableStylesWithWidth(width))
 	if v.cols != nil {
-		v.table.SetColumns(v.columns(fitColumns(v.cols, width)))
+		v.table.SetColumns(v.layout(v.cols, width))
 	}
 }
 
@@ -159,7 +159,7 @@ func (v *TopView) rebuild() {
 		v.table.SetRows(nil)
 	}
 	v.cols = cols
-	v.table.SetColumns(v.columns(fitColumns(cols, v.width)))
+	v.table.SetColumns(v.layout(cols, v.width))
 
 	f := parseFilter(v.filter)
 	rows := make([]table.Row, 0, len(v.procs.Rows))

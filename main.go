@@ -23,6 +23,7 @@ import (
 	"github.com/blairham/dockmaster/internal/engines"
 	"github.com/blairham/dockmaster/internal/tui"
 	"github.com/blairham/dockmaster/internal/tui/style"
+	"github.com/blairham/dockmaster/internal/tui/views"
 	"github.com/blairham/dockmaster/internal/version"
 )
 
@@ -318,14 +319,16 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 }
 
 // settings is everything read from the config directory: config.yaml with
-// the command line's flags over it, the aliases, hotkeys and plugins, and
-// the skin's theme — validated, as dockmaster will not start on a bad file.
+// the command line's flags over it, the aliases, hotkeys, plugins and view
+// columns, and the skin's theme — validated, as dockmaster will not start
+// on a bad file.
 type settings struct {
 	theme   theme.Theme
 	aliases map[string]string
 	cfg     config.Config
 	hotKeys []tui.HotKey
 	plugins []tui.Plugin
+	columns map[string]views.ColumnLayout
 }
 
 // loadSettings reads and validates the config directory. Startup and a live
@@ -363,11 +366,19 @@ func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagV
 	if err != nil {
 		return settings{}, err
 	}
+	viewFile, err := config.LoadViews()
+	if err != nil {
+		return settings{}, err
+	}
+	columns, err := tui.ColumnLayouts(viewFile)
+	if err != nil {
+		return settings{}, err
+	}
 	th, err := cfg.Theme(style.DefaultBase())
 	if err != nil {
 		return settings{}, err
 	}
-	return settings{cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, theme: th}, nil
+	return settings{cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, columns: columns, theme: th}, nil
 }
 
 // settingsOptions is the part of the app's options that comes from the
@@ -375,20 +386,21 @@ func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagV
 func settingsOptions(st settings) tui.Options {
 	cfg := st.cfg
 	o := tui.Options{
-		ReadOnly:    cfg.ReadOnly,
-		Logoless:    cfg.UI.Logoless,
-		Headless:    cfg.UI.Headless,
-		Crumbsless:  cfg.UI.Crumbsless,
-		RefreshRate: time.Duration(cfg.RefreshRate) * time.Second,
-		LogTail:     cfg.Logger.Tail,
-		LogShowTime: cfg.Logger.ShowTime,
-		LogBuffer:   cfg.Logger.Buffer,
-		LogSince:    time.Duration(max(cfg.Logger.SinceSeconds, 0)) * time.Second,
-		LiveRefresh: cfg.LiveViewAutoRefresh,
-		Aliases:     st.aliases,
-		HotKeys:     st.hotKeys,
-		Plugins:     st.plugins,
-		Thresholds:  tui.ThresholdsFrom(cfg.Thresholds),
+		ReadOnly:      cfg.ReadOnly,
+		Logoless:      cfg.UI.Logoless,
+		Headless:      cfg.UI.Headless,
+		Crumbsless:    cfg.UI.Crumbsless,
+		RefreshRate:   time.Duration(cfg.RefreshRate) * time.Second,
+		LogTail:       cfg.Logger.Tail,
+		LogShowTime:   cfg.Logger.ShowTime,
+		LogBuffer:     cfg.Logger.Buffer,
+		LogSince:      time.Duration(max(cfg.Logger.SinceSeconds, 0)) * time.Second,
+		LiveRefresh:   cfg.LiveViewAutoRefresh,
+		Aliases:       st.aliases,
+		HotKeys:       st.hotKeys,
+		Plugins:       st.plugins,
+		ColumnLayouts: st.columns,
+		Thresholds:    tui.ThresholdsFrom(cfg.Thresholds),
 	}
 	behaviorOptions(cfg, &o)
 	return o

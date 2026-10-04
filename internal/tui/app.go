@@ -252,6 +252,9 @@ type Options struct {
 	HotKeys []HotKey
 	// Plugins are the user's plugins (plugins.yaml), validated by Plugins.
 	Plugins []Plugin
+	// ColumnLayouts are the user's per-view columns (views.yaml), by view,
+	// validated by ColumnLayouts. nil keeps every view's own.
+	ColumnLayouts map[string]views.ColumnLayout
 	// RequestTimeout overrides every daemon request's own deadline when
 	// non-zero (--request-timeout).
 	RequestTimeout time.Duration
@@ -342,6 +345,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 	}
+	views.SetColumnLayouts(opts.ColumnLayouts)
 	a.buildChrome(style.Base(), opts.Headless, opts.Crumbsless)
 	a.history.Visit(viewfsm.ViewID(startView))
 	a.loadHistory(opts.HistoryFile)

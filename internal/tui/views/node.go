@@ -58,7 +58,14 @@ func NewNodeView(client *docker.Client, node, name string) *NodeView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &NodeView{client: client, table: t, node: node, name: name, loading: true}
+	return &NodeView{
+		tableSort: tableSort{layoutKey: "node"},
+		client:    client,
+		table:     t,
+		node:      node,
+		name:      name,
+		loading:   true,
+	}
 }
 
 func nodeColumns() []table.Column {
@@ -138,7 +145,7 @@ func (v *NodeView) Resize(width, height int) {
 	}
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(nodeColumns(), width)))
+	v.table.SetColumns(v.layout(nodeColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -243,3 +250,6 @@ func (v *NodeView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *NodeView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *NodeView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

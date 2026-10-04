@@ -44,7 +44,7 @@ func NewContextsView(current string) *ContextsView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &ContextsView{table: t, current: current, loading: true}
+	return &ContextsView{tableSort: tableSort{layoutKey: "contexts"}, table: t, current: current, loading: true}
 }
 
 func contextColumns() []table.Column {
@@ -89,7 +89,7 @@ func (v *ContextsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ContextsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(contextColumns(), width)))
+	v.table.SetColumns(v.layout(contextColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -169,3 +169,6 @@ func (v *ContextsView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *ContextsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *ContextsView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

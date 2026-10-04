@@ -50,7 +50,13 @@ func NewImagesView(client *docker.Client, showAll bool) *ImagesView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &ImagesView{client: client, table: t, loading: true, showAll: showAll}
+	return &ImagesView{
+		tableSort: tableSort{layoutKey: "images"},
+		client:    client,
+		table:     t,
+		loading:   true,
+		showAll:   showAll,
+	}
 }
 
 func imageColumns() []table.Column {
@@ -112,7 +118,7 @@ func (v *ImagesView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ImagesView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(imageColumns(), width)))
+	v.table.SetColumns(v.layout(imageColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -300,3 +306,6 @@ func (v *ImagesView) BulkKey(key string) []Action {
 		return Action{Name: name, Param: param, Label: im.Ref()}
 	})
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *ImagesView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

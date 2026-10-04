@@ -140,8 +140,8 @@ check to skip.
 
 With `ui.reactive: true`, saved changes to the files in the config
 directory — `config.yaml`, `skins/`, `aliases.yaml`, `hotkeys.yaml`,
-`plugins.yaml` — apply without a restart (#38). On each tick the app takes a
-fingerprint of the directory (names, sizes, modification times); a change is
+`plugins.yaml`, `views.yaml` — apply without a restart (#38). On each tick
+the app takes a fingerprint of the directory (names, sizes, modification times); a change is
 read only once it has held still for a tick, so an editor's multi-write save
 or a half-written file is never what gets applied. The read is `main.go`'s
 `loadSettings`, the same function startup uses, with the same command-line
@@ -155,6 +155,12 @@ reload. Runtime toggles — `:readonly`, `ctrl-e`, `ctrl-g`, `:logo` — change
 only when their value in the file changed. The docker `context` and
 `requestTimeout` are read at startup; changing them says a restart is
 needed.
+
+A changed `views.yaml` lays out again every table view already open — the
+one shown and those under it on the stack (`App.applyColumnLayouts`) — so
+none keeps rows built for its old columns. The cursor stays where it was; a
+sort the user chose follows its column by name, and the file's own
+`sortColumn` is replaced by the new one.
 
 ## Aliases
 
@@ -262,3 +268,62 @@ command and at least one scope, and every scope is a view. k9s's `pipes`
 and `inputs` are refused rather than ignored, which would run a different
 command than the one written; `overwriteOutput` is accepted and does
 nothing, as dockmaster does not capture output.
+
+## Views
+
+`views.yaml`, beside `config.yaml`, is k9s's views file (#14): which of a
+view's columns to show, in what order, and the column it opens sorted by.
+
+```yaml
+views:
+  containers:
+    columns: [NAME, STATE, IMAGE, AGE]   # these, in this order
+    sortColumn: AGE:desc                 # optional: COLUMN, COLUMN:asc or COLUMN:desc
+  images:
+    columns: [REPOSITORY, TAG, SIZE]
+```
+
+A view not in the file keeps its own columns and order, and so does one
+whose entry has only a `sortColumn`. Columns are named by their header,
+regardless of case. The view keys, and the columns each can show:
+
+| View | What it is | Columns |
+|---|---|---|
+| `containers` | `:containers` | NAME, IMAGE, STATE, HEALTH, CPU%, MEM, PORTS, AGE; wide mode (`ctrl-w`) adds ID, COMMAND, NETWORKS, IP |
+| `images` | `:images` | REPOSITORY, TAG, IMAGE ID, SIZE, USED BY, AGE |
+| `volumes` | `:volumes` | NAME, DRIVER, SIZE, REFS, PROJECT, MOUNTPOINT, AGE |
+| `networks` | `:networks` | NAME, NETWORK ID, DRIVER, SCOPE, SUBNET, FLAGS, PROJECT, AGE |
+| `projects` | `:projects` | PROJECT, STATUS, SERVICES, COMPOSE FILE, AGE |
+| `runtimes` | `:runtimes` | PROVIDER, NAME, STATUS, ARCH, CPUS, MEMORY, DISK, RUNTIME, K8S, CONTEXT |
+| `pods` | `:pods` | MACHINE, NAME, STATUS, READY, CONTAINERS, AGE |
+| `portforwards` | `:pf` | NAME, LOCAL, PORT, URL, STATE, AGE |
+| `diskusage` | `:df` | TYPE, TOTAL, ACTIVE, SIZE, RECLAIMABLE |
+| `contexts` | `:ctx` | NAME, ENDPOINT, DESCRIPTION |
+| `lint` | `:lint` | WORST, NAME, FINDINGS, FIRST FINDING |
+| `dir` | `:dir` | NAME, KIND, SIZE, AGE |
+| `dumps` | `:sd` | NAME, KIND, SIZE, AGE |
+| `node` | `n` on a kind/k3d node | NAMESPACE, POD, NAME, STATE, RESTARTS, IMAGE, AGE |
+| `layers` | `enter` on an image | LAYER, SIZE, AGE, CREATED BY |
+| `files` | `enter` on a volume | NAME, SIZE, MODE, AGE |
+| `scan` | `v` on an image | SEVERITY, ID, PACKAGE, INSTALLED, FIXED IN, TITLE |
+
+The contexts and runtimes views' unnamed marker column (the current
+context, the connected machine) is always shown, first. `top`'s columns are
+the process listing's own and cannot be laid out; the logs, events, inspect
+and xray views are not tables.
+
+The containers view's wide columns can be named: they take their place in
+the order given while wide mode is on and are skipped while it is off, and
+a `sortColumn` among them sorts only while they are shown. A `sortColumn`
+opens the view sorted; `shift-←/→` and `shift-↑/↓` take over from it as
+usual, counting the columns as shown. Only shown columns are a plugin's
+`$COL-<HEADER>`.
+
+Checked at startup and on a reload: every view is one of the keys above,
+every column is one that view can show and is listed once, and `sortColumn`
+names one of its columns — one of those listed, when `columns` is given —
+with no direction, `asc` or `desc`. k9s's column attributes (`NAME|WR`) and
+JSONPath columns are refused as unknown columns: dockmaster's columns are
+its own, not resource fields. A mistake stops startup, naming the view and
+the names that would have been right; on a reload it leaves the running
+layout as it was.

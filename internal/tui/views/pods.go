@@ -48,7 +48,7 @@ func NewPodsView(podman *engines.Podman) *PodsView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &PodsView{podman: podman, table: t, loading: podman != nil}
+	return &PodsView{tableSort: tableSort{layoutKey: "pods"}, podman: podman, table: t, loading: podman != nil}
 }
 
 func podColumns() []table.Column {
@@ -109,7 +109,7 @@ func (v *PodsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *PodsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(podColumns(), width)))
+	v.table.SetColumns(v.layout(podColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -229,3 +229,6 @@ func (v *PodsView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *PodsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *PodsView) Relayout() { v.relayout(&v.table, v.rebuildRows) }
