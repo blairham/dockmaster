@@ -43,7 +43,7 @@ func TestPluginInputsAndPipesValidation(t *testing.T) {
 	}{
 		{entries: inputPlugin(config.Plugin{Pipes: []string{"less"}}), want: `pipe "less": k9s skips a pipe of fewer than two words`},
 		{entries: inputPlugin(config.Plugin{Pipes: []string{"grep -i x", "  "}}), want: `pipe "  ": k9s skips`},
-		{entries: inputPlugin(config.Plugin{Pipes: []string{`grep "open`}}), want: `pipe "grep \"open"`},
+		{entries: inputPlugin(config.Plugin{Pipes: []string{`grep -e "open`}}), want: `pipe "grep -e \"open": EOF found when expecting closing quote`},
 		{
 			entries: inputPlugin(config.Plugin{Pipes: []string{"sort -r"}, Background: true}),
 			want:    "background and pipes together",
@@ -141,6 +141,7 @@ func deployInputs() []config.PluginInput {
 		{Name: "verbose", Type: "bool"},
 		{Name: "env", Type: "dropdown", Options: []string{"dev", "stage", "prod"}, Default: "prod"},
 		{Name: "region", Type: "dropdown", Options: []string{"eu", "us"}},
+		{Name: "dry", Type: "bool", Default: "true"},
 	}
 }
 
@@ -172,6 +173,7 @@ func TestPluginInputsForm(t *testing.T) {
 		}
 	}
 
+	step(a, tab) // away from the missing field: the refusal brings focus back
 	runOnce(a, step(a, key("enter")))
 	if a.view != style.ViewPluginForm || !strings.Contains(render(a), "Image tag is required") {
 		t.Fatalf("a missing required value was not refused:\n%s", render(a))
@@ -197,7 +199,9 @@ func TestPluginInputsForm(t *testing.T) {
 	step(a, key("space")) // "" → eu
 	step(a, key("space")) // eu → us
 	if f := typedView[*views.PluginFormView](a, style.ViewPluginForm); f != nil {
-		want := map[string]string{"tag": "v1 $NAME", "replicas": "2.5", "verbose": "true", "env": "dev", "region": "us"}
+		want := map[string]string{
+			"tag": "v1 $NAME", "replicas": "2.5", "verbose": "true", "env": "dev", "region": "us", "dry": "true",
+		}
 		if got := f.Values(); !reflect.DeepEqual(got, want) {
 			t.Errorf("form values %v, want %v", got, want)
 		}
@@ -213,7 +217,7 @@ func TestPluginInputsForm(t *testing.T) {
 	}
 	runOnce(a, step(a, key("y")))
 	want := "[web][--tag=v1 $NAME][2.5][true][dev][us]\n" +
-		"INPUT_ENV=dev\nINPUT_REGION=us\nINPUT_REPLICAS=2.5\nINPUT_TAG=v1 $NAME\nINPUT_VERBOSE=true\n"
+		"INPUT_DRY=true\nINPUT_ENV=dev\nINPUT_REGION=us\nINPUT_REPLICAS=2.5\nINPUT_TAG=v1 $NAME\nINPUT_VERBOSE=true\n"
 	if got := read(t, out); got != want {
 		t.Errorf("plugin saw\n%s\nwant\n%s", got, want)
 	}
@@ -240,7 +244,13 @@ func TestPluginInputsCancel(t *testing.T) {
 	if read(t, out) != "" || a.confirm.Active() {
 		t.Errorf("no at the confirm ran it: %q", read(t, out))
 	}
-	// A submission no plugin is waiting for runs nothing.
+	// A submission for a plugin other than the one waiting runs nothing.
+	step(a, tea.KeyPressMsg{Code: tea.KeyF5})
+	if cmd := a.submitPluginInputs(`{"plugin":"other","values":{"tag":"x"}}`); cmd != nil || read(t, out) != "" ||
+		!strings.Contains(a.errFlash, "plugin other is no longer waiting") || a.view != style.ViewContainers {
+		t.Errorf("a mismatched submission: flash %q, ran %q, view %v", a.errFlash, read(t, out), a.view)
+	}
+	// Nor does one when no plugin is waiting at all.
 	if cmd := a.submitPluginInputs(`{"plugin":"p","values":{"tag":"x"}}`); cmd != nil || read(t, out) != "" ||
 		!strings.Contains(a.errFlash, "no longer waiting") {
 		t.Errorf("a stale submission: flash %q, ran %q", a.errFlash, read(t, out))
