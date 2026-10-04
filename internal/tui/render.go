@@ -348,6 +348,14 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<enter>", Desc: "Switch"},
 			{Key: "<esc>", Desc: "Back"},
 		}
+	case style.ViewXray:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Open"},
+			{Key: "<o>", Desc: "Inspect"},
+			{Key: "<space>", Desc: "Toggle"},
+			{Key: "<h>/<l>", Desc: "Collapse/Expand"},
+			{Key: "<esc>", Desc: "Back"},
+		}
 	case style.ViewDir:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Open"},
@@ -602,6 +610,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<:sd>", Desc: "Saved dumps"},
 					{Key: "<:lint>", Desc: "Container lint"},
 					{Key: "<:dir>", Desc: "Compose files"},
+					{Key: "<:xray>", Desc: "Xray tree"},
 					{Key: "<v>", Desc: "Scan image"},
 				},
 			},
