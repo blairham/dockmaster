@@ -21,6 +21,12 @@ import (
 // and space, ctrl+space and ctrl+\ mark rows. It reports whether the
 // key was one of them.
 func (a *App) tableKey(key string) (tea.Cmd, bool) {
+	// Copy first, and for any Copier: the xray tree copies too (#56).
+	if key == "c" || key == "i" {
+		if c, ok := a.activeView().(views.Copier); ok {
+			return a.copyRow(c, key == "i"), true
+		}
+	}
 	tv, ok := a.activeView().(views.Tabler)
 	if !ok {
 		return nil, false
@@ -28,11 +34,6 @@ func (a *App) tableKey(key string) (tea.Cmd, bool) {
 	if key == chrome.KeySave {
 		a.saveTable(tv)
 		return nil, true
-	}
-	if key == "c" || key == "i" {
-		if c, ok := tv.(views.Copier); ok {
-			return a.copyRow(c, key == "i"), true
-		}
 	}
 	if s, ok := tv.(views.SortKeyer); ok && s.SortKey(key) {
 		return nil, true

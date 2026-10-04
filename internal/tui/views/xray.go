@@ -22,10 +22,15 @@ type XrayRefreshMsg struct {
 	Containers []docker.Container
 }
 
-// xrayTarget is what enter and o do on one node.
+// xrayTarget is what the keys do on one node: enter and o on every node,
+// the container keys on a container (#56), v where there is an image to
+// scan, and c / i copy its name and ID.
 type xrayTarget struct {
+	container             *docker.Container
 	enter, enterParam     string
 	inspect, inspectParam string
+	scan                  string
+	copyName, copyID      string
 }
 
 // XrayView is k9s's xray for Docker (#9): every compose project, its
@@ -38,6 +43,7 @@ type XrayView struct {
 	client   *docker.Client
 	err      error
 	targets  map[string]xrayTarget
+	names    map[string]string
 	inFlight bool
 	loading  bool
 }
@@ -46,7 +52,10 @@ type XrayView struct {
 func NewXrayView(client *docker.Client) *XrayView {
 	t := tree.New(Theme())
 	t.SetDefaultDepth(-1)
-	return &XrayView{client: client, tree: t, loading: true, targets: map[string]xrayTarget{}}
+	return &XrayView{
+		client: client, tree: t, loading: true,
+		targets: map[string]xrayTarget{}, names: map[string]string{},
+	}
 }
 
 // Title names the view in the border.
@@ -78,7 +87,7 @@ func (v *XrayView) Update(msg tea.Msg) tea.Cmd {
 	}
 	v.inFlight, v.loading, v.err = false, false, m.Err
 	if m.Err == nil {
-		v.targets = map[string]xrayTarget{}
+		v.targets, v.names = map[string]xrayTarget{}, map[string]string{}
 		v.tree.SetRoots(v.build(m.Containers))
 	}
 	return nil
@@ -103,11 +112,11 @@ func (v *XrayView) build(cs []docker.Container) []*tree.Node {
 	var roots []*tree.Node
 	for _, p := range sortedKeys(projects) {
 		pid := "p:" + p
-		v.targets[pid] = xrayTarget{enter: "project_containers", enterParam: p}
+		v.targets[pid] = xrayTarget{enter: "project_containers", enterParam: p, copyName: p}
 		pn := &tree.Node{ID: pid, Label: style.Title.Render("⎔ " + p)}
 		for _, s := range sortedKeys(projects[p]) {
 			sid := pid + "/s:" + s
-			v.targets[sid] = xrayTarget{enter: "project_containers", enterParam: p}
+			v.targets[sid] = xrayTarget{enter: "project_containers", enterParam: p, copyName: s}
 			sn := &tree.Node{ID: sid, Label: "◇ " + s}
 			for _, c := range sortedContainers(projects[p][s]) {
 				sn.Children = append(sn.Children, v.containerNode(c))
@@ -129,7 +138,11 @@ func (v *XrayView) build(cs []docker.Container) []*tree.Node {
 // containerNode is a container and what it uses.
 func (v *XrayView) containerNode(c docker.Container) *tree.Node {
 	cid := "c:" + c.ID
-	v.targets[cid] = xrayTarget{enter: "logs", enterParam: c.ID, inspect: "inspect_container", inspectParam: c.ID}
+	v.names[c.ID] = c.Name
+	v.targets[cid] = xrayTarget{
+		enter: "logs", enterParam: c.ID, inspect: "inspect_container", inspectParam: c.ID,
+		container: &c, copyName: c.Name, copyID: c.ID,
+	}
 	n := &tree.Node{ID: cid, Label: fmt.Sprintf("▣ %s %s", c.Name, stateStyle(c.State).Render(c.State))}
 
 	if c.Image != "" {
@@ -138,12 +151,18 @@ func (v *XrayView) containerNode(c docker.Container) *tree.Node {
 		if image == "" {
 			image = c.Image
 		}
-		v.targets[iid] = xrayTarget{enter: "layers", enterParam: image, inspect: "inspect_image", inspectParam: image}
+		v.targets[iid] = xrayTarget{
+			enter: "layers", enterParam: image, inspect: "inspect_image", inspectParam: image,
+			scan: image, copyName: c.Image, copyID: c.ImageID,
+		}
 		n.Children = append(n.Children, &tree.Node{ID: iid, Label: style.Muted.Render("image ") + c.Image})
 	}
 	for _, vol := range c.Volumes {
 		vid := cid + "/v:" + vol
-		v.targets[vid] = xrayTarget{enter: "browse_volume", enterParam: vol, inspect: "inspect_volume", inspectParam: vol}
+		v.targets[vid] = xrayTarget{
+			enter: "browse_volume", enterParam: vol, inspect: "inspect_volume", inspectParam: vol,
+			copyName: vol, copyID: vol,
+		}
 		n.Children = append(n.Children, &tree.Node{ID: vid, Label: style.Muted.Render("volume ") + vol})
 	}
 	for _, e := range c.Endpoints {
@@ -152,7 +171,9 @@ func (v *XrayView) containerNode(c docker.Container) *tree.Node {
 		if e.IP != "" {
 			label += style.Muted.Render(" " + e.IP)
 		}
-		v.targets[nid] = xrayTarget{enter: "used_by", enterParam: UsedByParam("network", e.Network, e.Network)}
+		v.targets[nid] = xrayTarget{
+			enter: "used_by", enterParam: UsedByParam("network", e.Network, e.Network), copyName: e.Network,
+		}
 		n.Children = append(n.Children, &tree.Node{ID: nid, Label: label})
 	}
 	return n
@@ -175,7 +196,9 @@ func sortedContainers(cs []docker.Container) []docker.Container {
 // HandleKey maps a key: the tree's own (space, h/l, ←/→) open and close nodes;
 // enter acts on the node — a container's logs, an image's layers, a
 // volume's files, the containers on a network, a project's containers — and
-// o inspects it.
+// o inspects it. On a container the containers view's keys work as they do
+// there (#56) — the same actions, so --readonly, confirms and the refresh
+// after are the app's as everywhere — and v scans an image node's image.
 func (v *XrayView) HandleKey(key string) (string, string) {
 	switch key {
 	case tree.KeyToggle, "h", "l", "left", "right":
@@ -192,9 +215,36 @@ func (v *XrayView) HandleKey(key string) (string, string) {
 		return t.enter, t.enterParam
 	case "o":
 		return t.inspect, t.inspectParam
+	case "v":
+		if t.scan != "" {
+			return "scan_image", t.scan
+		}
+	}
+	if t.container != nil {
+		return containerAction(key, *t.container)
+	}
+	if key == KeyCtrlD {
+		// Remove, never navigation: off a container ctrl-d does nothing,
+		// rather than paging the cursor onto one.
+		return "xray_nav", ""
 	}
 	return "", ""
 }
+
+// CopyFields is the selected node's name and ID: a container's, an
+// image's reference and ID, a volume's name; a project, service or network
+// node has a name only.
+func (v *XrayView) CopyFields() (string, string, bool) {
+	n, ok := v.tree.Selected()
+	if !ok {
+		return "", "", false
+	}
+	t := v.targets[n.ID]
+	return t.copyName, t.copyID, t.copyName != ""
+}
+
+// NameFor is a container's name by ID, "" when the tree has none.
+func (v *XrayView) NameFor(id string) string { return v.names[id] }
 
 // Selected is the node under the cursor.
 func (v *XrayView) Selected() (*tree.Node, bool) { return v.tree.Selected() }

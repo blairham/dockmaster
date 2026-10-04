@@ -167,7 +167,7 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Any keypress clears a flash — it has been read, or it has not, and
 	// either way it must not outlive the next interaction.
-	a.errFlash = ""
+	a.errFlash, a.loggedFlash = "", ""
 	a.flash = ""
 
 	// Bars get first refusal. Each reports whether it consumed the key,

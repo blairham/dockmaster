@@ -19,6 +19,20 @@ fails when the tag has none.
   a view (`:xray @prod`). (#57)
 - Hotkeys take k9s's `override`, asked before the view's own keys; a k9s
   `hotkeys.yaml` using it failed to load. (#58)
+- `:xray` acts on the container under the cursor with the containers view's
+  keys: `s` shell, `A` attach, `u` start, `x` stop, `R` restart, `K` kill
+  and `ctrl-d` remove (both confirm), `p` pause / unpause, `c` / `i` copy its
+  name and ID; `v` scans an image node's image. `--readonly` refuses the
+  mutating ones, and the tree keeps its place as it refreshes after. (#56)
+- `dockmaster info` prints where dockmaster reads its config and skins and
+  writes its dumps, saved logs, log file and history, and the docker
+  context and endpoint it would use and how it chose them — without dialing
+  the daemon. (#60)
+- A log file, `<state>/dockmaster.log` (`--log-file` moves it,
+  `--log-level` sets debug / info / warn / error, default warn): every error
+  that is flashed, plugin and hotkey runs, and context switches. Never env
+  values, a plugin's arguments or output, or what was typed into its inputs
+  form — only the inputs' names. Rotated once to `.1` at 5 MB. (#60)
 
 ### Fixed
 

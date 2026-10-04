@@ -144,6 +144,7 @@ func HotKeys(entries map[string]config.HotKey, aliases map[string]string) ([]Hot
 func (a *App) hotKey(key string, override bool) (tea.Cmd, bool) {
 	for _, hk := range a.hotKeys {
 		if hk.Key == key && hk.Override == override {
+			a.logHotKey(hk)
 			msg, cmd := a.dispatchCommand(hk.Command)
 			if msg != "" {
 				a.errFlash = msg

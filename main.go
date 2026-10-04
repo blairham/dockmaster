@@ -18,9 +18,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/theme"
 
+	"github.com/blairham/dockmaster/internal/applog"
 	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/info"
 	"github.com/blairham/dockmaster/internal/tui"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
@@ -37,6 +39,9 @@ func main() {
 func run() error {
 	if len(os.Args) > 1 && os.Args[1] == "config" {
 		return config.Command(os.Args[2:], os.Stdout)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "info" {
+		return info.Command(os.Args[2:], os.Stdout)
 	}
 
 	var (
@@ -55,6 +60,12 @@ func run() error {
 		reqTimeout  = flag.Duration("request-timeout", 0,
 			"how long one daemon request may take, as 30s or 2m (0 keeps each request's own: 20s for a list, 5m for images)")
 		showVersion = flag.Bool("version", false, "print version and exit")
+		logLevel    = flag.String("log-level", applog.DefaultLevel, "log level: "+strings.Join(applog.Levels, ", "))
+		logFile     = flag.String(
+			"log-file",
+			"",
+			"log file (default <state dir>/"+applog.FileName+"; dockmaster info shows it)",
+		)
 	)
 	commandUsage := "view or : command to open on (" + strings.Join(tui.ViewCommandNames(), ", ") + ", xray, an alias…)"
 	flag.StringVar(&command, "command", "", commandUsage)
@@ -69,6 +80,12 @@ func run() error {
 		fmt.Printf("dockmaster %s (%s, built %s)\n", version.Version, version.Commit, version.Date)
 		return nil
 	}
+
+	logger, logCloser, err := applog.Open(*logFile, *logLevel)
+	if err != nil {
+		return err
+	}
+	defer logCloser.Close() //nolint:errcheck // process is exiting
 
 	cfgPath, err := config.Path()
 	if err != nil {
@@ -154,6 +171,7 @@ func run() error {
 	if err := client.Negotiate(ctx); err != nil {
 		m, ok := engines.Owner(ctx, providers, client.Host)
 		if !ok {
+			logger.Error("no daemon", "endpoint", client.Host, "error", err)
 			return daemonError(err, client)
 		}
 		startOnRuntimes = true
@@ -163,6 +181,7 @@ func run() error {
 	if *contextName != "" {
 		client.ContextName = *contextName
 	}
+	logger.Info("start", "version", version.Version, "context", client.ContextName, "endpoint", client.Host)
 
 	opts := settingsOptions(st)
 	opts.Version = version.Version
@@ -174,6 +193,7 @@ func run() error {
 	opts.StartOnRuntimes = startOnRuntimes
 	opts.Notice = notice
 	opts.HistoryFile = historyFile()
+	opts.Logger = logger
 	if cfg.UI.Reactive {
 		opts.WatchDir = filepath.Dir(cfgPath)
 		opts.Reload = func() (tui.Reloaded, error) {
@@ -240,6 +260,7 @@ const usageTail = `
 Config:
   %[1]s config path    print where config.yaml is read from
   %[1]s config init    write a commented config.yaml with the defaults
+  %[1]s info           print the config, state, log and skins paths and the docker endpoint
   The file is $DOCKMASTER_CONFIG_DIR/config.yaml, else
   $XDG_CONFIG_HOME/dockmaster/config.yaml, else ~/.config/dockmaster/config.yaml.
   Flags given on the command line override it.
@@ -298,23 +319,12 @@ func historyFile() string {
 	return filepath.Join(dir, "history.json")
 }
 
-// expandHome turns a leading ~ into the home directory, for paths in
-// config.yaml.
-func expandHome(p string) string {
-	if p == "~" || strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, strings.TrimPrefix(p, "~"))
-		}
-	}
-	return p
-}
-
 // behaviorOptions carries config.yaml's k9s behavior keys (#17) into the
 // app's options — noExitOnCtrlC, screenDumpDir, the log view's opening
 // state and the mouse.
 func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.NoExitOnCtrlC = cfg.NoExitOnCtrlC
-	o.DumpDir = expandHome(cfg.ScreenDumpDir)
+	o.DumpDir = config.ExpandHome(cfg.ScreenDumpDir)
 	o.LogWrap = cfg.Logger.TextWrap
 	o.LogPaused = cfg.Logger.DisableAutoscroll
 	o.LogFullscreen = cfg.UI.DefaultsToFullScreen

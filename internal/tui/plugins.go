@@ -375,6 +375,7 @@ func (a *App) execPlugin(p Plugin, argv []string, vars map[string]string) tea.Cm
 		a.errFlash = "plugin " + p.Name + ": " + p.Command + " is not on PATH"
 		return nil
 	}
+	a.logPluginRun(p)
 	env := os.Environ()
 	for k, v := range vars {
 		env = append(env, k+"="+v)
@@ -436,12 +437,19 @@ func (a *App) handlePluginDone(msg pluginDoneMsg) (tea.Model, tea.Cmd) {
 		if errors.As(msg.err, &exitErr) {
 			reason = fmt.Sprintf("exited %d", exitErr.ExitCode())
 		}
+		a.logPluginDone(msg, reason)
 		if last := lastLine(msg.output); last != "" {
 			reason += ": " + last
 		}
 		a.errFlash = "plugin " + msg.name + " " + reason
+		// Logged above, without the output the flash adds: it may echo
+		// an input's value.
+		a.loggedFlash = a.errFlash
 	case msg.background:
+		a.logPluginDone(msg, "")
 		a.flash = "plugin " + msg.name + " done"
+	default:
+		a.logPluginDone(msg, "")
 	}
 	cmds := []tea.Cmd{a.refreshActiveView()}
 	if !msg.background {

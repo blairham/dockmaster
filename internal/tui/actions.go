@@ -906,6 +906,11 @@ func (a *App) containerName(id string) string {
 			return name
 		}
 	}
+	if v := typedView[*views.XrayView](a, style.ViewXray); v != nil {
+		if name := v.NameFor(id); name != "" {
+			return name
+		}
+	}
 	if len(id) > 12 {
 		return id[:12]
 	}

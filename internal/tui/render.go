@@ -361,7 +361,16 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<space>", Desc: "Toggle"},
 			{Key: "<h>/<l>", Desc: "Collapse/Expand"},
-			{Key: "<esc>", Desc: "Back"},
+			{Key: "<s>", Desc: "Shell"},
+			{Key: "<A>", Desc: "Attach"},
+			{Key: "<u>", Desc: "Start"},
+			{Key: "<x>", Desc: "Stop"},
+			{Key: "<R>", Desc: "Restart"},
+			{Key: "<K>", Desc: "Kill"},
+			{Key: "<p>", Desc: "Pause"},
+			{Key: "<ctrl-d>", Desc: "Remove"},
+			{Key: "<c>/<i>", Desc: "Copy name/ID"},
+			{Key: "<v>", Desc: "Scan"},
 		}
 	case style.ViewDir:
 		actions = []chrome.Shortcut{

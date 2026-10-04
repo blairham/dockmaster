@@ -15,6 +15,7 @@ each know how to delete things.
 main.go            flags → resolve endpoint → dial → hand a *docker.Client to the TUI
    │
 internal/docker    Engine API wrapper. Plain values and errors. NO bubbletea.
+internal/applog    the log file; internal/info: `dockmaster info`. NO bubbletea.
    │
 internal/tui       root App model: message dispatch, view stack, mutations
    │
@@ -45,6 +46,11 @@ A view that called `client.RemoveContainer` directly would bypass it, and the
 bypass would be invisible — the flag would still appear to work everywhere
 else. The same concentration is what makes "every destructive action confirms"
 checkable by reading one function instead of nine.
+
+A view that offers another view's keys returns that view's actions rather
+than inventing its own: the xray tree's container nodes call the same
+`containerAction` the containers view does, so `s`, `u`, `ctrl-d` and the
+rest are gated, confirmed and refreshed exactly as they are there.
 
 ## Invariant 2 — one confirm path
 

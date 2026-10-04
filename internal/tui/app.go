@@ -12,6 +12,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"time"
@@ -148,8 +149,12 @@ type App struct {
 	filter          string
 	errFlash        string
 	flash           string
-	version         string
-	viewStack       []style.ViewType
+	// log is dockmaster's log file (#60); loggedFlash is the error flash
+	// last written to it, so a flash is logged once however long it shows.
+	log         *slog.Logger
+	loggedFlash string
+	version     string
+	viewStack   []style.ViewType
 	// history is the top-level views visited, for [ ] and -.
 	history viewfsm.History
 	// fullscreen hides header and crumbs for a log (F); preFullscreen
@@ -269,6 +274,8 @@ type Options struct {
 	// Thresholds colour the containers view's CPU% and MEM; zero is k9s's
 	// 70/90.
 	Thresholds views.Thresholds
+	// Logger is the log file (--log-file, --log-level); nil logs nothing.
+	Logger *slog.Logger
 }
 
 // ThresholdsFrom converts config.yaml's thresholds block for the views.
@@ -358,6 +365,10 @@ func NewApp(client *docker.Client, opts Options) *App {
 		plugins:        opts.Plugins,
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
+		log:            opts.Logger,
+	}
+	if a.log == nil {
+		a.log = slog.New(slog.DiscardHandler)
 	}
 	views.SetColumnLayouts(opts.ColumnLayouts)
 	a.buildChrome(style.Base(), opts.Headless, opts.Crumbsless)
@@ -458,8 +469,17 @@ func (a *App) tick() tea.Cmd {
 	return tea.Tick(a.refresh, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 
-// Update is the flat message dispatch.
-func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocognit // flat message dispatch
+// Update handles one message, then logs an error flash it left on screen:
+// every error a user is shown passes here, whichever of the many places
+// set it.
+func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m, cmd := a.update(msg)
+	a.logFlash()
+	return m, cmd
+}
+
+// update is the flat message dispatch.
+func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocognit // flat message dispatch
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
@@ -637,6 +657,7 @@ type landing struct {
 // showing one daemon's containers under another daemon's name for a tick
 // is exactly the kind of thing that gets the wrong container killed.
 func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
+	a.logContextSwitch(msg)
 	if msg.err != nil {
 		a.errFlash = docker.FormatUserError(msg.err).Error()
 		return a, nil
