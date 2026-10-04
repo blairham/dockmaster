@@ -388,6 +388,10 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		// Validated at startup, so only a command typed at the palette.
 		raw = strings.TrimSpace(input)
 	}
+	// `:<view> @context`, k9s's: switch to the context, then open the view.
+	if ctxName, rest, ok := cutContextArg(raw); ok {
+		return a.viewInContext(ctxName, rest)
+	}
 	lower := strings.ToLower(raw)
 
 	// A view with a filter: `:containers /postgres`, what an alias such as
@@ -518,6 +522,51 @@ func (a *App) rowCommand(name string, want func(string) bool, keys ...string) (s
 // inspect_image, runtime_inspect, ...).
 func isInspectAction(action string) bool {
 	return strings.HasPrefix(action, "inspect_") || strings.HasSuffix(action, "_inspect")
+}
+
+// cutContextArg finds an @context word before any /filter and returns it
+// and the command without it: "containers @prod /web" is ("prod",
+// "containers /web"). A filter is the user's text, so an @ in it is not
+// a context.
+func cutContextArg(raw string) (name, rest string, ok bool) {
+	head, filter, hasFilter := strings.Cut(raw, " /")
+	words := strings.Fields(head)
+	for i, w := range words {
+		if len(w) > 1 && strings.HasPrefix(w, "@") {
+			name = w[1:]
+			rest = strings.Join(append(words[:i:i], words[i+1:]...), " ")
+			if hasFilter {
+				rest += " /" + filter
+			}
+			return name, rest, true
+		}
+	}
+	return "", raw, false
+}
+
+// viewInContext opens the view rest names in context name, switching to
+// the context first unless it is the one on screen.
+func (a *App) viewInContext(name, rest string) (string, tea.Cmd) {
+	view, filter, _ := strings.Cut(rest, " /")
+	vt, ok := ViewForCommand(strings.ToLower(strings.TrimSpace(view)))
+	if !ok {
+		return "@context goes with a view, as in :containers @" + name, nil
+	}
+	filter = strings.TrimSpace(filter)
+	for _, c := range docker.Contexts() {
+		if !strings.EqualFold(c.Name, name) {
+			continue
+		}
+		if a.client != nil && a.client.ContextName == c.Name {
+			cmd := a.switchView(vt)
+			a.filter = filter
+			a.setActiveFilter(a.filter)
+			return "", cmd
+		}
+		a.flash = "connecting to " + c.Name + "..."
+		return "", doSwitchContextTo(c.Name, c.Host, &landing{view: vt, filter: filter})
+	}
+	return "no such docker context: " + name, nil
 }
 
 // switchContextByName resolves a context name from the store and switches

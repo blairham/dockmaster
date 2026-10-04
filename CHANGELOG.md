@@ -12,6 +12,11 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- `:<view> @context`, k9s's: switch to a docker context and open a view in
+  one command, with an optional filter — `:containers @prod /web`. (#18)
+
 ## [0.0.7] - 2026-10-04
 
 ### Fixed
