@@ -169,7 +169,8 @@ func dialCommand(ctx context.Context, name string, args ...string) (net.Conn, er
 	cmd := exec.CommandContext(
 		context.WithoutCancel(ctx),
 		name,
-		args...) //nolint:gosec // ssh with arguments parsed from the user's own endpoint
+		args...,
+	) //nolint:gosec // ssh with arguments parsed from the user's own endpoint
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -178,27 +179,47 @@ func dialCommand(ctx context.Context, name string, args ...string) (net.Conn, er
 	if err != nil {
 		return nil, err
 	}
-	c := &cmdConn{cmd: cmd, w: stdin, r: stdout}
-	cmd.Stderr = &c.stderr
+	// stderr is read here rather than by exec's own copier so a reader can
+	// wait for all of it: a failing ssh can close stdout before its reason
+	// reaches stderr, and the error would then say only "EOF".
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	c := &cmdConn{cmd: cmd, w: stdin, r: stdout, stderrDone: make(chan struct{})}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("starting %s: %w", name, err)
 	}
+	go func() {
+		defer close(c.stderrDone)
+		_, _ = io.Copy(&c.stderr, stderr) //nolint:errcheck // ends when the process does
+	}()
 	return c, nil
 }
+
+// stderrWait bounds how long a read at EOF waits for the process's stderr
+// to close: ssh closes both as it exits, but a child it left behind could
+// hold stderr open.
+const stderrWait = 2 * time.Second
 
 // cmdConn is a net.Conn over a child process's stdio. Deadlines are not
 // supported (as in the CLI's own); requests are bounded by their context.
 type cmdConn struct {
-	cmd    *exec.Cmd
-	w      io.WriteCloser
-	r      io.ReadCloser
-	stderr limitedBuffer
-	once   sync.Once
+	cmd        *exec.Cmd
+	w          io.WriteCloser
+	r          io.ReadCloser
+	stderrDone chan struct{}
+	stderr     limitedBuffer
+	once       sync.Once
 }
 
 func (c *cmdConn) Read(p []byte) (int, error) {
 	n, err := c.r.Read(p)
 	if errors.Is(err, io.EOF) {
+		select {
+		case <-c.stderrDone:
+		case <-time.After(stderrWait):
+		}
 		if msg := strings.TrimSpace(c.stderr.String()); msg != "" {
 			return n, fmt.Errorf("%s: %s", filepath.Base(c.cmd.Path), msg)
 		}
