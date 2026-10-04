@@ -109,7 +109,7 @@ Every `:` command, its other spellings, and each view's keys are in **[docs/comm
 - `:pull <ref>`, `:prune` / `:prune all` / `:prune cache`, `:readonly`, `:q`.
 - `v` on an image scans it for vulnerabilities with `grype` or `trivy`.
 
-Your own `:` names go in `aliases.yaml`, your own keys in `hotkeys.yaml`, your own commands on the selected row in `plugins.yaml` (with `inputs` and `pipes`), and each view's columns in `views.yaml`, all in k9s's formats: see [`docs/design/config.md`](docs/design/config.md). `-c` starts on any command or alias, and `dockmaster info` shows where everything lives.
+Your own `:` names go in `aliases.yaml`, your own keys in `hotkeys.yaml`, your own commands on the selected row in `plugins.yaml` (with `inputs` and `pipes`), and each view's columns in `views.yaml` — including columns of your own read from a label or a field, as in `SVC:.Labels.com\.docker\.compose\.service` — all in k9s's formats: see [`docs/design/config.md`](docs/design/config.md). `-c` starts on any command or alias, and `dockmaster info` shows where everything lives.
 
 ## Screenshots
 

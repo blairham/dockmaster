@@ -19,6 +19,14 @@ fails when the tag has none.
   and on every context switch, and a switch with no landing of its own opens
   the view last open on that context (kept in `<state>/contexts.json`).
   `--readonly` still forces read-only everywhere. (#55)
+- Expression columns in `views.yaml`, k9s's `TITLE:<path>|<attributes>`:
+  a column of a label (`SVC:.Labels.com\.docker\.compose\.service`) or a
+  field (`.Command`, `.Created`, `.Mountpoint`, `.Scope`, …) of the row,
+  read from the list the view already has, in the containers, images,
+  volumes and networks views. They sort, survive wide mode and reloads,
+  and take the attributes `R`, `L`, `W` (containers' wide mode), `T` (an
+  age) and `N` (sort as numbers); any other attribute, an unknown field or
+  a title that clashes is refused at load. (#61)
 - `s` in the projects view scales a compose service, as k9s scales a
   deployment: a form picks the service and its container count (prefilled
   with the current one), then `docker compose up -d --scale svc=N

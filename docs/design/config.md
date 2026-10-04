@@ -467,7 +467,9 @@ to match.
 ## Views
 
 `views.yaml`, beside `config.yaml`, is k9s's views file (#14): which of a
-view's columns to show, in what order, and the column it opens sorted by.
+view's columns to show, in what order, and the column it opens sorted by —
+and, in four views, columns of your own read from each row's labels and
+fields ([expression columns](#expression-columns)).
 
 ```yaml
 views:
@@ -518,11 +520,95 @@ dockmaster's own environment has that name. A plugin that needs a hidden
 column's value should use the row's named variable where there is one
 (`$IMAGE`, `$STATE`, …), which does not depend on the columns shown.
 
+### Expression columns
+
+The containers, images, volumes and networks views also take k9s's
+expression columns (#61), `TITLE:<path>|<attributes>`: a column read from
+the row's own data — the list response the view already has, so it costs
+no daemon call.
+
+```yaml
+views:
+  containers:
+    columns:
+      - NAME
+      - SVC:.Labels.com\.docker\.compose\.service
+      - PROJ:.Labels.com\.docker\.compose\.project
+      - STATE
+      - 'CMD:.Command|W'          # only in wide mode (ctrl-w)
+      - 'BORN:.Created|T'         # an age, sorted as one
+    sortColumn: SVC:asc           # an expression column's title sorts too
+  images:
+    columns: [REPOSITORY, TAG, 'VERSION:.Labels.org\.opencontainers\.image\.version|R']
+  volumes:
+    columns: [NAME, DRIVER, 'PATH:.Mountpoint']
+  networks:
+    columns: [NAME, 'GW:.Gateway', 'V6:.IPv6|R']
+```
+
+Quote an entry holding `|` or starting with a character YAML reads
+specially; a plain `\.` needs no quoting.
+
+**The path** is `.Labels.<key>` — one label, its value or an empty cell
+when the row does not carry it — or `.<Field>`, one of the row's fields.
+Labels are one level deep, so the dots in a key are escaped as `\.`
+(k9s's escape), and `\|` and `\\` are a bar and a backslash in a key; an
+unescaped dot past the key is refused rather than read as nesting. Field
+names are case-sensitive, as in k9s and docker's Go templates, and follow
+the Engine API's list response where it has the field:
+
+| View | Fields |
+|---|---|
+| `containers` | `.ID`, `.Name`, `.Image`, `.ImageID`, `.Command`, `.State`, `.Status`, `.Health`, `.Ports`, `.Network`, `.IP`, `.Project`, `.Service` (text); `.Created` (time); `.SizeRw` (number) |
+| `images` | `.ID`, `.Repo`, `.Tag`, `.Digest` (text); `.Created` (time); `.Size`, `.Containers` (number); `.Dangling` (true/false) |
+| `volumes` | `.Name`, `.Driver`, `.Scope`, `.Mountpoint`, `.Project` (text); `.Created` (time); `.Size`, `.Refs` (number) |
+| `networks` | `.ID`, `.Name`, `.Driver`, `.Scope`, `.Subnet`, `.Gateway`, `.Project` (text); `.Created` (time); `.Containers` (number); `.Internal`, `.Attachable`, `.IPv6` (true/false) |
+
+Every view's rows also have `.Labels`. A number the daemon did not report
+(a size or count of -1) and a zero time are empty cells; a time is drawn
+as `2006-01-02 15:04:05` in local time, which sorts as text, or as an age
+with `T`. A label's tabs and line breaks become spaces and its other
+control characters, escapes included, are dropped, so a label cannot act
+on the frame.
+
+**Attributes**, after the first unescaped `|`, one letter each:
+
+| Attribute | Means | Takes |
+|---|---|---|
+| `R` | right-align: cells are padded to the column's edge | any column |
+| `L` | left-align, the default | any column; not with `R` |
+| `W` | shown only in wide mode (`ctrl-w`), in its place in the order given | the containers view, the only one with a wide mode |
+| `T` | a time drawn as an age (`5m`, `3d`) and sorted by it, as `AGE` is | a time field (`.Created`) |
+| `N` | sorted as a number: cells that are not numbers — an empty one included — after every number, where the usual order puts an empty cell first (two numbers compare by value in every column) | a number field or a label |
+
+Everything else is refused, never ignored: `H` (hide — leave the column out
+of `columns` instead), `S` (an expression column is always shown unless
+`W`), lower case, and anything k9s has not got. Attributes go only on an
+expression column; a view's own column with one (`NAME|R`) is refused.
+
+An expression column behaves as the view's own columns do: it counts for
+`shift-←/→`, sorts as text (or as `T` / `N` say), the selected row stays the
+one drawn under the cursor whatever it is sorted by, `ctrl-s` saves it,
+plugins see it as `$COL-<TITLE>`, and a reload applies a changed one. The
+`/` filter matches the fields it always has — not every cell drawn — so an
+expression column adds nothing to what a regex matches; `-l key=value`
+filters by any label, the one a column shows included.
+
+Expression columns go through the same two places as the view's own
+(`views/layout.go`, `views/sort.go`): `sortRows` reads each row's cells
+from the item it was built from, before the sort reorders both, and the
+projection finds them by title.
+
+### Checked at load
+
 Checked at startup and on a reload: every view is one of the keys above,
-every column is one that view can show and is listed once, and `sortColumn`
-names one of its columns — one of those listed, when `columns` is given —
-with no direction, `asc` or `desc`. k9s's column attributes (`NAME|WR`) and
-JSONPath columns are refused as unknown columns: dockmaster's columns are
-its own, not resource fields. A mistake stops startup, naming the view and
-the names that would have been right; on a reload it leaves the running
-layout as it was.
+every column is one that view can show or a well-formed expression column
+for it, no title is listed twice — an expression column's title must not
+be one of the view's own, in any mode — and `sortColumn` names one of its
+columns — one of those listed, when `columns` is given — with no direction,
+`asc` or `desc`. An expression column whose path names no field of that
+view, or a label without its key, or that takes an attribute dockmaster
+does not implement, is an error naming the view and the column; k9s's
+JSONPath beyond these shapes (`.metadata.labels`, `[*]`) is refused the
+same way. A mistake stops startup, naming the view and the names that
+would have been right; on a reload it leaves the running layout as it was.
