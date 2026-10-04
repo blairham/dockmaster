@@ -12,6 +12,8 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-10-04
+
 ### Added
 
 - Per-docker-context settings: a `contexts:` block in `config.yaml` gives a
@@ -174,7 +176,8 @@ machines under the daemon — Colima, Podman, Docker Desktop, Rancher Desktop,
 OrbStack — managed from the runtimes view. Archives are cosign-signed and
 the formula is in `blairham/homebrew-tap`.
 
-[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.9...HEAD
+[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.10...HEAD
+[0.0.10]: https://github.com/blairham/dockmaster/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/blairham/dockmaster/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/blairham/dockmaster/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/blairham/dockmaster/compare/v0.0.6...v0.0.7
