@@ -58,6 +58,26 @@ func TestThemeLoadsTheSkin(t *testing.T) {
 	}
 }
 
+// TestSkinColorsTheCharts: a skin's views.charts.defaultChartColors reach
+// the theme :pulses draws in, and a skin naming only them is not empty.
+func TestSkinColorsTheCharts(t *testing.T) {
+	skinDir(
+		t,
+		map[string]string{
+			"charts.yaml": "k9s:\n  views:\n    charts:\n      defaultChartColors: [\"#123456\", \"#abcdef\"]\n",
+		},
+	)
+	c := Default()
+	c.UI.Skin = "charts"
+	th, err := c.Theme(theme.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if th.ChartPrimary != lipgloss.Color("#123456") || th.ChartSecondary != lipgloss.Color("#abcdef") {
+		t.Errorf("chart colors %v / %v: skin not applied", th.ChartPrimary, th.ChartSecondary)
+	}
+}
+
 func TestThemeInverts(t *testing.T) {
 	skinDir(t, nil)
 	c := Default()

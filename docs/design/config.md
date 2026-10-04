@@ -76,7 +76,8 @@ no threshold colour.
 `.yml`); `DOCKMASTER_SKIN` overrides it, as `K9S_SKIN` does k9s's. A skin
 file is k9s's own format — colors under a top-level `k9s:` key — so a k9s
 skin drops in unchanged; tuikit's `theme.Skin` maps the keys it draws with
-and ignores the rest. A skin with no colors under `k9s:`, an unknown name,
+and ignores the rest. `views.charts.defaultChartColors`' first two
+entries color `:pulses`' sparklines (CPU, then memory). A skin with no colors under `k9s:`, an unknown name,
 or an unreadable color stops startup with the reason (the color's key
 path included), rather than silently drawing the default.
 
