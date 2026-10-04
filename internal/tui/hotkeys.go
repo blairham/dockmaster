@@ -21,6 +21,9 @@ type HotKey struct {
 	Label   string // as help shows it: "<shift-0>"
 	Desc    string
 	Command string
+	// Override puts the hotkey before the view's own keys (k9s's
+	// override); otherwise a view that binds the key keeps it.
+	Override bool
 }
 
 // shiftedDigits is what a terminal sends for Shift and a digit on a US
@@ -124,7 +127,10 @@ func HotKeys(entries map[string]config.HotKey, aliases map[string]string) ([]Hot
 		if desc == "" {
 			desc = ":" + e.Command
 		}
-		out = append(out, HotKey{Key: key, Label: "<" + strings.ToLower(e.ShortCut) + ">", Desc: desc, Command: e.Command})
+		out = append(out, HotKey{
+			Key: key, Label: "<" + strings.ToLower(e.ShortCut) + ">", Desc: desc, Command: e.Command,
+			Override: e.Override,
+		})
 	}
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("hotkeys: %s", strings.Join(errs, "; "))
@@ -135,9 +141,9 @@ func HotKeys(entries map[string]config.HotKey, aliases map[string]string) ([]Hot
 // hotKey runs the hotkey bound to key, if there is one, as its command
 // typed at the palette. It is asked after the view's own keys, so a view
 // that binds the same key keeps it.
-func (a *App) hotKey(key string) (tea.Cmd, bool) {
+func (a *App) hotKey(key string, override bool) (tea.Cmd, bool) {
 	for _, hk := range a.hotKeys {
-		if hk.Key == key {
+		if hk.Key == key && hk.Override == override {
 			msg, cmd := a.dispatchCommand(hk.Command)
 			if msg != "" {
 				a.errFlash = msg

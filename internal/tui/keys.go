@@ -4,9 +4,11 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -304,8 +306,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
-	// A plugin that overrides a view's own key goes first.
+	// A plugin, then a hotkey, that overrides a view's own key goes first.
 	if cmd, ok := a.pluginKey(key, true); ok {
+		return a, cmd
+	}
+	if cmd, ok := a.hotKey(key, true); ok {
 		return a, cmd
 	}
 
@@ -327,7 +332,7 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if cmd, ok := a.pluginKey(key, false); ok {
 		return a, cmd
 	}
-	if cmd, ok := a.hotKey(key); ok {
+	if cmd, ok := a.hotKey(key, false); ok {
 		return a, cmd
 	}
 
@@ -552,25 +557,78 @@ func cutContextArg(raw string) (name, rest string, ok bool) {
 // the context first unless it is the one on screen.
 func (a *App) viewInContext(name, rest string) (string, tea.Cmd) {
 	view, filter, _ := strings.Cut(rest, " /")
-	vt, ok := ViewForCommand(strings.ToLower(strings.TrimSpace(view)))
-	if !ok {
-		return "@context goes with a view, as in :containers @" + name, nil
+	head := strings.ToLower(strings.TrimSpace(view))
+	vt, isView := ViewForCommand(head)
+	land := &landing{view: vt, filter: strings.TrimSpace(filter)}
+	if !isView {
+		// Any other command runs once the switch is done (#57) — but not
+		// one that leaves or switches context itself.
+		if err := validateCommand(rest, a.aliases); err != nil || noContextCommands[strings.Fields(head + " x")[0]] {
+			return "@context goes with a command that opens a view, as in :xray @" + name, nil
+		}
+		land = &landing{command: rest}
 	}
-	filter = strings.TrimSpace(filter)
 	for _, c := range docker.Contexts() {
 		if !strings.EqualFold(c.Name, name) {
 			continue
 		}
 		if a.client != nil && a.client.ContextName == c.Name {
+			if land.command != "" {
+				return a.dispatchCommand(land.command)
+			}
 			cmd := a.switchView(vt)
-			a.filter = filter
+			a.filter = land.filter
 			a.setActiveFilter(a.filter)
 			return "", cmd
 		}
 		a.flash = "connecting to " + c.Name + "..."
-		return "", doSwitchContextTo(c.Name, c.Host, &landing{view: vt, filter: filter})
+		return "", doSwitchContextTo(c.Name, c.Host, land)
 	}
 	return "no such docker context: " + name, nil
+}
+
+// noContextCommands are refused with @context: they quit, or switch
+// context themselves.
+var noContextCommands = map[string]bool{
+	"q": true, "q!": true, "quit": true, "exit": true, "ctx": true, "context": true, "contexts": true,
+}
+
+// argCommands take an argument after their name.
+var argCommands = map[string]bool{"pull": true, "dir": true, "ctx": true, "context": true, "prune": true}
+
+// ValidateCommand checks a command line as -c and defaultView take it: an
+// alias expands first, then it must be one the palette runs — a view (with
+// an @context and a /filter, as at the palette), one of knownCommands, or
+// one of those that take an argument (#57). The context itself is looked
+// up when the command runs, since the store can change.
+func ValidateCommand(input string, aliases map[string]string) error {
+	if err := validateCommand(input, aliases); err != nil {
+		return fmt.Errorf("unknown command %q — a view (%s) or any : command", input,
+			strings.Join(ViewCommandNames(), ", "))
+	}
+	return nil
+}
+
+func validateCommand(input string, aliases map[string]string) error {
+	raw, err := expand(aliases, strings.TrimSpace(input))
+	if err != nil {
+		return err
+	}
+	if _, rest, ok := cutContextArg(raw); ok {
+		raw = rest
+	}
+	head, _, _ := strings.Cut(raw, " /")
+	head = strings.ToLower(strings.TrimSpace(head))
+	if _, ok := ViewForCommand(head); ok || head == "aliases" || head == "alias" {
+		return nil
+	}
+	if slices.Contains(knownCommands, head) {
+		return nil
+	}
+	if f := strings.Fields(head); len(f) > 1 && argCommands[f[0]] {
+		return nil
+	}
+	return errors.New("not a command")
 }
 
 // switchContextByName resolves a context name from the store and switches
