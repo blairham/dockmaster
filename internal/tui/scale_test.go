@@ -326,3 +326,50 @@ func TestXrayScaleReadonly(t *testing.T) {
 		t.Errorf("view %v, flash %q", style.ViewName(a.view), a.errFlash)
 	}
 }
+
+// TestScaleRechecksFilesOnSubmit: files that go away while the form is
+// up refuse the submission, rather than running compose on nothing.
+func TestScaleRechecksFilesOnSubmit(t *testing.T) {
+	a, f, dir := newScaleApp(t, Options{}, true)
+	step(a, key("s"))
+	if err := os.Remove(filepath.Join(dir, "compose.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	setReplicas(a, "4")
+	runOnce(a, step(a, key("enter")))
+	if !strings.HasPrefix(a.errFlash, "cannot scale shop: ") || len(f.calls) != 0 {
+		t.Errorf("flash %q, ran %q", a.errFlash, f.calls)
+	}
+}
+
+// TestScaleRefusesWithoutServices: containers with a project label but no
+// service label leave nothing to scale; s says so rather than opening an
+// empty choice.
+func TestScaleRefusesWithoutServices(t *testing.T) {
+	a, f, dir := newScaleApp(t, Options{}, true)
+	cs := scaleContainers(dir)[:1]
+	cs[0].Service = ""
+	step(a, views.ProjectsRefreshMsg{Containers: cs})
+	step(a, key("s"))
+	if a.view != style.ViewProjects || !strings.Contains(a.errFlash, "carries a compose service label") ||
+		!strings.Contains(a.errFlash, "cannot scale shop") {
+		t.Errorf("view %v, flash %q", style.ViewName(a.view), a.errFlash)
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("ran %q", f.calls)
+	}
+}
+
+// TestProjectsViewGuardsScaleWhileBusy: s is one of the projects view's
+// busy-guarded keys, as u, R and the rest are.
+func TestProjectsViewGuardsScaleWhileBusy(t *testing.T) {
+	a, _, _ := newScaleApp(t, Options{}, true)
+	pv := typedView[*views.ProjectsView](a, style.ViewProjects)
+	if act, param := pv.HandleKey("s"); act != "scale_form" || param != "shop" {
+		t.Errorf("idle s = (%q, %q)", act, param)
+	}
+	pv.SetBusy("shop", "starting")
+	if act, param := pv.HandleKey("s"); act != "project_busy" || param != "shop\x00starting" {
+		t.Errorf("busy s = (%q, %q)", act, param)
+	}
+}
