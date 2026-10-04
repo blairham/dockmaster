@@ -133,11 +133,24 @@ func (a *App) applyReload(m reloadedMsg) {
 	// and bars, built on the old one, are built again.
 	style.SetBase(m.r.Theme)
 	a.buildChrome(m.r.Theme, headless, crumbsless)
+	a.applyColumnLayouts(n.ColumnLayouts)
 	a.resizeActiveView()
 	a.applied = n
 
 	a.flash = "config reloaded"
 	if len(m.r.NeedsRestart) > 0 {
 		a.flash += " — " + strings.Join(m.r.NeedsRestart, ", ") + " take effect on restart"
+	}
+}
+
+// applyColumnLayouts puts views.yaml's columns into effect on every view
+// already built — the active one and those waiting under it on the stack —
+// so none shows its rows under columns they were not built for.
+func (a *App) applyColumnLayouts(l map[string]views.ColumnLayout) {
+	views.SetColumnLayouts(l)
+	for _, v := range a.viewMap {
+		if r, ok := v.(views.Relayouter); ok {
+			r.Relayout()
+		}
 	}
 }

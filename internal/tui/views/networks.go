@@ -45,7 +45,7 @@ func NewNetworksView(client *docker.Client) *NetworksView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &NetworksView{client: client, table: t, loading: true}
+	return &NetworksView{tableSort: tableSort{layoutKey: "networks"}, client: client, table: t, loading: true}
 }
 
 func networkColumns() []table.Column {
@@ -100,7 +100,7 @@ func (v *NetworksView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *NetworksView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(networkColumns(), width)))
+	v.table.SetColumns(v.layout(networkColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -278,3 +278,6 @@ func (v *NetworksView) BulkKey(key string) []Action {
 		return Action{Name: name, Param: param, Label: n.Name}
 	})
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *NetworksView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

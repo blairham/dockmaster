@@ -53,7 +53,13 @@ func NewProjectsView(client *docker.Client) *ProjectsView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &ProjectsView{client: client, table: t, loading: true, busy: map[string]string{}}
+	return &ProjectsView{
+		tableSort: tableSort{layoutKey: "projects"},
+		client:    client,
+		table:     t,
+		loading:   true,
+		busy:      map[string]string{},
+	}
 }
 
 func projectColumns() []table.Column {
@@ -105,7 +111,7 @@ func (v *ProjectsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *ProjectsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(projectColumns(), width)))
+	v.table.SetColumns(v.layout(projectColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -285,3 +291,6 @@ func (v *ProjectsView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *ProjectsView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *ProjectsView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

@@ -46,7 +46,14 @@ func NewLayersView(client *docker.Client, imageID, ref string) *LayersView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &LayersView{client: client, table: t, imageID: imageID, imageRef: ref, loading: true}
+	return &LayersView{
+		tableSort: tableSort{layoutKey: "layers"},
+		client:    client,
+		table:     t,
+		imageID:   imageID,
+		imageRef:  ref,
+		loading:   true,
+	}
 }
 
 func layerColumns() []table.Column {
@@ -92,7 +99,7 @@ func (v *LayersView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *LayersView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(layerColumns(), width)))
+	v.table.SetColumns(v.layout(layerColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -188,3 +195,6 @@ func (v *LayersView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *LayersView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *LayersView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

@@ -52,7 +52,7 @@ func NewLintView(client *docker.Client) *LintView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &LintView{client: client, table: t, loading: true}
+	return &LintView{tableSort: tableSort{layoutKey: "lint"}, client: client, table: t, loading: true}
 }
 
 func lintColumns() []table.Column {
@@ -220,7 +220,7 @@ func (v *LintView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *LintView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(lintColumns(), width)))
+	v.table.SetColumns(v.layout(lintColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -258,3 +258,6 @@ func (v *LintView) CopyFields() (string, string, bool) {
 	r, ok := v.Selected()
 	return r.Container.Name, r.Container.ID, ok
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *LintView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

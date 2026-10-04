@@ -64,7 +64,7 @@ func NewDirView(dir string) *DirView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &DirView{dir: filepath.Clean(dir), table: t, loading: true}
+	return &DirView{tableSort: tableSort{layoutKey: "dir"}, dir: filepath.Clean(dir), table: t, loading: true}
 }
 
 func dirColumns() []table.Column {
@@ -236,7 +236,7 @@ func (v *DirView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *DirView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(dirColumns(), width)))
+	v.table.SetColumns(v.layout(dirColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -274,3 +274,6 @@ func (v *DirView) CopyFields() (string, string, bool) {
 	e, ok := v.Selected()
 	return e.Name, filepath.Join(v.dir, e.Name), ok
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *DirView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

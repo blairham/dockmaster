@@ -60,7 +60,7 @@ func NewDumpsView(root string) *DumpsView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &DumpsView{table: t, root: root, loading: true}
+	return &DumpsView{tableSort: tableSort{layoutKey: "dumps"}, table: t, root: root, loading: true}
 }
 
 func dumpColumns() []table.Column {
@@ -105,7 +105,7 @@ func (v *DumpsView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *DumpsView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(dumpColumns(), width)))
+	v.table.SetColumns(v.layout(dumpColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -261,3 +261,6 @@ func IsDumpPath(root, path string) bool {
 	}
 	return false
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *DumpsView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

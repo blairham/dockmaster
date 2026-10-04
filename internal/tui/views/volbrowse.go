@@ -75,7 +75,14 @@ func NewVolumeBrowseView(client *docker.Client, volume string) *VolumeBrowseView
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &VolumeBrowseView{client: client, table: t, volume: volume, dir: "/", loading: true}
+	return &VolumeBrowseView{
+		tableSort: tableSort{layoutKey: "files"},
+		client:    client,
+		table:     t,
+		volume:    volume,
+		dir:       "/",
+		loading:   true,
+	}
 }
 
 func volumeBrowseColumns() []table.Column {
@@ -126,7 +133,7 @@ func (v *VolumeBrowseView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *VolumeBrowseView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(volumeBrowseColumns(), width)))
+	v.table.SetColumns(v.layout(volumeBrowseColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -266,3 +273,6 @@ func volumeFileText(b []byte, more bool) string {
 	}
 	return text
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *VolumeBrowseView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

@@ -15,9 +15,26 @@ import (
 
 // tableSort is the column sort every table view carries. It is off until
 // the user first presses shift+←/→, so a view keeps its own order — the
-// containers view's running-first, say — until asked for another.
+// containers view's running-first, say — until asked for another, or until
+// views.yaml gives the view a sortColumn.
+//
+// It is also where views.yaml's column layout (#14) is applied: a view's
+// columns go through layout and its rows through sortRows, and both
+// project them onto the layout by title (layout.go).
 type tableSort struct {
-	sorter *tktable.Sorter
+	// src is the full column set last laid out — what the view's rows are
+	// built from — and width the width it was laid out at.
+	src []table.Column
+	// shown is the titles layout last displayed, before fitting: what the
+	// sorter's column index counted, for a relayout to follow by title.
+	shown []string
+	// layoutKey is the view's views.yaml key; "" never has a layout.
+	layoutKey string
+	sorter    *tktable.Sorter
+	width     int
+	// layoutSort is set while the sorter is views.yaml's sortColumn rather
+	// than one the user chose, so a reload can replace it.
+	layoutSort bool
 }
 
 // Sort direction keys, beside tuikit's shift+←/→ for the column.
@@ -36,6 +53,7 @@ func (s *tableSort) sortKey(key string, t *table.Model, rebuild func()) bool {
 	default:
 		return false
 	}
+	s.layoutSort = false
 	first := s.sorter == nil
 	if first {
 		s.sorter = tktable.NewSorter(0, false)
@@ -60,16 +78,25 @@ func (s *tableSort) columns(cols []table.Column) []table.Column {
 		c.Title = strings.TrimRight(c.Title, tktable.SortAscIndicator+tktable.SortDescIndicator)
 		out[i] = c
 	}
+	s.ensureSorter()
 	if s.sorter == nil {
 		return out
 	}
 	return s.sorter.Columns(out)
 }
 
-// sortRows sorts a view's rows by the active column, and items — the
-// values the rows were made from, which Selected indexes by cursor — into
-// the same order. nil items sorts the rows alone.
+// sortRows projects a view's rows onto its views.yaml columns, then sorts
+// them by the active column, and items — the values the rows were made
+// from, which Selected indexes by cursor — into the same order. nil items
+// sorts the rows alone. Projection comes first so the sort column counts
+// the columns the user sees.
 func sortRows[T any](s *tableSort, rows []table.Row, items []T) {
+	if idx := s.projection(columnTitles(s.source())); idx != nil {
+		for i, r := range rows {
+			rows[i] = projectRow(r, idx, len(s.source()))
+		}
+	}
+	s.ensureSorter()
 	if s.sorter == nil || len(rows) < 2 {
 		return
 	}
@@ -132,18 +159,32 @@ func cellCompare(_ int, a, b string) int {
 
 // remapSort moves the sort to the same-named column in after, keeping its
 // direction, when a view swaps its column set; a column that went away
-// sorts by the first.
+// sorts by the first. Both sets are the view's full ones, and are compared
+// as displayed — through the views.yaml layout — since that is what the
+// sorter's column counts.
 func (s *tableSort) remapSort(before, after []table.Column) {
+	s.followSort(s.shownTitles(columnTitles(before)), s.shownTitles(columnTitles(after)))
+}
+
+// followSort moves the sorter from a column of before to the column of the
+// same title in after, both displayed titles; one that went away sorts by
+// the first. views.yaml's sortColumn is dropped instead, for ensureSorter
+// to find again by its title — or not, if the column is not shown now.
+func (s *tableSort) followSort(before, after []string) {
+	if s.layoutSort {
+		s.sorter, s.layoutSort = nil, false
+		return
+	}
 	if s.sorter == nil {
 		return
 	}
 	title := ""
 	if c := s.sorter.Column(); c < len(before) {
-		title = before[c].Title
+		title = before[c]
 	}
 	col := 0
-	for i, c := range after {
-		if c.Title == title {
+	for i, t := range after {
+		if t == title {
 			col = i
 		}
 	}

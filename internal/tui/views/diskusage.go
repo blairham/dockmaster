@@ -48,7 +48,7 @@ func NewDiskUsageView(client *docker.Client) *DiskUsageView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &DiskUsageView{client: client, table: t, loading: true}
+	return &DiskUsageView{tableSort: tableSort{layoutKey: "diskusage"}, client: client, table: t, loading: true}
 }
 
 func diskUsageColumns() []table.Column {
@@ -100,7 +100,7 @@ func (v *DiskUsageView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *DiskUsageView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(diskUsageColumns(), width)))
+	v.table.SetColumns(v.layout(diskUsageColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -187,3 +187,6 @@ func (v *DiskUsageView) Table() *table.Model { return &v.table }
 
 // SortKey sorts the table on shift+←/→.
 func (v *DiskUsageView) SortKey(key string) bool { return v.sortKey(key, &v.table, v.rebuildRows) }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *DiskUsageView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

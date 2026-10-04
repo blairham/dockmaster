@@ -132,6 +132,7 @@ func NewContainersView(client *docker.Client, showAll, statsOn bool) *Containers
 		table.WithKeyMap(tableKeyMap()),
 	)
 	return &ContainersView{
+		tableSort:  tableSort{layoutKey: "containers"},
 		client:     client,
 		table:      t,
 		loading:    true,
@@ -183,7 +184,7 @@ func (v *ContainersView) ToggleWide() {
 	// Rows are never wider than the columns: clear them, set the new
 	// columns, then rebuild the rows to match.
 	v.table.SetRows(nil)
-	v.table.SetColumns(v.columns(fitColumns(containerColumns(v.wide), v.width)))
+	v.table.SetColumns(v.layout(containerColumns(v.wide), v.width))
 	v.rebuildRows()
 }
 
@@ -345,7 +346,7 @@ func (v *ContainersView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
 	v.width = width
-	v.table.SetColumns(v.columns(fitColumns(containerColumns(v.wide), width)))
+	v.table.SetColumns(v.layout(containerColumns(v.wide), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -804,3 +805,6 @@ func (v *ContainersView) ClearScope() {
 
 // Scope is the active narrowing's label, "" when there is none.
 func (v *ContainersView) Scope() string { return v.scopeLabel }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *ContainersView) Relayout() { v.relayout(&v.table, v.rebuildRows) }

@@ -45,7 +45,7 @@ func NewVolumesView(client *docker.Client) *VolumesView {
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
 	)
-	return &VolumesView{client: client, table: t, loading: true}
+	return &VolumesView{tableSort: tableSort{layoutKey: "volumes"}, client: client, table: t, loading: true}
 }
 
 func volumeColumns() []table.Column {
@@ -108,7 +108,7 @@ func (v *VolumesView) UpdateTable(msg tea.Msg) tea.Cmd {
 func (v *VolumesView) Resize(width, height int) {
 	v.table.SetWidth(width)
 	v.table.SetHeight(height)
-	v.table.SetColumns(v.columns(fitColumns(volumeColumns(), width)))
+	v.table.SetColumns(v.layout(volumeColumns(), width))
 	v.table.SetStyles(tableStylesWithWidth(width))
 }
 
@@ -259,3 +259,6 @@ func (v *VolumesView) BulkKey(key string) []Action {
 		return Action{Name: name, Param: param, Label: vol.Name}
 	})
 }
+
+// Relayout lays the table out again after the column layouts changed.
+func (v *VolumesView) Relayout() { v.relayout(&v.table, v.rebuildRows) }
