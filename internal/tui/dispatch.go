@@ -166,6 +166,8 @@ var polled = map[style.ViewType]bool{
 	style.ViewContainers: true,
 	style.ViewProjects:   true,
 	style.ViewRuntimes:   true,
+	// One docker ps -a, like the containers view; the tree keeps its place.
+	style.ViewXray: true,
 }
 
 // refreshPolledView is the tick's refresh: a no-op unless the active view
@@ -258,6 +260,8 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 		return a.view == style.ViewScan
 	case views.DirRefreshMsg:
 		return a.view == style.ViewDir
+	case views.XrayRefreshMsg:
+		return a.view == style.ViewXray
 	case views.DiskUsageRefreshMsg:
 		return a.view == style.ViewDiskUsage
 	case views.PortForwardsRefreshMsg:

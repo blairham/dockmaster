@@ -131,6 +131,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.setView(style.ViewDumps, views.NewDumpsView(root))
 		a.pushView(style.ViewDumps)
 		return a, a.viewMap[style.ViewDumps].Init()
+	case "xray":
+		a.setView(style.ViewXray, views.NewXrayView(a.client))
+		a.pushView(style.ViewXray)
+		return a, a.viewMap[style.ViewXray].Init()
+	case "xray_nav":
+		return a, nil
 	case "dir":
 		a.setView(style.ViewDir, views.NewDirView(param))
 		a.pushView(style.ViewDir)

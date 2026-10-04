@@ -43,6 +43,7 @@ var knownCommands = []string{
 	"contexts",
 	"sd",
 	"lint",
+	"xray",
 	"help",
 	"dir",
 	"screendump",
@@ -448,6 +449,9 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return "", cmd
 	case "lint":
 		_, cmd := a.handleAction("lint", "")
+		return "", cmd
+	case "xray", "x":
+		_, cmd := a.handleAction("xray", "")
 		return "", cmd
 	case "help", "h", "?":
 		a.showHelp = true
