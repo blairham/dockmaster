@@ -346,6 +346,13 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<enter>", Desc: "Switch"},
 			{Key: "<esc>", Desc: "Back"},
 		}
+	case style.ViewDir:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Open"},
+			{Key: "<u>", Desc: "Compose up"},
+			{Key: "<e>", Desc: "Edit, then up"},
+			{Key: "<esc>", Desc: "Up/Back"},
+		}
 	case style.ViewScan:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Details"},
@@ -592,6 +599,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<:ctx>", Desc: "Docker contexts"},
 					{Key: "<:sd>", Desc: "Saved dumps"},
 					{Key: "<:lint>", Desc: "Container lint"},
+					{Key: "<:dir>", Desc: "Compose files"},
 					{Key: "<v>", Desc: "Scan image"},
 				},
 			},

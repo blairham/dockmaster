@@ -63,6 +63,7 @@ var mutating = map[string]bool{
 	"confirm_runtime_k8s": true, "edit_form": true, "edit_apply": true,
 	// Not daemon state, but a delete all the same: readonly means hands off.
 	"confirm_remove_dump": true,
+	"compose_up_file":     true, "compose_edit_file": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -142,6 +143,24 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.setView(style.ViewDumps, views.NewDumpsView(root))
 		a.pushView(style.ViewDumps)
 		return a, a.viewMap[style.ViewDumps].Init()
+	case "dir":
+		a.setView(style.ViewDir, views.NewDirView(param))
+		a.pushView(style.ViewDir)
+		return a, a.viewMap[style.ViewDir].Init()
+	case "dir_open":
+		if v := typedView[*views.DirView](a, style.ViewDir); v != nil {
+			return a, v.Open(param)
+		}
+		return a, nil
+	case "dir_file":
+		return a.openReport(views.NewDumpFileView(param))
+	case "not_compose":
+		a.errFlash = param + " is not a compose file — compose.yaml, docker-compose.yml and their variants are"
+		return a, nil
+	case "compose_up_file":
+		return a, a.composeFileUp(param)
+	case "compose_edit_file":
+		return a, a.composeFileEdit(param)
 	case "scan_image":
 		a.setView(style.ViewScan, views.NewScanView(param, a.dockerHostArg()))
 		a.pushView(style.ViewScan)
