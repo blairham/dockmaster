@@ -52,7 +52,7 @@ dockmaster -c runtimes            # open on a view (containers, images, volumes,
 
 **Settings persist in `config.yaml`**, shaped like k9s's: `dockmaster config init` writes a commented one with the defaults to `~/.config/dockmaster/config.yaml` (`dockmaster config path` shows where it is read from; `$DOCKMASTER_CONFIG_DIR` and `$XDG_CONFIG_HOME` move it). Every flag above has a key there, plus `context`, `thresholds` (CPU/MEM colours, k9s's 70/90), and `logger.tail` / `logger.showTime`. Flags given on the command line win. See [`docs/design/config.md`](docs/design/config.md).
 
-**It follows your docker context.** The Go SDK only reads `DOCKER_HOST`, which is empty on Colima, Rancher Desktop, Podman and remote hosts — so an SDK tool dials `/var/run/docker.sock` and claims your daemon is down while `docker ps` works fine. dockmaster reads the context store itself, in the CLI's own precedence order. See [`docs/design/docker-context-resolution.md`](docs/design/docker-context-resolution.md).
+**It follows your docker context.** The Go SDK reads only the environment — `DOCKER_HOST`, which is empty on Colima, Rancher Desktop, Podman and remote hosts — so an SDK tool dials `/var/run/docker.sock` and claims your daemon is down while `docker ps` works fine. dockmaster reads the context store itself, in the CLI's own precedence order. See [`docs/design/docker-context-resolution.md`](docs/design/docker-context-resolution.md).
 
 ## Keys
 
