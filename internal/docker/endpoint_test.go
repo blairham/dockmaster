@@ -333,10 +333,11 @@ func TestSSHContext(t *testing.T) {
 }
 
 // TestSSHFailureSaysWhy: ssh's own complaint reaches the error, not just
-// "EOF".
+// "EOF" — even when its stdout closes before its stderr is written, the
+// order that made this flake on Linux CI.
 func TestSSHFailureSaysWhy(t *testing.T) {
 	isolate(t)
-	fakeSSH(t, `echo "alice@build.example: Permission denied (publickey)." >&2; exit 255`)
+	fakeSSH(t, `exec 1>&-; sleep 0.3; echo "alice@build.example: Permission denied (publickey)." >&2; exit 255`)
 	c, err := New("ssh://alice@build.example")
 	if err != nil {
 		t.Fatal(err)
