@@ -109,6 +109,11 @@ type UI struct {
 	// DefaultsToFullScreen opens log views fullscreen (k9s's
 	// ui.defaultsToFullScreen).
 	DefaultsToFullScreen bool `yaml:"defaultsToFullScreen"`
+	// Reactive applies changes to this directory's files — config.yaml,
+	// skins, aliases, hotkeys, plugins — as they are saved (k9s's
+	// ui.reactive). The docker context and requestTimeout still need a
+	// restart.
+	Reactive bool `yaml:"reactive"`
 }
 
 // Thresholds colour the containers view's CPU% and MEM columns, as k9s's
@@ -303,6 +308,9 @@ dockmaster:
     enableMouse: true
     # Open log views fullscreen.
     defaultsToFullScreen: false
+    # Apply saved changes to the files here — this one, skins, aliases,
+    # hotkeys, plugins — without a restart.
+    reactive: false
   logger:
     # Lines of backlog a log view opens with.
     tail: 500

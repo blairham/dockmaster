@@ -16,6 +16,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/blairham/tuikit/theme"
 
 	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/docker"
@@ -72,51 +73,24 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	cfg, err := config.Load(cfgPath)
-	if err != nil {
-		return err
-	}
 	// Flags set on the command line win over the file; flag.Visit sees
-	// only those, so --readonly=false can switch off a readOnly: true.
-	cfg = config.ApplyFlags(cfg, config.SetFlags(flag.CommandLine), config.FlagValues{
+	// only those, so --readonly=false can switch off a readOnly: true. A
+	// live reload (ui.reactive) applies the same flags again.
+	flagSet := config.SetFlags(flag.CommandLine)
+	flagVals := config.FlagValues{
 		ReadOnly: *readonly, ShowAll: *all, NoStats: *noStats, Logoless: *logoless,
 		Splashless: *splashless, Headless: *headless, Crumbsless: *crumbsless, Invert: *invert, Command: command,
 		Refresh: refresh, RequestTimeout: *reqTimeout,
-	})
-	if verr := cfg.Validate(); verr != nil {
-		return verr
 	}
-	aliases, err := config.LoadAliases()
+	st, err := loadSettings(cfgPath, flagSet, flagVals)
 	if err != nil {
 		return err
 	}
-	if aerr := tui.ValidateAliases(aliases); aerr != nil {
-		return aerr
-	}
-	hotKeyFile, err := config.LoadHotKeys()
-	if err != nil {
-		return err
-	}
-	hotKeys, err := tui.HotKeys(hotKeyFile, aliases)
-	if err != nil {
-		return err
-	}
-	pluginFile, err := config.LoadPlugins()
-	if err != nil {
-		return err
-	}
-	plugins, err := tui.Plugins(pluginFile, hotKeys)
-	if err != nil {
-		return err
-	}
+	cfg := st.cfg
 
 	// The skin goes in before anything is built: every style derives from
 	// the base theme.
-	th, err := cfg.Theme(style.Base())
-	if err != nil {
-		return err
-	}
-	style.SetBase(th)
+	style.SetBase(st.theme)
 
 	if cfg.DefaultView != "" {
 		if _, ok := tui.ViewForCommand(cfg.DefaultView); !ok {
@@ -185,33 +159,33 @@ func run() error {
 		client.ContextName = *contextName
 	}
 
-	opts := tui.Options{
-		Version:         version.Version,
-		ReadOnly:        cfg.ReadOnly,
-		ShowAll:         cfg.ShowAll,
-		NoStats:         cfg.NoStats,
-		Logoless:        cfg.UI.Logoless,
-		Splashless:      cfg.UI.Splashless,
-		Headless:        cfg.UI.Headless,
-		Crumbsless:      cfg.UI.Crumbsless,
-		Command:         cfg.DefaultView,
-		RefreshRate:     time.Duration(cfg.RefreshRate) * time.Second,
-		LogTail:         cfg.Logger.Tail,
-		LogShowTime:     cfg.Logger.ShowTime,
-		LogBuffer:       cfg.Logger.Buffer,
-		LogSince:        time.Duration(max(cfg.Logger.SinceSeconds, 0)) * time.Second,
-		LiveRefresh:     cfg.LiveViewAutoRefresh,
-		Aliases:         aliases,
-		HotKeys:         hotKeys,
-		Plugins:         plugins,
-		RequestTimeout:  cfg.RequestTimeout,
-		Thresholds:      tui.ThresholdsFrom(cfg.Thresholds),
-		Engines:         providers,
-		StartOnRuntimes: startOnRuntimes,
-		Notice:          notice,
-		HistoryFile:     historyFile(),
+	opts := settingsOptions(st)
+	opts.Version = version.Version
+	opts.ShowAll, opts.NoStats = cfg.ShowAll, cfg.NoStats
+	opts.Splashless = cfg.UI.Splashless
+	opts.Command = cfg.DefaultView
+	opts.RequestTimeout = cfg.RequestTimeout
+	opts.Engines = providers
+	opts.StartOnRuntimes = startOnRuntimes
+	opts.Notice = notice
+	opts.HistoryFile = historyFile()
+	if cfg.UI.Reactive {
+		opts.WatchDir = filepath.Dir(cfgPath)
+		opts.Reload = func() (tui.Reloaded, error) {
+			next, err := loadSettings(cfgPath, flagSet, flagVals)
+			if err != nil {
+				return tui.Reloaded{}, err
+			}
+			var restart []string
+			if next.cfg.Context != cfg.Context {
+				restart = append(restart, "context")
+			}
+			if next.cfg.RequestTimeout != cfg.RequestTimeout {
+				restart = append(restart, "requestTimeout")
+			}
+			return tui.Reloaded{Options: settingsOptions(next), Theme: next.theme, NeedsRestart: restart}, nil
+		}
 	}
-	behaviorOptions(cfg, &opts)
 	app := tui.NewApp(client, opts)
 
 	// Alt-screen and mouse mode are per-View in bubbletea v2 (set in
@@ -341,4 +315,81 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.LogFullscreen = cfg.UI.DefaultsToFullScreen
 	o.NoMouse = !cfg.UI.EnableMouse
 	o.Shell = cfg.Shell
+}
+
+// settings is everything read from the config directory: config.yaml with
+// the command line's flags over it, the aliases, hotkeys and plugins, and
+// the skin's theme — validated, as dockmaster will not start on a bad file.
+type settings struct {
+	theme   theme.Theme
+	aliases map[string]string
+	cfg     config.Config
+	hotKeys []tui.HotKey
+	plugins []tui.Plugin
+}
+
+// loadSettings reads and validates the config directory. Startup and a live
+// reload (ui.reactive) both go through it, so a reload can never accept
+// what startup would refuse.
+func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagValues) (settings, error) {
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return settings{}, err
+	}
+	cfg = config.ApplyFlags(cfg, flagSet, flagVals)
+	if verr := cfg.Validate(); verr != nil {
+		return settings{}, verr
+	}
+	aliases, err := config.LoadAliases()
+	if err != nil {
+		return settings{}, err
+	}
+	if aerr := tui.ValidateAliases(aliases); aerr != nil {
+		return settings{}, aerr
+	}
+	hotKeyFile, err := config.LoadHotKeys()
+	if err != nil {
+		return settings{}, err
+	}
+	hotKeys, err := tui.HotKeys(hotKeyFile, aliases)
+	if err != nil {
+		return settings{}, err
+	}
+	pluginFile, err := config.LoadPlugins()
+	if err != nil {
+		return settings{}, err
+	}
+	plugins, err := tui.Plugins(pluginFile, hotKeys)
+	if err != nil {
+		return settings{}, err
+	}
+	th, err := cfg.Theme(style.DefaultBase())
+	if err != nil {
+		return settings{}, err
+	}
+	return settings{cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, theme: th}, nil
+}
+
+// settingsOptions is the part of the app's options that comes from the
+// config directory — what a live reload can change.
+func settingsOptions(st settings) tui.Options {
+	cfg := st.cfg
+	o := tui.Options{
+		ReadOnly:    cfg.ReadOnly,
+		Logoless:    cfg.UI.Logoless,
+		Headless:    cfg.UI.Headless,
+		Crumbsless:  cfg.UI.Crumbsless,
+		RefreshRate: time.Duration(cfg.RefreshRate) * time.Second,
+		LogTail:     cfg.Logger.Tail,
+		LogShowTime: cfg.Logger.ShowTime,
+		LogBuffer:   cfg.Logger.Buffer,
+		LogSince:    time.Duration(max(cfg.Logger.SinceSeconds, 0)) * time.Second,
+		LiveRefresh: cfg.LiveViewAutoRefresh,
+		Aliases:     st.aliases,
+		HotKeys:     st.hotKeys,
+		Plugins:     st.plugins,
+		Thresholds:  tui.ThresholdsFrom(cfg.Thresholds),
+	}
+	behaviorOptions(cfg, &o)
+	return o
 }
