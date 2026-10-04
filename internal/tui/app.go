@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/chrome"
 	"github.com/blairham/tuikit/loading"
+	"github.com/blairham/tuikit/theme"
 	"github.com/blairham/tuikit/viewfsm"
 
 	"github.com/blairham/dockmaster/internal/config"
@@ -121,14 +122,21 @@ type App struct {
 	// context switch dials.
 	requestTimeout time.Duration
 	// thresholds survive a context switch, which rebuilds the views.
-	thresholds      views.Thresholds
-	dumpDir         string
-	noExitOnCtrlC   bool
-	logWrap         bool
-	logPaused       bool
-	logFullscreen   bool
-	shell           string
-	noMouse         bool
+	thresholds    views.Thresholds
+	dumpDir       string
+	noExitOnCtrlC bool
+	logWrap       bool
+	logPaused     bool
+	logFullscreen bool
+	shell         string
+	noMouse       bool
+	reload        func() (Reloaded, error)
+	watchDir      string
+	watchFP       string
+	pendingFP     string
+	// applied is the config last read, so a reload changes a runtime
+	// toggle only when its value in the file changed.
+	applied         Options
 	historyFile     string
 	commandBar      *chrome.CommandBar
 	filterBar       *chrome.FilterBar
@@ -230,6 +238,10 @@ type Options struct {
 	// Shell is the shell s opens in a container when it has it, before the
 	// usual bash-then-sh.
 	Shell string
+	// Reload re-reads the config directory, for ui.reactive; nil turns
+	// live reload off. WatchDir is the directory it watches.
+	Reload   func() (Reloaded, error)
+	WatchDir string
 	// HistoryFile is where the command and filter bars' history is kept
 	// between runs; "" keeps it for this run only.
 	HistoryFile string
@@ -265,35 +277,6 @@ func containersView(client *docker.Client, opts Options) *views.ContainersView {
 
 // NewApp builds the root model.
 func NewApp(client *docker.Client, opts Options) *App {
-	t := style.Base()
-
-	commandBar := chrome.NewCommandBar(t, chrome.CommandBarOpts{
-		Prompt:    "🐳:",
-		CharLimit: 128,
-		SuggestFn: func(value string) []string {
-			if best := fuzzyMatch(value, aliasNames(opts.Aliases)...); best != "" {
-				return []string{best}
-			}
-			return nil
-		},
-	})
-	filterBar := chrome.NewFilterBar(t, chrome.FilterBarOpts{Prompt: "🔍/", CharLimit: 128})
-
-	chromeCfg := chrome.Config{
-		Theme:         t,
-		InfoPanelRows: 5, // Context, Host, Version, Containers, Dockmaster Rev
-		// Six view digits, one per row; tuikit would otherwise budget five
-		// when logoless and the sixth would overflow the header.
-		ShortcutRows: 6,
-		MinLogoWidth: 120,
-	}
-	if !opts.Logoless {
-		chromeCfg.Logo = dmLogo
-	}
-	ch := chrome.New(chromeCfg)
-	ch.HeaderHidden = opts.Headless
-	ch.CrumbsHidden = opts.Crumbsless
-
 	statsOn := !opts.NoStats
 	vm := map[style.ViewType]views.View{
 		style.ViewContainers:   containersView(client, opts),
@@ -332,14 +315,12 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logFullscreen:  opts.LogFullscreen,
 		shell:          opts.Shell,
 		noMouse:        opts.NoMouse,
+		reload:         opts.Reload,
+		watchDir:       opts.WatchDir,
+		watchFP:        fingerprint(opts.WatchDir),
+		applied:        opts,
 		historyFile:    opts.HistoryFile,
-		commandBar:     commandBar,
-		filterBar:      filterBar,
-		prompt:         chrome.NewPrompt(t, chrome.PromptOpts{CharLimit: 256}),
-		confirm:        chrome.NewConfirm(t),
-		chrome:         ch,
 		urlOpener:      openInBrowser,
-		loader:         loading.New(t, loadingTips),
 		version:        opts.Version,
 		errFlash:       opts.Notice,
 		view:           startView,
@@ -361,9 +342,51 @@ func NewApp(client *docker.Client, opts Options) *App {
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 	}
+	a.buildChrome(style.Base(), opts.Headless, opts.Crumbsless)
 	a.history.Visit(viewfsm.ViewID(startView))
 	a.loadHistory(opts.HistoryFile)
 	return a
+}
+
+// buildChrome builds the frame and the bars on theme t. NewApp builds them
+// once; a reskin (ui.reactive) builds them again, keeping the bars' history
+// and the header and crumbs as they are. The command bar's suggestions read
+// the app's aliases, so they follow a reload too.
+func (a *App) buildChrome(t theme.Theme, headless, crumbsless bool) {
+	var cmdHistory, filterHistory []string
+	if a.commandBar != nil {
+		cmdHistory, filterHistory = a.commandBar.History(), a.filterBar.History()
+	}
+	a.commandBar = chrome.NewCommandBar(t, chrome.CommandBarOpts{
+		Prompt:    "🐳:",
+		CharLimit: 128,
+		SuggestFn: func(value string) []string {
+			if best := fuzzyMatch(value, aliasNames(a.aliases)...); best != "" {
+				return []string{best}
+			}
+			return nil
+		},
+	})
+	a.filterBar = chrome.NewFilterBar(t, chrome.FilterBarOpts{Prompt: "🔍/", CharLimit: 128})
+	a.commandBar.SetHistory(cmdHistory)
+	a.filterBar.SetHistory(filterHistory)
+
+	cfg := chrome.Config{
+		Theme:         t,
+		InfoPanelRows: 5, // Context, Host, Version, Containers, Dockmaster Rev
+		// Six view digits, one per row; tuikit would otherwise budget five
+		// when logoless and the sixth would overflow the header.
+		ShortcutRows: 6,
+		MinLogoWidth: 120,
+	}
+	if !a.logoless {
+		cfg.Logo = dmLogo
+	}
+	a.chrome = chrome.New(cfg)
+	a.chrome.HeaderHidden, a.chrome.CrumbsHidden = headless, crumbsless
+	a.prompt = chrome.NewPrompt(t, chrome.PromptOpts{CharLimit: 256})
+	a.confirm = chrome.NewConfirm(t)
+	a.loader = loading.New(t, loadingTips)
 }
 
 // activeView returns the current view, or nil when unregistered.
@@ -421,7 +444,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 		// Only the volatile views poll (see `polled`), and those
 		// single-flight their own refresh — so a tick landing while a slow
 		// `docker ps` is outstanding is a no-op, not a second request.
-		return a, tea.Batch(a.refreshPolledView(), a.tick())
+		return a, tea.Batch(a.refreshPolledView(), a.checkReload(), a.tick())
+
+	case reloadedMsg:
+		a.applyReload(msg)
+		return a, nil
 
 	case loading.TickMsg:
 		return a, a.loader.Update(msg)

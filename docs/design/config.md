@@ -134,8 +134,27 @@ These behave as k9s's do (#17):
   plain drag selects text as in any other program.
 
 k9s's `skipLatestRevCheck` has no counterpart: dockmaster has no update
-check to skip. `ui.reactive`, reloading config and skins as they change, is
-tracked on its own.
+check to skip.
+
+## ui.reactive
+
+With `ui.reactive: true`, saved changes to the files in the config
+directory — `config.yaml`, `skins/`, `aliases.yaml`, `hotkeys.yaml`,
+`plugins.yaml` — apply without a restart (#38). On each tick the app takes a
+fingerprint of the directory (names, sizes, modification times); a change is
+read only once it has held still for a tick, so an editor's multi-write save
+or a half-written file is never what gets applied. The read is `main.go`'s
+`loadSettings`, the same function startup uses, with the same command-line
+flags over it — a reload cannot accept what startup would refuse, and a file
+that does not load leaves the running config untouched and says why.
+
+A reskin rebuilds the frame and the bars (`App.buildChrome`), keeping their
+history and the header and crumbs; the skin is laid over the default theme,
+not over the previous skin, or `invert: true` would undo itself on every
+reload. Runtime toggles — `:readonly`, `ctrl-e`, `ctrl-g`, `:logo` — change
+only when their value in the file changed. The docker `context` and
+`requestTimeout` are read at startup; changing them says a restart is
+needed.
 
 ## Aliases
 

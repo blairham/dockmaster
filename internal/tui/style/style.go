@@ -28,6 +28,10 @@ var base = theme.Default()
 // the base changes.
 var onBase []func()
 
+// DefaultBase is the theme before any skin: what a skin is laid over, so a
+// reload lays the new skin over this rather than over the old one.
+func DefaultBase() theme.Theme { return theme.Default() }
+
 // Base is the theme every dockmaster style derives from. The app hands it
 // to chrome, table and loading so they agree with the views.
 func Base() theme.Theme { return base }
