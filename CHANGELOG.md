@@ -14,6 +14,14 @@ fails when the tag has none.
 
 ### Added
 
+- Plugins take k9s's `inputs` and `pipes`. Inputs open a form before the
+  plugin runs (string, number, bool and dropdown fields, required ones
+  enforced), and each value reaches the command as `$INPUT_<NAME>` in its
+  args and environment; a plugin with inputs confirms by default. Pipes run
+  the command's output through further commands, as a pipeline dockmaster
+  builds itself, so no shell parses a value. A pipe of one word, `background`
+  with pipes, and inputs that k9s would accept but run differently are
+  refused when `plugins.yaml` loads. (#18)
 - `:<view> @context`, k9s's: switch to a docker context and open a view in
   one command, with an optional filter — `:containers @prod /web`. (#18)
 
