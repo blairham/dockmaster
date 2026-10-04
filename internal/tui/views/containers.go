@@ -364,6 +364,11 @@ func (v *ContainersView) SetFilter(f string) {
 
 // HandleKey maps a keystroke to an (action, param) pair for the app.
 func (v *ContainersView) HandleKey(key string) (string, string) {
+	// P prunes the stopped containers, as in the other list views; help
+	// and the README promised it before any code did.
+	if key == "P" {
+		return "confirm_prune_containers", ""
+	}
 	c, ok := v.Selected()
 	if !ok {
 		// `a` and `t` are list-level, not row-level — they must keep
