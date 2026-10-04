@@ -9,7 +9,9 @@ The file follows k9s's `config.yaml`: a single top-level key, `dockmaster:`
 here and `k9s:` there, with the same camelCase key names where the settings
 match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` — `ui.headless`, `ui.logoless`,
 `ui.crumbsless`, `ui.splashless`, `ui.skin`, `ui.invert`, `logger.tail`, `logger.buffer`,
-`logger.sinceSeconds`, `logger.showTime`, `liveViewAutoRefresh`). Settings
+`logger.sinceSeconds`, `logger.showTime`, `logger.textWrap`,
+`logger.disableAutoscroll`, `ui.enableMouse`, `ui.defaultsToFullScreen`,
+`noExitOnCtrlC`, `screenDumpDir`, `liveViewAutoRefresh`). Settings
 k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
 spelling. `dockmaster config init` writes the commented defaults
 (`config.Sample`); `TestSampleIsTheDefaults` keeps that sample in step with
@@ -109,6 +111,28 @@ replaces the document in place (`tail.ReplaceLines`), keeping the reader's
 scroll position and filter — before, any refresh, manual `r` included,
 jumped to the top and silently dropped the filter. Refreshes are
 single-flight, so a slow daemon is never asked twice at once.
+
+## k9s behavior keys
+
+These behave as k9s's do (#17):
+
+- `noExitOnCtrlC` — ctrl-c does nothing but say how to quit; `:q` still
+  quits. For a terminal where ctrl-c is muscle memory for "stop the thing in
+  front of me".
+- `screenDumpDir` — where `ctrl-s` saves go (`dumps/` and `logs/` under it)
+  and where `:sd` looks, instead of the state directory. A leading `~` is
+  the home directory.
+- `logger.textWrap`, `logger.disableAutoscroll`, `ui.defaultsToFullScreen`
+  — how every log view opens: wrapped, paused rather than following, and
+  fullscreen. All log views open through `App.openLogs`, so none can miss
+  them.
+- `ui.enableMouse` — on by default, unlike k9s, because dockmaster has
+  always had wheel scrolling; `false` turns mouse reporting off, so a
+  plain drag selects text as in any other program.
+
+k9s's `skipLatestRevCheck` has no counterpart: dockmaster has no update
+check to skip. `ui.reactive`, reloading config and skins as they change, is
+tracked on its own.
 
 ## Aliases
 

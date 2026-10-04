@@ -122,6 +122,12 @@ type App struct {
 	requestTimeout time.Duration
 	// thresholds survive a context switch, which rebuilds the views.
 	thresholds      views.Thresholds
+	dumpDir         string
+	noExitOnCtrlC   bool
+	logWrap         bool
+	logPaused       bool
+	logFullscreen   bool
+	noMouse         bool
 	historyFile     string
 	commandBar      *chrome.CommandBar
 	filterBar       *chrome.FilterBar
@@ -211,6 +217,15 @@ type Options struct {
 	LogSince  time.Duration
 	// LiveRefresh refreshes inspect views on the tick.
 	LiveRefresh bool
+	// NoExitOnCtrlC makes ctrl-c a no-op; :q still quits.
+	NoExitOnCtrlC bool
+	// DumpDir replaces the state directory as where saves go and :sd looks.
+	DumpDir string
+	// LogWrap, LogPaused and LogFullscreen are how log views open:
+	// wrapped, not following, fullscreen.
+	LogWrap, LogPaused, LogFullscreen bool
+	// NoMouse leaves mouse reporting off.
+	NoMouse bool
 	// HistoryFile is where the command and filter bars' history is kept
 	// between runs; "" keeps it for this run only.
 	HistoryFile string
@@ -306,6 +321,12 @@ func NewApp(client *docker.Client, opts Options) *App {
 	a := &App{
 		client:         client,
 		viewMap:        vm,
+		dumpDir:        opts.DumpDir,
+		noExitOnCtrlC:  opts.NoExitOnCtrlC,
+		logWrap:        opts.LogWrap,
+		logPaused:      opts.LogPaused,
+		logFullscreen:  opts.LogFullscreen,
+		noMouse:        opts.NoMouse,
 		historyFile:    opts.HistoryFile,
 		commandBar:     commandBar,
 		filterBar:      filterBar,

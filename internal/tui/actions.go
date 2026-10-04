@@ -15,7 +15,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
@@ -83,21 +82,10 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	// ---- navigation / drill-ins ----------------------------------------
 
 	case "logs":
-		name := a.containerName(param)
-		a.setView(
-			style.ViewLogs,
-			views.NewLogsView(a.client, param, name).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
-		)
-		a.pushView(style.ViewLogs)
-		return a, a.viewMap[style.ViewLogs].Init()
+		return a, a.openLogs(views.NewLogsView(a.client, param, a.containerName(param)))
 
 	case "project_logs":
-		a.setView(
-			style.ViewLogs,
-			views.NewProjectLogsView(a.client, param).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
-		)
-		a.pushView(style.ViewLogs)
-		return a, a.viewMap[style.ViewLogs].Init()
+		return a, a.openLogs(views.NewProjectLogsView(a.client, param))
 
 	case "inspect_container":
 		return a.openInspect(views.InspectContainer, param, a.containerName(param))
@@ -135,7 +123,7 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.viewMap[style.ViewContexts].Init()
 
 	case "dumps":
-		root, err := config.StateDir()
+		root, err := a.dumpRoot()
 		if err != nil {
 			a.errFlash = err.Error()
 			return a, nil
@@ -386,12 +374,7 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.viewMap[style.ViewNode].Init()
 	case "node_logs":
 		node, id, name := splitNodeParam(param)
-		a.setView(
-			style.ViewLogs,
-			views.NewNodeLogsView(a.client, node, id, name).Configure(a.logTail, a.logShowTime).Limits(a.logBuffer, a.logSince),
-		)
-		a.pushView(style.ViewLogs)
-		return a, a.viewMap[style.ViewLogs].Init()
+		return a, a.openLogs(views.NewNodeLogsView(a.client, node, id, name))
 	case "node_inspect":
 		node, id, name := splitNodeParam(param)
 		client := a.client
@@ -679,7 +662,12 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 			return a.client.RemoveVolume(ctx, pa.param, false)
 		})
 	case "remove_dump":
-		return removeDump(pa.param)
+		root, err := a.dumpRoot()
+		if err != nil {
+			a.errFlash = err.Error()
+			return nil
+		}
+		return removeDump(root, pa.param)
 	case "remove_network":
 		id, name, _ := strings.Cut(pa.param, "\x00")
 		return a.run("removed network", name, func(ctx context.Context) error {
@@ -929,11 +917,11 @@ func (a *App) networkName(id string) string {
 
 // removeDump deletes a file :sd listed. It refuses anything outside the
 // dump directories, so a confirm can only ever delete a save.
-func removeDump(path string) tea.Cmd {
+func removeDump(root, path string) tea.Cmd {
 	return func() tea.Msg {
 		name := filepath.Base(path)
-		root, err := config.StateDir()
-		if err == nil && !views.IsDumpPath(root, path) {
+		var err error
+		if !views.IsDumpPath(root, path) {
 			err = fmt.Errorf("%s is not a saved dump", path)
 		}
 		if err == nil {
