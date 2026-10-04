@@ -107,3 +107,20 @@ func TestPruneCommandsReadonly(t *testing.T) {
 		}
 	}
 }
+
+// TestContainersPPrunes: P in the containers view asks to prune the
+// stopped containers, with rows and on an empty list, as help says.
+func TestContainersPPrunes(t *testing.T) {
+	for _, loaded := range []bool{true, false} {
+		a := newTestApp(t)
+		if loaded {
+			loadContainers(a)
+		}
+		if cmd := step(a, key("P")); cmd != nil {
+			t.Errorf("loaded %v: P ran something before confirming", loaded)
+		}
+		if !a.confirm.Active() || !strings.Contains(a.confirm.Prompt(), "stopped") {
+			t.Errorf("loaded %v: confirm = %v %q", loaded, a.confirm.Active(), a.confirm.Prompt())
+		}
+	}
+}

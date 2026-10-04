@@ -14,6 +14,8 @@ fails when the tag has none.
 
 ### Added
 
+- `docs/commands.md`: every `:` command, its spellings, what `-c` takes and
+  each view's keys, kept complete by a test.
 - `-c` and `defaultView` take any `:` command or alias, not only a table
   view (`-c xray`, `-c pg`), and `@context` goes with any command that opens
   a view (`:xray @prod`). (#57)
@@ -35,6 +37,9 @@ fails when the tag has none.
   form — only the inputs' names. Rotated once to `.1` at 5 MB. (#60)
 
 ### Fixed
+
+- `P` in the containers view prunes the stopped containers, as help and the
+  README said it did; it did nothing.
 
 - `:pull` keeps the reference's case: `:pull app:RC1` pulled `app:rc1`. (#52)
 - `?` lists every `:` command, `shift-f`, and, over the projects view, the

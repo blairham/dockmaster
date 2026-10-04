@@ -6,6 +6,10 @@
 | [`images/`](images/) | The README screenshots. Generated — `make screenshots` re-renders them; never hand-edit. |
 | [`demo/`](demo/) | What `make screenshots` stages (`compose.yaml`) and plays (`screenshots.tape`). |
 
+Reference:
+
+- [`commands.md`](commands.md) — every `:` command and its spellings, what `-c` takes, and each view's keys. A test fails when a command is missing.
+
 Current design notes:
 
 - [`design/architecture.md`](design/architecture.md) — the layering, the view contract, and why mutations live in one place.
