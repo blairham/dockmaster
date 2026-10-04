@@ -43,6 +43,11 @@ belongs there, not here.
 
 ## Tests
 
+**New functionality and bug fixes come with tests in the same pull
+request** — a new key, view, action or config setting is tested through the
+app, and a fix with a test that fails without it. A pull request without
+them is not merged until they are added.
+
 - Tests drive the real app headlessly: send keys and messages, render, assert
   (`internal/tui/app_test.go`). Assertions strip ANSI first.
 - Tests must never touch real user state — use `t.TempDir()` and `t.Setenv`
@@ -74,7 +79,11 @@ including that no employer holds rights to it.
 
 ## Releasing
 
-Maintainers only. Tag a signed `vX.Y.Z` on `main`; the release workflow
-builds the binaries, signs `checksums.txt` with cosign, publishes the GitHub
+Maintainers only. Every user-visible change adds a line under
+`[Unreleased]` in [CHANGELOG.md](CHANGELOG.md). To release, move that
+section to `## [X.Y.Z] - date` (and its compare link) in a pull request,
+then tag a signed `vX.Y.Z` on its merge commit. The release workflow
+publishes the tag's section as the release notes — and fails if there is
+none — builds the binaries, signs `checksums.txt` with cosign, publishes the GitHub
 release with SLSA build provenance attached, and updates the formula in
 [blairham/homebrew-tap](https://github.com/blairham/homebrew-tap).
