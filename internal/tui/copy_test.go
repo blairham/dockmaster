@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 // clipboard runs cmd and returns what it asked the terminal to copy, ""
@@ -32,7 +34,7 @@ func TestCopyNameAndID(t *testing.T) {
 	if got := clipboard(step(a, key("c"))); got != "web" || a.flash != "copied web" {
 		t.Errorf("c on a container copied %q (flash %q), want its name", got, a.flash)
 	}
-	if got := clipboard(step(a, key("i"))); got != "aaaaaaaaaaaa1111" || a.flash != "copied ID aaaaaaaaaaaa1111" {
+	if got := clipboard(step(a, key("I"))); got != "aaaaaaaaaaaa1111" || a.flash != "copied ID aaaaaaaaaaaa1111" {
 		t.Errorf("i on a container copied %q (flash %q), want its full ID", got, a.flash)
 	}
 
@@ -48,7 +50,7 @@ func TestCopyNameAndID(t *testing.T) {
 	if got := clipboard(step(p, key("c"))); got != "shop" {
 		t.Errorf("c on a project copied %q, want its name", got)
 	}
-	if got := clipboard(step(p, key("i"))); got != "" || p.errFlash == "" {
+	if got := clipboard(step(p, key("I"))); got != "" || p.errFlash == "" {
 		t.Errorf("i on a project copied %q (err %q); a project has no ID, so it should say so", got, p.errFlash)
 	}
 }
@@ -60,5 +62,23 @@ func TestCopyInLogsIsStillTheLog(t *testing.T) {
 	step(a, key("c"))
 	if a.flash == "copied web" {
 		t.Error("c in a log copied the container's name instead of the log")
+	}
+}
+
+// TestInspectKeys: i, like o and k9s's d and y, inspects the selected
+// container; I copies its full ID now that i inspects.
+func TestInspectKeys(t *testing.T) {
+	for _, k := range []string{"o", "i", "d", "y"} {
+		a := newTestApp(t)
+		loadContainers(a)
+		step(a, key(k))
+		if a.view != style.ViewInspect {
+			t.Errorf("%s in containers opened %s, want inspect", k, style.ViewName(a.view))
+		}
+	}
+	a := newTestApp(t)
+	loadContainers(a)
+	if got := clipboard(step(a, key("I"))); got == "" || a.view != style.ViewContainers {
+		t.Errorf("I: copied %q, view %s; want the ID copied and no inspect", got, style.ViewName(a.view))
 	}
 }

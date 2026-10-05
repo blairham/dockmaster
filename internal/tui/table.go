@@ -22,9 +22,10 @@ import (
 // key was one of them.
 func (a *App) tableKey(key string) (tea.Cmd, bool) {
 	// Copy first, and for any Copier: the xray tree copies too (#56).
-	if key == "c" || key == "i" {
+	// c copies the name, I the full ID; i is inspect (activeViewHandleKey).
+	if key == "c" || key == "I" {
 		if c, ok := a.activeView().(views.Copier); ok {
-			return a.copyRow(c, key == "i"), true
+			return a.copyRow(c, key == "I"), true
 		}
 	}
 	tv, ok := a.activeView().(views.Tabler)

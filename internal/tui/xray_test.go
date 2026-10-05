@@ -278,7 +278,7 @@ func TestXrayShellAttachCopyScan(t *testing.T) {
 	if cmd := step(a, key("c")); cmd == nil || a.flash != "copied shop-web-1" {
 		t.Errorf("c on a container: flash %q, cmd %v", a.flash, cmd != nil)
 	}
-	if cmd := step(a, key("i")); cmd == nil || a.flash != "copied ID c1" {
+	if cmd := step(a, key("I")); cmd == nil || a.flash != "copied ID c1" {
 		t.Errorf("i on a container: flash %q", a.flash)
 	}
 	if a.view != style.ViewXray {
@@ -322,7 +322,7 @@ func TestXrayKeysOffAContainerAreHarmless(t *testing.T) {
 	if a.flash != "copied shop_default" {
 		t.Errorf("c on a network: %q", a.flash)
 	}
-	step(a, key("i"))
+	step(a, key("I"))
 	if !strings.Contains(a.errFlash, "no ID") {
 		t.Errorf("i on a network: %q", a.errFlash)
 	}
