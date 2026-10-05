@@ -4,8 +4,14 @@
 package docker
 
 import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -274,5 +280,83 @@ func TestLabelForwardsErrorIsInert(t *testing.T) {
 		if !strings.Contains(err.Error(), LabelPortForwards) {
 			t.Errorf("%q: error does not name the label: %v", v, err)
 		}
+	}
+}
+
+// TestPortForwardAddressOverTheAPI: against a fake daemon, the address
+// reaches the create request as the binding's host IP and the address label,
+// and the listing reads it back — loopback for a helper without the label
+// or with garbage in it.
+func TestPortForwardAddressOverTheAPI(t *testing.T) {
+	version := regexp.MustCompile(`^/v[0-9.]+`)
+	var created map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Api-Version", "1.47")
+		path := version.ReplaceAllString(r.URL.Path, "")
+		switch {
+		case path == "/_ping":
+			_, _ = w.Write([]byte("OK"))
+		case strings.HasPrefix(path, "/images/"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"Id": "sha256:socat"})
+		case path == "/containers/create":
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &created)
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"Id": "helper1"})
+		case strings.HasSuffix(path, "/start"):
+			w.WriteHeader(http.StatusNoContent)
+		case path == "/containers/json":
+			_ = json.NewEncoder(w).Encode([]map[string]any{
+				{"Id": "h1", "State": "running", "Labels": map[string]string{
+					LabelForward: "true", LabelForwardLocal: "15000", LabelForwardAddress: "0.0.0.0",
+				}},
+				{"Id": "h2", "State": "running", "Labels": map[string]string{
+					LabelForward: "true", LabelForwardLocal: "15001",
+				}},
+				{"Id": "h3", "State": "running", "Labels": map[string]string{
+					LabelForward: "true", LabelForwardLocal: "15002", LabelForwardAddress: "\x1b[2J",
+				}},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New("tcp://" + strings.TrimPrefix(srv.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := Container{ID: "abc", Name: "web", Endpoints: []Endpoint{{Network: "n", IP: "172.20.0.5"}}}
+	pf, err := c.StartPortForward(context.Background(), target, netip.MustParseAddr("0.0.0.0"), 15000, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pf.Listen() != "0.0.0.0:15000" {
+		t.Errorf("started forward listens on %q", pf.Listen())
+	}
+	host, _ := created["HostConfig"].(map[string]any)
+	bindings, _ := host["PortBindings"].(map[string]any)
+	b, _ := bindings["15000/tcp"].([]any)
+	var first map[string]any
+	if len(b) > 0 {
+		first, _ = b[0].(map[string]any)
+	}
+	if len(b) != 1 || first["HostIp"] != "0.0.0.0" {
+		t.Errorf("create bound %v, want 0.0.0.0", bindings)
+	}
+	if labels, _ := created["Labels"].(map[string]any); labels[LabelForwardAddress] != "0.0.0.0" {
+		t.Errorf("create labels %v", labels)
+	}
+
+	list, err := c.PortForwards(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(list))
+	for _, f := range list {
+		got = append(got, f.Listen())
+	}
+	if want := "0.0.0.0:15000 localhost:15001 localhost:15002"; strings.Join(got, " ") != want {
+		t.Errorf("listed %q, want %q", strings.Join(got, " "), want)
 	}
 }
