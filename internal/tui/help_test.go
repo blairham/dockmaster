@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
@@ -127,6 +128,60 @@ func TestViewCommandNamesCoverEveryView(t *testing.T) {
 	for name, vt := range viewCommands {
 		if !named[vt] {
 			t.Errorf("-c %s opens %s, which ViewCommandNames leaves out", name, style.ViewName(vt))
+		}
+	}
+}
+
+// TestHelpFitsWithPluginsAndHotkeys: a user's PLUGINS and HOTKEYS columns
+// stack under the shortest columns rather than widening help past a
+// 120-column screen, every entry stays whole, and the frame fits (#84).
+func TestHelpFitsWithPluginsAndHotkeys(t *testing.T) {
+	ps, err := Plugins(map[string]config.Plugin{
+		"dive": {
+			ShortCut:    "Shift-D",
+			Description: "Dive into image",
+			Command:     "dive",
+			Args:        []string{"$IMAGE"},
+			Scopes:      []string{"all"},
+		},
+		"ctop": {ShortCut: "Ctrl-T", Description: "Container top", Command: "ctop", Scopes: []string{"all"}},
+		"lazy": {ShortCut: "Shift-L", Description: "Lazydocker", Command: "lazydocker", Scopes: []string{"all"}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hk, err := HotKeys(map[string]config.HotKey{
+		"pf": {ShortCut: "Shift-0", Description: "Port forwards", Command: "pf"},
+		"df": {ShortCut: "Shift-1", Description: "Disk usage", Command: "df"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := NewApp(nil, Options{Version: "test", Plugins: ps, HotKeys: hk})
+	a.splashActive, a.loading = false, false
+	step(a, tea.WindowSizeMsg{Width: 120, Height: 40})
+	loadContainers(a)
+	step(a, key("?"))
+	out := render(a)
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) > 40 || !strings.Contains(out, "╰") {
+		t.Errorf("help with plugins and hotkeys is %d lines, bottom border shown %v", len(lines), strings.Contains(out, "╰"))
+	}
+	if len(a.helpPanel().Sections) < 6 {
+		t.Fatalf("only %d sections: the plugins and hotkeys columns were not built", len(a.helpPanel().Sections))
+	}
+	for _, sec := range a.helpPanel().Sections {
+		for _, e := range sec.Entries {
+			found := false
+			for _, l := range lines {
+				if i := strings.Index(l, e.Key); i >= 0 && strings.Contains(l[i:], e.Desc) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%s: %s %q is cut or missing", sec.Title, e.Key, e.Desc)
+			}
 		}
 	}
 }

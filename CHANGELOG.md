@@ -18,6 +18,9 @@ fails when the tag has none.
   and points at `ctrl-a` for the `:` commands, which that list already
   holds with every spelling. A test now fails when the help frame is
   taller than the screen.
+- With plugins or hotkeys configured, their help columns stack under the
+  shortest columns instead of widening help past a 120-column screen and
+  cutting every description (tuikit's help overlay). (#84)
 
 ### Changed
 
