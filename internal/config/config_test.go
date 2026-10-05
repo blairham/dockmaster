@@ -161,6 +161,43 @@ func TestDirPrecedence(t *testing.T) {
 	check("/explicit")
 }
 
+// TestPortForwardAddress: portForwardAddress decodes an IP or localhost,
+// defaults to 127.0.0.1, and refuses anything a port binding cannot be.
+func TestPortForwardAddress(t *testing.T) {
+	if got := Default().ForwardAddress().String(); got != DefaultPortForwardAddress {
+		t.Errorf("default = %s, want %s", got, DefaultPortForwardAddress)
+	}
+	for in, want := range map[string]string{
+		"":                      "127.0.0.1", // no value: the key is null, the default stays
+		"''":                    "127.0.0.1", // an empty string is the default, as in k9s
+		"127.0.0.1":             "127.0.0.1",
+		"localhost":             "127.0.0.1",
+		"LocalHost":             "127.0.0.1",
+		"0.0.0.0":               "0.0.0.0",
+		"::1":                   "::1",
+		"'::'":                  "::",
+		"192.168.1.20":          "192.168.1.20",
+		"'::ffff:192.168.1.20'": "192.168.1.20",
+	} {
+		cfg, err := Parse(strings.NewReader("dockmaster:\n  portForwardAddress: " + in + "\n"))
+		if err != nil {
+			t.Errorf("%q: %v", in, err)
+			continue
+		}
+		if got := cfg.ForwardAddress().String(); got != want {
+			t.Errorf("%q: address %s, want %s", in, got, want)
+		}
+	}
+	for _, in := range []string{
+		"example.com", "localhost.", "127.0.0.1:8080", "300.1.1.1", "'fe80::1%en0'", "'[::1]'", "0x7f000001", "'-'",
+	} {
+		_, err := Parse(strings.NewReader("dockmaster:\n  portForwardAddress: " + in + "\n"))
+		if err == nil || !strings.Contains(err.Error(), "portForwardAddress") {
+			t.Errorf("%q: error = %v, want one naming portForwardAddress", in, err)
+		}
+	}
+}
+
 // TestHostShellImage: hostShell.image decodes, defaults to an image whose
 // busybox has nsenter, and refuses an empty value or one docker would read
 // as a flag (#59).

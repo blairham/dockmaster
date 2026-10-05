@@ -49,6 +49,7 @@ func (a *App) showView(v style.ViewType) tea.Cmd {
 	// Fullscreen belongs to the log it was turned on in.
 	a.setFullscreen(false)
 	a.clearContainerScope()
+	a.clearForwardScope()
 	a.viewStack = nil
 	a.view = v
 	a.rememberView(v)
@@ -90,8 +91,11 @@ func (a *App) popView() {
 	}
 	// Fullscreen belongs to the log it was turned on in.
 	a.setFullscreen(false)
-	if a.view == style.ViewContainers {
+	switch a.view {
+	case style.ViewContainers:
 		a.clearContainerScope()
+	case style.ViewPortForwards:
+		a.clearForwardScope()
 	}
 	// The view being left is a drill-in; if it holds a stream, it is
 	// genuinely finished with, so stop that one specifically.

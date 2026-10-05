@@ -327,7 +327,7 @@ func stateFile(name string) string {
 
 // behaviorOptions carries config.yaml's k9s behavior keys (#17) into the
 // app's options — noExitOnCtrlC, screenDumpDir, the log view's opening
-// state and the mouse.
+// state, the mouse, shell and portForwardAddress.
 func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.NoExitOnCtrlC = cfg.NoExitOnCtrlC
 	o.DumpDir = config.ExpandHome(cfg.ScreenDumpDir)
@@ -336,6 +336,7 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.LogFullscreen = cfg.UI.DefaultsToFullScreen
 	o.NoMouse = !cfg.UI.EnableMouse
 	o.Shell = cfg.Shell
+	o.ForwardAddress = cfg.ForwardAddress()
 	o.HostShellImage = cfg.HostShell.Image
 }
 

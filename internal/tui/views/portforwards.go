@@ -28,10 +28,14 @@ type PortForwardsView struct {
 	client *docker.Client
 	err    error
 
-	filter  string
-	all     []docker.PortForward
-	visible []docker.PortForward
-	table   table.Model
+	filter string
+	// scopeID, when set, keeps only the forwards to that container (f in
+	// the containers view); scopeName names it in the title.
+	scopeID   string
+	scopeName string
+	all       []docker.PortForward
+	visible   []docker.PortForward
+	table     table.Model
 
 	loading  bool
 	inFlight bool
@@ -134,9 +138,34 @@ func (v *PortForwardsView) HandleKey(key string) (string, string) {
 	return "", ""
 }
 
-// ForwardLabel is "localhost:15000 → registry:5000".
+// ForwardLabel is "localhost:15000 → registry:5000", or "0.0.0.0:15000 → …"
+// for a forward that is not on loopback.
 func ForwardLabel(f docker.PortForward) string {
-	return fmt.Sprintf("localhost:%d → %s:%d", f.Local, f.TargetName, f.Remote)
+	return fmt.Sprintf("%s → %s:%d", f.Listen(), f.TargetName, f.Remote)
+}
+
+// SetScope narrows the list to the forwards to one container, by ID, and
+// names it in the title. It lasts until ClearScope.
+func (v *PortForwardsView) SetScope(id, name string) {
+	v.scopeID, v.scopeName = id, name
+	v.rebuildRows()
+}
+
+// ClearScope lifts SetScope's narrowing.
+func (v *PortForwardsView) ClearScope() {
+	if v.scopeID == "" {
+		return
+	}
+	v.scopeID, v.scopeName = "", ""
+	v.rebuildRows()
+}
+
+// Status names the container the list is narrowed to, for the title.
+func (v *PortForwardsView) Status() string {
+	if v.scopeID == "" {
+		return ""
+	}
+	return "to " + v.scopeName
 }
 
 // View renders the table.
@@ -145,7 +174,10 @@ func (v *PortForwardsView) View() string {
 		return style.Error.Render(fmt.Sprintf("  %v", v.err))
 	}
 	if len(v.visible) == 0 && !v.loading {
-		return style.Muted.Render("  no port forwards — <F> on a container starts one")
+		if v.scopeID != "" {
+			return style.Muted.Render("  no port forwards to " + v.scopeName + " — <shift-f> on it starts one")
+		}
+		return style.Muted.Render("  no port forwards — <shift-f> on a container starts one")
 	}
 	return fixSelectedRow(v.table.View())
 }
@@ -172,6 +204,9 @@ func (v *PortForwardsView) rebuildRows() {
 	rows := make([]table.Row, 0, len(v.all))
 	v.visible = v.visible[:0]
 	for _, pf := range v.all {
+		if v.scopeID != "" && pf.Target != v.scopeID {
+			continue
+		}
 		if !f.Empty() && !f.MatchesAny(pf.TargetName, strconv.Itoa(pf.Local), strconv.Itoa(pf.Remote)) {
 			continue
 		}

@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/fs"
 	"maps"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -100,8 +101,46 @@ type Config struct {
 	// Shell is what s opens in a container — zsh, ash, fish — when the
 	// container has it; otherwise bash, then sh.
 	Shell string `yaml:"shell"`
+	// PortForwardAddress is the host address a port forward publishes on
+	// (k9s's portForwardAddress): an IP, or localhost. Anything but
+	// loopback puts the forward on the network.
+	PortForwardAddress string `yaml:"portForwardAddress"`
 	// HostShell is :hostshell's helper, a root shell on the daemon's host.
 	HostShell HostShell `yaml:"hostShell"`
+}
+
+// DefaultPortForwardAddress is where a forward publishes unless
+// portForwardAddress says otherwise: this machine only, as
+// kubectl port-forward and k9s default.
+const DefaultPortForwardAddress = "127.0.0.1"
+
+// ParseForwardAddress reads portForwardAddress: an IP address, or
+// localhost for 127.0.0.1; empty is the default, as in k9s. A hostname
+// other than localhost is refused — docker publishes on an address, and a
+// name could resolve anywhere — and so is an IPv6 zone, which a port
+// binding cannot carry.
+func ParseForwardAddress(s string) (netip.Addr, error) {
+	if s == "" || strings.EqualFold(s, "localhost") {
+		return netip.MustParseAddr(DefaultPortForwardAddress), nil
+	}
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("portForwardAddress is an IP address or localhost, got %q", s)
+	}
+	if addr.Zone() != "" {
+		return netip.Addr{}, fmt.Errorf("portForwardAddress cannot carry an IPv6 zone, got %q", s)
+	}
+	return addr.Unmap(), nil
+}
+
+// ForwardAddress is portForwardAddress parsed; the default when it does not
+// parse, which Validate has already refused.
+func (c Config) ForwardAddress() netip.Addr {
+	addr, err := ParseForwardAddress(c.PortForwardAddress)
+	if err != nil {
+		return netip.MustParseAddr(DefaultPortForwardAddress)
+	}
+	return addr
 }
 
 // HostShell configures the root shell on the daemon's host (#59), k9s's
@@ -206,12 +245,13 @@ type ContextSettings struct {
 // Default is the configuration with no file.
 func Default() Config {
 	return Config{
-		RefreshRate: DefaultRefreshRate,
-		Contexts:    map[string]ContextSettings{},
-		Logger:      Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
-		UI:          UI{EnableMouse: true},
-		ImageScans:  ImageScans{TTL: DefaultScanTTL},
-		HostShell:   HostShell{Image: DefaultHostShellImage},
+		RefreshRate:        DefaultRefreshRate,
+		PortForwardAddress: DefaultPortForwardAddress,
+		Contexts:           map[string]ContextSettings{},
+		Logger:             Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
+		UI:                 UI{EnableMouse: true},
+		ImageScans:         ImageScans{TTL: DefaultScanTTL},
+		HostShell:          HostShell{Image: DefaultHostShellImage},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
 			Memory: Threshold{Warn: 70, Critical: 90},
@@ -302,6 +342,9 @@ func (c Config) Validate() error {
 	if strings.ContainsAny(c.UI.Skin, `/\`) {
 		errs = append(errs, fmt.Sprintf("ui.skin is a skin's name in %s, not a path, got %q", SkinsDirName, c.UI.Skin))
 	}
+	if _, err := ParseForwardAddress(c.PortForwardAddress); err != nil {
+		errs = append(errs, err.Error())
+	}
 	errs = append(errs, c.validateContexts()...)
 	if c.ImageScans.TTL < time.Minute {
 		errs = append(errs, fmt.Sprintf("imageScans.ttl must be at least 1m, got %v", c.ImageScans.TTL))
@@ -378,6 +421,10 @@ dockmaster:
   screenDumpDir: ""
   # The shell s opens in a container when it has it; empty is bash, then sh.
   shell: ""
+  # Where a port forward (shift-f) listens: an IP address or localhost.
+  # Anything but loopback (127.0.0.1, ::1) — 0.0.0.0 above all — makes the
+  # forward reachable from the network, and shift-f says so.
+  portForwardAddress: 127.0.0.1
   # :hostshell and s on a Docker Desktop, OrbStack or Rancher Desktop row
   # open a ROOT shell on the daemon's host through a privileged helper of
   # this image, which needs nsenter; docker pulls it if it is missing.

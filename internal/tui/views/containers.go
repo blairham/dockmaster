@@ -443,6 +443,9 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		return "toggle_stats", ""
 	case "F":
 		return "portforward", c.ID
+	case "f":
+		// k9s's f: this container's forwards.
+		return "show_forwards", c.ID + "\x00" + c.Name
 	case "b":
 		return "open_published", c.ID
 	}
