@@ -160,3 +160,32 @@ func TestDirPrecedence(t *testing.T) {
 	t.Setenv(EnvDir, "/explicit")
 	check("/explicit")
 }
+
+// TestHostShellImage: hostShell.image decodes, defaults to an image whose
+// busybox has nsenter, and refuses an empty value or one docker would read
+// as a flag (#59).
+func TestHostShellImage(t *testing.T) {
+	if got := Default().HostShell.Image; got != "alpine:3" {
+		t.Errorf("default hostShell.image = %q", got)
+	}
+	cfg, err := Parse(strings.NewReader("dockmaster:\n  hostShell:\n    image: registry.local/tools:1\n"))
+	if err != nil || cfg.HostShell.Image != "registry.local/tools:1" {
+		t.Errorf("hostShell.image decoded as %q, %v", cfg.HostShell.Image, err)
+	}
+	cfg, err = Parse(strings.NewReader("dockmaster:\n  shell: zsh\n"))
+	if err != nil || cfg.HostShell.Image != DefaultHostShellImage {
+		t.Errorf("a file without hostShell gave image %q, %v", cfg.HostShell.Image, err)
+	}
+	for _, bad := range []string{`""`, `"  "`, `"--privileged"`, `"-v/:/host"`} {
+		_, err := Parse(strings.NewReader("dockmaster:\n  hostShell:\n    image: " + bad + "\n"))
+		if err == nil || !strings.Contains(err.Error(), "hostShell.image") {
+			t.Errorf("hostShell.image %s: err %v", bad, err)
+		}
+	}
+	if _, err := Parse(strings.NewReader("dockmaster:\n  hostShell:\n    imag: x\n")); err == nil {
+		t.Error("an unknown key under hostShell was accepted")
+	}
+	if !strings.Contains(Sample, "hostShell:\n    image: "+DefaultHostShellImage+"\n") {
+		t.Error("Sample does not document hostShell.image")
+	}
+}

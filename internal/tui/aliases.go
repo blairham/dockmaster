@@ -4,16 +4,9 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
-
-	tea "charm.land/bubbletea/v2"
-
-	"github.com/blairham/dockmaster/internal/config"
-	"github.com/blairham/dockmaster/internal/tui/style"
-	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
 // maxAliasDepth bounds how far an alias may chain through others.
@@ -68,7 +61,9 @@ func expand(aliases map[string]string, line string) (string, error) {
 		first, rest, _ := strings.Cut(strings.TrimSpace(line), " ")
 		target, ok := aliases[strings.ToLower(first)]
 		if !ok {
-			if first != "" && !isBuiltinCommand(strings.ToLower(first)) {
+			// A spelling knownCommands leaves out (:x, :log, :h) is a
+			// command too; it is not reserved, so an alias may still take it.
+			if word := strings.ToLower(first); first != "" && !isBuiltinCommand(word) && !isOtherSpelling(word) {
 				return "", fmt.Errorf("%q is not a command", first)
 			}
 			return line, nil
@@ -86,23 +81,4 @@ func aliasNames(aliases map[string]string) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-// showAliases opens :aliases — each alias and what it stands for.
-func (a *App) showAliases() tea.Cmd {
-	lines := make([]string, 0, len(a.aliases)+2)
-	for _, name := range aliasNames(a.aliases) {
-		lines = append(lines, fmt.Sprintf("  %-16s %s", name, a.aliases[name]))
-	}
-	if len(lines) == 0 {
-		path, _ := config.AliasesPath() //nolint:errcheck // only a hint
-		lines = append(lines, "", "  no aliases — add them to "+path+", as k9s's aliases.yaml:",
-			"", "    aliases:", "      pg: containers /postgres")
-	}
-	body := []byte(strings.Join(lines, "\n"))
-	v := views.NewInspectFetchView("aliases", func(context.Context) ([]byte, error) { return body, nil })
-	v.SetPlain()
-	a.setView(style.ViewInspect, v)
-	a.pushView(style.ViewInspect)
-	return v.Init()
 }

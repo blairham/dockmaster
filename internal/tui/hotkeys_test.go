@@ -125,3 +125,49 @@ func TestHotKeyOverrideBeatsTheViewsKey(t *testing.T) {
 		}
 	}
 }
+
+// TestHotKeyKeepHistory: k9s's keepHistory puts the view a hotkey opens on
+// top of the one it was pressed in, so esc comes back; without it the
+// hotkey switches views as a digit does, and esc has nowhere to go. A
+// view already under the stack is switched to, never stacked twice.
+func TestHotKeyKeepHistory(t *testing.T) {
+	for _, keep := range []bool{false, true} {
+		hk, err := HotKeys(map[string]config.HotKey{
+			"images": {ShortCut: "Shift-1", Command: "images /nginx", KeepHistory: keep},
+			"ctrs":   {ShortCut: "Shift-2", Command: "containers", KeepHistory: keep},
+		}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hk[1].KeepHistory != keep {
+			t.Fatalf("KeepHistory not carried: %+v", hk)
+		}
+		a := NewApp(nil, Options{Version: "test", HotKeys: hk})
+		a.splashActive, a.loading = false, false
+		step(a, tea.WindowSizeMsg{Width: 160, Height: 40})
+		loadContainers(a)
+
+		step(a, key("!"))
+		if a.view != style.ViewImages || a.filter != "nginx" {
+			t.Fatalf("keep %v: shift-1 opened %s filter %q", keep, style.ViewName(a.view), a.filter)
+		}
+		if got := len(a.viewStack); got != map[bool]int{false: 0, true: 1}[keep] {
+			t.Errorf("keep %v: stack %v", keep, a.viewStack)
+		}
+		step(a, key("@")) // containers, already under images when kept
+		if a.view != style.ViewContainers || len(a.viewStack) != 0 {
+			t.Errorf("keep %v: shift-2 went to %s, stack %v", keep, style.ViewName(a.view), a.viewStack)
+		}
+		step(a, key("!"))
+		step(a, key("esc")) // clears the filter
+		step(a, key("esc"))
+		want := style.ViewImages
+		if keep {
+			want = style.ViewContainers
+		}
+		if a.view != want {
+			t.Errorf("keep %v: esc from the hotkey's view went to %s, want %s",
+				keep, style.ViewName(a.view), style.ViewName(want))
+		}
+	}
+}

@@ -43,6 +43,10 @@ const (
 	DefaultLogBuffer = 5000
 	// DefaultLogSince is k9s's logger.sinceSeconds default, -1: tail.
 	DefaultLogSince = -1
+	// DefaultHostShellImage is the host shell's helper (#59): Alpine's
+	// busybox is built with nsenter (CONFIG_NSENTER=y in aports'
+	// busyboxconfig), and it is a few megabytes.
+	DefaultHostShellImage = "alpine:3"
 	// MaxLogTail caps logger.tail: the backlog is fetched in one request
 	// and held in memory.
 	MaxLogTail = 100_000
@@ -96,6 +100,15 @@ type Config struct {
 	// Shell is what s opens in a container — zsh, ash, fish — when the
 	// container has it; otherwise bash, then sh.
 	Shell string `yaml:"shell"`
+	// HostShell is :hostshell's helper, a root shell on the daemon's host.
+	HostShell HostShell `yaml:"hostShell"`
+}
+
+// HostShell configures the root shell on the daemon's host (#59), k9s's
+// shellPod: Image is the privileged helper it runs, which needs nsenter
+// on its PATH. Only nsenter runs from the image; the shell is the host's.
+type HostShell struct {
+	Image string `yaml:"image"`
 }
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
@@ -198,6 +211,7 @@ func Default() Config {
 		Logger:      Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
 		UI:          UI{EnableMouse: true},
 		ImageScans:  ImageScans{TTL: DefaultScanTTL},
+		HostShell:   HostShell{Image: DefaultHostShellImage},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
 			Memory: Threshold{Warn: 70, Critical: 90},
@@ -295,6 +309,9 @@ func (c Config) Validate() error {
 	if c.ImageScans.Background && !c.ImageScans.Enable {
 		errs = append(errs, "imageScans.background needs imageScans.enable: true — its results show only in the VULN column")
 	}
+	if img := c.HostShell.Image; strings.TrimSpace(img) == "" || strings.HasPrefix(img, "-") {
+		errs = append(errs, fmt.Sprintf("hostShell.image is an image name, not empty or a flag, got %q", img))
+	}
 	if c.Logger.Buffer < c.Logger.Tail || c.Logger.Buffer > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.buffer must be between logger.tail (%d) and %d, got %d",
 			c.Logger.Tail, MaxLogTail, c.Logger.Buffer))
@@ -361,6 +378,11 @@ dockmaster:
   screenDumpDir: ""
   # The shell s opens in a container when it has it; empty is bash, then sh.
   shell: ""
+  # :hostshell and s on a Docker Desktop, OrbStack or Rancher Desktop row
+  # open a ROOT shell on the daemon's host through a privileged helper of
+  # this image, which needs nsenter; docker pulls it if it is missing.
+  hostShell:
+    image: alpine:3
   ui:
     # A skin in skins/ beside this file, by name — a k9s skin works as is
     # (DOCKMASTER_SKIN overrides).

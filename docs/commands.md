@@ -48,8 +48,9 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:lint` | | Each container's risky or fragile settings, worst first |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
+| `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
-| `:aliases` | `:alias` | Your own `:` names, from `aliases.yaml` |
+| `:aliases` | `:alias` | Every `:` command and its spellings, and your own aliases from `aliases.yaml`, as a table; `enter` runs one. `ctrl-a` opens it too |
 | `:help` | `:h`, `:?` | The key reference, as `?` |
 
 ### On the selected row
@@ -89,10 +90,12 @@ These act on the row selected in the current view, as their keys do.
 
 - **Aliases**, in `aliases.yaml`, name any command line: `pg: containers /postgres`.
 - **Hotkeys**, in `hotkeys.yaml`, put a command on a key. `override: true`
-  makes the hotkey win over the view's own key.
+  makes the hotkey win over the view's own key; `keepHistory: true` opens
+  its view on top of the current one, so `esc` comes back.
 - **Plugins**, in `plugins.yaml`, run your own programs on the selected row,
   with `$NAME`, `$IMAGE` and so on, an input form (`inputs`) and pipelines
-  (`pipes`).
+  (`pipes`); `overwriteOutput: true` shows a background plugin's first line
+  of output when it finishes.
 
 All three use k9s's file format; see [design/config.md](design/config.md).
 
@@ -124,6 +127,7 @@ Keys every view shares:
 | `space` / `ctrl-space` / `ctrl-\` | Mark a row / a range / clear marks; lifecycle and remove keys then act on every marked row |
 | `c` / `i` | Copy the row's name / its full ID |
 | `ctrl-s` | Save the table as text (`:sd` lists saves) |
+| `ctrl-a` | Every command and alias (`:aliases`); in the `:` and `/` bars it is still start of line |
 | `ctrl-g` / `ctrl-e` | Breadcrumbs / header on or off |
 | `ctrl-c` | Quit |
 
@@ -163,8 +167,10 @@ scale down or to 0 confirms), `ctrl-d` compose down (confirms).
 
 `enter` connect to the machine's daemon, `n` new machine, `e` edit
 resources, `o` inspect, `u` / `x` / `R` start / stop / restart, `ctrl-d`
-delete, `s` ssh into the VM, `K` the kind cluster on it. The last four
-confirm where they take containers with them.
+delete, `s` a shell on the machine — ssh into the VM for Colima and Podman,
+a root host shell (as `:hostshell`, confirms) for Docker Desktop, OrbStack
+and Rancher Desktop — `K` the kind cluster on it. The last four confirm
+where they take containers with them.
 
 ### Logs
 
@@ -197,10 +203,11 @@ image; on a project or service, `s` opens the scale form (on that service).
 | Port forwards (`:pf`) | `enter` / `b` open in the browser, `ctrl-d` stop |
 | Disk usage (`:df`) | `P` prune the selected kind |
 | Saved dumps (`:sd`) | `enter` read, `ctrl-d` delete |
-| `:dir` | `enter` walk in or open, `u` up from the file, `e` edit then up, `esc` back up |
+| `:dir` | `enter` walk in or open, `u` up from the file, `e` edit then up, `ctrl-d` `compose -f <file> down` (confirms), `esc` back up |
 | `:lint` | `enter` explain, `o` inspect the container |
 | Image scan | `enter` the fix and the advisory link |
-| Contexts (`:ctx`) | `enter` switch |
+| Contexts (`:ctx`) | `enter` switch, `ctrl-d` `docker context rm` (confirms; not `default`, the one dockmaster is on, or the CLI's current one) |
+| Aliases (`ctrl-a`) | `enter` run the command, `/` filter |
 | Pods | `enter` / `o` inspect, `u` / `x` / `R` start / stop / restart, `ctrl-d` remove |
 | A node's pods (`n`) | `enter` / `l` logs, `o` inspect, `s` shell, `ctrl-d` remove (exited only), `a` show exited |
 | A volume's files | `enter` open, `esc` / `q` up a directory |

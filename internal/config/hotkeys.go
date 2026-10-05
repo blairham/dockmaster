@@ -18,9 +18,9 @@ import (
 // hotkeys.yaml.
 const HotKeysFileName = "hotkeys.yaml"
 
-// HotKey is one entry under hotKeys:, in k9s's shape. KeepHistory is
-// accepted for k9s's files and has no effect: every view switch is
-// already in the history.
+// HotKey is one entry under hotKeys:, in k9s's shape. KeepHistory opens
+// the view the command names on top of the current one, so esc comes
+// back, as k9s's does (tui.HotKey).
 type HotKey struct {
 	ShortCut    string `yaml:"shortCut"`
 	Description string `yaml:"description"`

@@ -14,6 +14,32 @@ fails when the tag has none.
 
 ### Added
 
+- `ctrl-a` opens k9s's aliases view (#64): every `:` command with its other
+  spellings, and your `aliases.yaml` entries, marked `alias`, as a table you
+  can filter and sort; `enter` runs the selected one as if typed at the
+  palette. `:aliases` opens the same view (it was a plain-text list of your
+  aliases). In the `:` and `/` bars `ctrl-a` is still start of line.
+- `ctrl-d` in the contexts view runs `docker context rm <name>` after a
+  confirm (#64). `default`, the context dockmaster is connected through and
+  the docker CLI's current context are refused with the reason; `--readonly`
+  refuses it.
+- `ctrl-d` on a compose file in `:dir` runs `compose -f <file> down` after a
+  confirm (#64); `--readonly` refuses it.
+- `keepHistory` in `hotkeys.yaml` now does what it does in k9s (#64): the
+  view the hotkey opens goes on top of the current one, so `esc` comes back.
+- `overwriteOutput` in `plugins.yaml` now does what it does in k9s (#64): a
+  background plugin's first line of output replaces the "done" flash.
+- A root shell on the daemon's host, k9s's node shell (#59): `:hostshell`
+  for the daemon on screen — remote contexts and a plain dockerd included —
+  and `s` on a Docker Desktop, OrbStack or Rancher Desktop row in the
+  runtimes view. It runs a privileged, `--pid=host`, `--rm` helper that
+  `nsenter`s PID 1 and starts the host's `sh`. The image is
+  `hostShell.image` in config.yaml (default `alpine:3`, pulled if the
+  daemon lacks it). It always confirms, naming the daemon and the image;
+  `--readonly` and a context's `readOnly` refuse it, and so does a
+  rootless daemon, where it cannot work. Colima and Podman rows keep
+  their ssh.
+
 - A `VULN` column in the images and containers views: each image's last
   vulnerability scan, by severity (`C2 H5`, with medium and low when there
   is room), read from a cache of scan results kept by image ID under the
@@ -22,6 +48,14 @@ fails when the tag has none.
   the column orders by severity. Off by default — `imageScans.enable` turns
   it on, or `views.yaml` can name `VULN` — and `imageScans.background` scans
   images with no fresh result one at a time while the images view is open.
+
+### Changed
+
+- `ctrl-a` is now a dockmaster key: a hotkey or plugin on `Ctrl-A` is
+  refused at startup.
+- A hotkey, `-c`, `defaultView` or an alias may name a command by any
+  spelling the palette takes (`x`, `log`, `h`, `dumps`, `screendumps`, `?`);
+  those were refused as "not a command".
 
 ## [0.0.11] - 2026-10-04
 
