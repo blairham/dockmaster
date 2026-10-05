@@ -315,3 +315,47 @@ func TestRuntimeShellPerKind(t *testing.T) {
 		}
 	}
 }
+
+// TestHostShellImageOption: Options.HostShellImage, config's
+// hostShell.image, is the helper the app runs.
+func TestHostShellImageOption(t *testing.T) {
+	fakeDockerCLI(t)
+	a := NewApp(
+		&docker.Client{Host: "unix:///run/fake.sock"},
+		Options{Version: "test", HostShellImage: "registry.local/tools:1"},
+	)
+	a.splashActive, a.loading = false, false
+	ran := capture(a)
+	a.dispatchCommand("hostshell")
+	step(a, key("y"))
+	if len(*ran) != 1 {
+		t.Fatalf("nothing ran (err %q)", a.errFlash)
+	}
+	sameArgs(t, "configured image", argsOf(t, (*ran)[0]),
+		append([]string{"--host", "unix:///run/fake.sock"}, hostShellArgv("registry.local/tools:1")...))
+}
+
+// TestHostShellEndIsQuiet: leaving the shell with a non-zero status is
+// the ordinary way out and flashes nothing; docker failing to start does.
+func TestHostShellEndIsQuiet(t *testing.T) {
+	fakeDockerCLI(t)
+	a := newTestApp(t)
+	a.client = &docker.Client{Host: "unix:///run/fake.sock"}
+	var done tea.ExecCallback
+	a.execProcess = func(_ *exec.Cmd, fn tea.ExecCallback) tea.Cmd { done = fn; return nil }
+	a.dispatchCommand("hostshell")
+	step(a, key("y"))
+	if done == nil {
+		t.Fatalf("nothing ran (err %q)", a.errFlash)
+	}
+	if msg, ok := done(&exec.ExitError{}).(execDoneMsg); !ok || msg.err != nil {
+		t.Errorf("a non-zero exit gave %#v", msg)
+	}
+	if msg, ok := done(nil).(execDoneMsg); !ok || msg.err != nil {
+		t.Errorf("a clean exit gave %#v", msg)
+	}
+	if msg, ok := done(os.ErrNotExist).(execDoneMsg); !ok || msg.err == nil ||
+		!strings.Contains(msg.err.Error(), "host shell") {
+		t.Errorf("a failure to start gave %#v", msg)
+	}
+}
