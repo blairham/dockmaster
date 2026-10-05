@@ -14,6 +14,7 @@ import (
 	"github.com/blairham/tuikit/chrome"
 	xansi "github.com/charmbracelet/x/ansi"
 
+	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
@@ -226,8 +227,16 @@ func (a *App) renderShortcuts(info []string) []string {
 	var actions []chrome.Shortcut //nolint:prealloc // each case assigns a fresh literal
 	switch a.view {
 	case style.ViewContainers:
+		enter := "Logs"
+		if cv := typedView[*views.ContainersView](a, style.ViewContainers); cv != nil {
+			if c, ok := cv.Selected(); ok {
+				if _, node := docker.NodeRole(c); node {
+					enter = "Pods" // a kind/k3d node: enter drills into its pods
+				}
+			}
+		}
 		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Logs"},
+			{Key: "<enter>", Desc: enter},
 			{Key: "<o>", Desc: "Inspect"},
 			{Key: "<H>", Desc: "Health"},
 			{Key: "<T>", Desc: "Top"},

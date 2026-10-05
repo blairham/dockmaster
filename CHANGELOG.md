@@ -12,6 +12,12 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Changed
+
+- `enter` on a ⎈ kind/k3d node opens the pods' containers inside it, as
+  `enter` on a node does in k9s; `l` is still the node's logs and `n` still
+  works. The header's `<enter>` reads Pods on a node row.
+
 ### Added
 
 - Plugins can live one or more to a file in `plugins/` beside
