@@ -162,10 +162,14 @@ func (s *tableSort) alignRight(rows []table.Row, shown []string) {
 	}
 }
 
-// compare is the sorter's comparison: an N expression column's, found by
-// the shown column's title, or cellCompare.
+// compare is the sorter's comparison: VULN's by severity (#63), an N
+// expression column's, both found by the shown column's title, or
+// cellCompare.
 func (s *tableSort) compare(col int, a, b string) int {
 	if col < len(s.shown) {
+		if s.shown[col] == VulnTitle {
+			return vulnCompare(a, b)
+		}
 		if e, ok := s.exprNamed(s.shown[col]); ok && e.Numeric {
 			return numericCompare(a, b)
 		}
@@ -214,6 +218,7 @@ func cellCompare(_ int, a, b string) int {
 // as displayed — through the views.yaml layout — since that is what the
 // sorter's column counts.
 func (s *tableSort) remapSort(before, after []table.Column) {
+	before, after = vulnColumns(s.layoutKey, before), vulnColumns(s.layoutKey, after)
 	s.followSort(s.shownTitles(s.titlesOf(before)), s.shownTitles(s.titlesOf(after)))
 }
 

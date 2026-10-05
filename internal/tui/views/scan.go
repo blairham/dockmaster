@@ -18,8 +18,11 @@ import (
 
 // ScanResultMsg carries a finished scan, for the scan that asked.
 type ScanResultMsg struct {
-	Err     error
-	Ref     string
+	Err error
+	Ref string
+	// ImageID is the scanned image's ID, for the scan cache (#63); "" when
+	// the app could not tell which image ref named.
+	ImageID string
 	Scanner string
 	Vulns   []scan.Vuln
 	Gen     int
@@ -45,6 +48,7 @@ type ScanView struct {
 	cancel  context.CancelFunc
 	err     error
 	ref     string
+	imageID string
 	host    string
 	scanner string
 	filter  string
@@ -77,6 +81,10 @@ func scanColumns() []table.Column {
 	}
 }
 
+// SetImageID names the image ref is, by ID, so its result can be cached
+// (#63). Set before Init.
+func (v *ScanView) SetImageID(id string) { v.imageID = id }
+
 // Title is the scanned image, for the border.
 func (v *ScanView) Title() string { return "scan " + v.ref }
 
@@ -90,10 +98,10 @@ func (v *ScanView) Refresh() tea.Cmd {
 	v.running, v.err, v.started = true, nil, time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	v.cancel = cancel
-	gen, ref, host := v.gen, v.ref, v.host
+	gen, ref, id, host := v.gen, v.ref, v.imageID, v.host
 	return func() tea.Msg {
 		name, vs, err := RunScan(ctx, ref, host)
-		return ScanResultMsg{Gen: gen, Ref: ref, Scanner: name, Vulns: vs, Err: err}
+		return ScanResultMsg{Gen: gen, Ref: ref, ImageID: id, Scanner: name, Vulns: vs, Err: err}
 	}
 }
 

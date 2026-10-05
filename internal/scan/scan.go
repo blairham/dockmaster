@@ -90,6 +90,10 @@ type Scanner struct {
 // Scanners are the ones scan knows, in the order Detect prefers them.
 var Scanners = []string{"grype", "trivy"}
 
+// ErrNoScanner is Detect's answer when neither scanner is on PATH. A
+// background scan stops on it rather than failing every image in turn.
+var ErrNoScanner = errors.New("no scanner found — install grype (brew install grype) or trivy (brew install trivy)")
+
 // Detect finds the first installed scanner, preferring grype.
 func Detect() (Scanner, error) {
 	for _, name := range Scanners {
@@ -97,8 +101,7 @@ func Detect() (Scanner, error) {
 			return Scanner{Name: name, Path: p}, nil
 		}
 	}
-	return Scanner{}, errors.New(
-		"no scanner found — install grype (brew install grype) or trivy (brew install trivy)")
+	return Scanner{}, ErrNoScanner
 }
 
 // Command builds the scan of image ref, reading the image from the daemon at

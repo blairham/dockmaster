@@ -11,7 +11,7 @@ match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` 
 `ui.crumbsless`, `ui.splashless`, `ui.skin`, `ui.invert`, `logger.tail`, `logger.buffer`,
 `logger.sinceSeconds`, `logger.showTime`, `logger.textWrap`,
 `logger.disableAutoscroll`, `ui.enableMouse`, `ui.defaultsToFullScreen`,
-`noExitOnCtrlC`, `screenDumpDir`, `liveViewAutoRefresh`, `portForwardAddress`). Settings
+`noExitOnCtrlC`, `screenDumpDir`, `liveViewAutoRefresh`, `portForwardAddress`, `imageScans.enable`). Settings
 k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
 spelling. k9s's per-context `skin` and `readOnly` live under `contexts:`
 (see [Per-context settings](#per-context-settings)). `dockmaster config init` writes the commented defaults
@@ -82,6 +82,68 @@ reads `n/a` with the poll off (`t`, `--no-stats`, `noStats`) or when the
 daemon did not report its size, and `…` until the first sample. It is what
 the containers view last sampled: away from that view the poll does not
 run, and the line holds its last figure, as `Counts` does.
+
+## imageScans
+
+```yaml
+dockmaster:
+  imageScans:
+    enable: false      # the VULN column
+    ttl: 168h          # how long a scan stays fresh
+    background: false  # scan the rest while the images view is open
+```
+
+Every vulnerability scan — `v` on an image, a container or an xray image
+node, and the background scans below — is cached by image ID in the state
+directory, `scans/<algo>-<hex>.json` (`sha256:ab12…` is
+`sha256-ab12….json`), holding the scanner, the time and the count at each
+severity, not the findings. An image ID names its content exactly, so a
+result never goes stale by the image changing, only by the vulnerability
+databases moving on; that is what `ttl` is for. The cache is written
+whatever `enable` says, and best-effort: a write that fails is logged
+(`dockmaster.log`), not flashed, and the result is still shown for the rest
+of the run. A missing, unreadable or corrupt file — cut short, edited by
+hand, a count below zero — reads as never scanned. The scanner's version is
+not recorded: asking it is another process per scan.
+
+`enable` (k9s's `imageScans.enable`) adds a `VULN` column to the images
+view and the containers view (the container's image, by `ImageID`), after
+the image's ID or name. Off, the views keep their columns exactly as before
+— unless `views.yaml` names `VULN`, which shows it like any other column;
+on, `views.yaml` can hide it. A cell is:
+
+- empty for an image never scanned;
+- the non-zero counts, worst first: `C` critical and `H` high always, then
+  `M` medium and `L` low only while the cell stays within ten characters
+  (`C2 H5 M10`; `C12 H34` leaves out `M100 L1`), and never a lower count
+  after a higher one left out — `C12 H34 L1` would read as no mediums;
+- `0` for a scan that found nothing critical, high, medium or low
+  (negligible and unknown findings are not summarized);
+- followed by `~`, and drawn muted, when older than `ttl`. Otherwise it is
+  bold red for a critical, red for a high, orange for a medium.
+
+Sorting on `VULN` (`shift-←/→`, or `sortColumn: VULN:desc`) orders by
+severity, not by the text: never scanned, then a clean scan, then by the
+critical count, then high, medium and low — so `C1` is worse than `H90`. A
+count the cell left out for room sorts as zero; staleness does not move a
+row.
+
+`background` (which needs `enable`; k9s scans in the background whenever
+`enable` is on, but here a scan is another program that can take minutes,
+so it is a separate switch) scans the listed images that have no fresh
+result, by ID, **one at a time**, and only while the images view is the one
+showing: after the listing arrives, after each scan finishes, and on the
+poll's tick — each scan a command of its own, so it never holds up the
+poll. Leaving the view, or drilling into a `v` scan or layers from it,
+cancels the running scan (`ImagesView` is `Stoppable`) and its result is
+dropped; coming back resumes on the next tick. An image whose scan failed
+is not tried again until the view is rebuilt (a context switch), and with
+neither scanner installed it stops after the first attempt. The title says
+which image is being scanned. With `background` off nothing scans unless
+`v` is pressed.
+
+`ttl` must be at least a minute. All three keys apply on a reload
+(`ui.reactive`).
 
 ## Skins
 
@@ -594,8 +656,8 @@ regardless of case. The view keys, and the columns each can show:
 
 | View | What it is | Columns |
 |---|---|---|
-| `containers` | `:containers` | NAME, IMAGE, STATE, HEALTH, CPU%, MEM, PORTS, AGE; wide mode (`ctrl-w`) adds ID, COMMAND, NETWORKS, IP |
-| `images` | `:images` | REPOSITORY, TAG, IMAGE ID, SIZE, USED BY, AGE |
+| `containers` | `:containers` | NAME, IMAGE, VULN, STATE, HEALTH, CPU%, MEM, PORTS, AGE; wide mode (`ctrl-w`) adds ID, COMMAND, NETWORKS, IP |
+| `images` | `:images` | REPOSITORY, TAG, IMAGE ID, VULN, SIZE, USED BY, AGE |
 | `volumes` | `:volumes` | NAME, DRIVER, SIZE, REFS, PROJECT, MOUNTPOINT, AGE |
 | `networks` | `:networks` | NAME, NETWORK ID, DRIVER, SCOPE, SUBNET, FLAGS, PROJECT, AGE |
 | `projects` | `:projects` | PROJECT, STATUS, SERVICES, COMPOSE FILE, AGE |
@@ -612,6 +674,9 @@ regardless of case. The view keys, and the columns each can show:
 | `files` | `enter` on a volume | NAME, SIZE, MODE, AGE |
 | `scan` | `v` on an image | SEVERITY, ID, PACKAGE, INSTALLED, FIXED IN, TITLE |
 | `aliases` | `ctrl-a`, `:aliases` | COMMAND, ALSO, KIND, DESCRIPTION |
+
+VULN is shown without `views.yaml` only with `imageScans.enable` on (see
+[imageScans](#imagescans)); naming it here shows it either way.
 
 The contexts and runtimes views' unnamed marker column (the current
 context, the connected machine) is always shown, first. `top`'s columns are
