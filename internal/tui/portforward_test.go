@@ -5,6 +5,7 @@ package tui
 
 import (
 	"context"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -15,12 +16,36 @@ import (
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
+// startedForward is one call to the start-forward seam.
+type startedForward struct {
+	addr   netip.Addr
+	target string
+	local  int
+	remote int
+}
+
+// fakeStarts replaces the daemon call that starts a forward and records
+// every start, so no test runs a helper container.
+func fakeStarts(a *App) *[]startedForward {
+	var started []startedForward
+	a.startForwardFn = func(
+		_ context.Context, c docker.Container, addr netip.Addr, local, remote int,
+	) (docker.PortForward, error) {
+		started = append(started, startedForward{target: c.Name, addr: addr, local: local, remote: remote})
+		return docker.PortForward{
+			ID: "h-" + c.Name, Target: c.ID, TargetName: c.Name, Address: addr, Local: local, Remote: remote,
+		}, nil
+	}
+	return &started
+}
+
 func forwardApp(t *testing.T, opts Options) (*App, *[]string) {
 	t.Helper()
 	a := newSizedApp(t, opts, 200, 30)
 	a.splashActive = false
 	var opened []string
 	a.urlOpener = func(u string) error { opened = append(opened, u); return nil }
+	fakeStarts(a)
 	step(a, views.ContainersRefreshMsg{Containers: []docker.Container{
 		{
 			ID: "reg1", Name: "registry", State: "running",
