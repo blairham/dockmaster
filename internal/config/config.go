@@ -44,6 +44,10 @@ const (
 	DefaultLogBuffer = 5000
 	// DefaultLogSince is k9s's logger.sinceSeconds default, -1: tail.
 	DefaultLogSince = -1
+	// DefaultHostShellImage is the host shell's helper (#59): Alpine's
+	// busybox is built with nsenter (CONFIG_NSENTER=y in aports'
+	// busyboxconfig), and it is a few megabytes.
+	DefaultHostShellImage = "alpine:3"
 	// MaxLogTail caps logger.tail: the backlog is fetched in one request
 	// and held in memory.
 	MaxLogTail = 100_000
@@ -100,6 +104,8 @@ type Config struct {
 	// (k9s's portForwardAddress): an IP, or localhost. Anything but
 	// loopback puts the forward on the network.
 	PortForwardAddress string `yaml:"portForwardAddress"`
+	// HostShell is :hostshell's helper, a root shell on the daemon's host.
+	HostShell HostShell `yaml:"hostShell"`
 }
 
 // DefaultPortForwardAddress is where a forward publishes unless
@@ -108,9 +114,10 @@ type Config struct {
 const DefaultPortForwardAddress = "127.0.0.1"
 
 // ParseForwardAddress reads portForwardAddress: an IP address, or
-// localhost for 127.0.0.1; empty is the default, as in k9s. A hostname other than localhost is refused —
-// docker publishes on an address, and a name could resolve anywhere — and
-// so is an IPv6 zone, which a port binding cannot carry.
+// localhost for 127.0.0.1; empty is the default, as in k9s. A hostname
+// other than localhost is refused — docker publishes on an address, and a
+// name could resolve anywhere — and so is an IPv6 zone, which a port
+// binding cannot carry.
 func ParseForwardAddress(s string) (netip.Addr, error) {
 	if s == "" || strings.EqualFold(s, "localhost") {
 		return netip.MustParseAddr(DefaultPortForwardAddress), nil
@@ -133,6 +140,13 @@ func (c Config) ForwardAddress() netip.Addr {
 		return netip.MustParseAddr(DefaultPortForwardAddress)
 	}
 	return addr
+}
+
+// HostShell configures the root shell on the daemon's host (#59), k9s's
+// shellPod: Image is the privileged helper it runs, which needs nsenter
+// on its PATH. Only nsenter runs from the image; the shell is the host's.
+type HostShell struct {
+	Image string `yaml:"image"`
 }
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
@@ -216,6 +230,7 @@ func Default() Config {
 		Contexts:           map[string]ContextSettings{},
 		Logger:             Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
 		UI:                 UI{EnableMouse: true},
+		HostShell:          HostShell{Image: DefaultHostShellImage},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
 			Memory: Threshold{Warn: 70, Critical: 90},
@@ -310,6 +325,9 @@ func (c Config) Validate() error {
 		errs = append(errs, err.Error())
 	}
 	errs = append(errs, c.validateContexts()...)
+	if img := c.HostShell.Image; strings.TrimSpace(img) == "" || strings.HasPrefix(img, "-") {
+		errs = append(errs, fmt.Sprintf("hostShell.image is an image name, not empty or a flag, got %q", img))
+	}
 	if c.Logger.Buffer < c.Logger.Tail || c.Logger.Buffer > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.buffer must be between logger.tail (%d) and %d, got %d",
 			c.Logger.Tail, MaxLogTail, c.Logger.Buffer))
@@ -380,6 +398,11 @@ dockmaster:
   # Anything but loopback (127.0.0.1, ::1) — 0.0.0.0 above all — makes the
   # forward reachable from the network, and shift-f says so.
   portForwardAddress: 127.0.0.1
+  # :hostshell and s on a Docker Desktop, OrbStack or Rancher Desktop row
+  # open a ROOT shell on the daemon's host through a privileged helper of
+  # this image, which needs nsenter; docker pulls it if it is missing.
+  hostShell:
+    image: alpine:3
   ui:
     # A skin in skins/ beside this file, by name — a k9s skin works as is
     # (DOCKMASTER_SKIN overrides).

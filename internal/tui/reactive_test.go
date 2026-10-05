@@ -64,6 +64,7 @@ func TestReactiveReload(t *testing.T) {
 	a, dir := reactiveApp(t, func() (Reloaded, error) {
 		return Reloaded{Theme: skin, Options: Options{
 			Aliases: map[string]string{"zzpg": "containers /postgres"}, LogWrap: true, Shell: "zsh",
+			HostShellImage: "registry.local/tools:1",
 		}}, nil
 	})
 	a.commandBar.SetHistory([]string{"images"})
@@ -74,7 +75,8 @@ func TestReactiveReload(t *testing.T) {
 	write(t, filepath.Join(dir, "config.yaml"), "dockmaster: {shell: zsh}\n")
 	reloadNow(t, a)
 
-	if a.aliases["zzpg"] == "" || !a.logWrap || a.shell != "zsh" || a.flash != "config reloaded" {
+	if a.aliases["zzpg"] == "" || !a.logWrap || a.shell != "zsh" || a.hostShellImage != "registry.local/tools:1" ||
+		a.flash != "config reloaded" {
 		t.Errorf("not applied: aliases %v wrap %v shell %q flash %q", a.aliases, a.logWrap, a.shell, a.flash)
 	}
 	if style.Base().Logo != skin.Logo {

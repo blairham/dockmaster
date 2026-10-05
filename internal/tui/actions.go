@@ -58,7 +58,9 @@ var mutating = map[string]bool{
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
-	"node_shell": true, "confirm_node_remove": true,
+	// confirm_host_shell is a root shell on the daemon's host; its confirmed
+	// run re-checks readonly itself, since a reload can turn it on meanwhile.
+	"node_shell": true, "confirm_node_remove": true, "confirm_host_shell": true,
 	"run_image": true, "run_create": true, "copy_into": true,
 	"confirm_runtime_k8s": true, "edit_form": true, "edit_apply": true,
 	// Not daemon state, but a delete all the same: readonly means hands off.
@@ -535,6 +537,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.runtimeConnect(param)
 	case "runtime_shell":
 		return a, a.runtimeShell(param)
+	case "confirm_host_shell":
+		a.confirmHostShell()
+		return a, nil
 	case "runtime_start":
 		return a, a.runtimeStart(param)
 	case "runtime_inspect":
@@ -743,6 +748,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 			return nil
 		}
 		return a.composeScale(sp)
+	case "host_shell":
+		return a.hostShell(pa.param)
 	case "runtime_stop", "runtime_restart", "runtime_delete":
 		return a.runtimeConfirmed(strings.TrimPrefix(pa.action, "runtime_"), pa.param)
 	case "runtime_apply":

@@ -20,9 +20,15 @@ running anything.
 |---|---|---|---|---|
 | `colima` | `colima` on PATH | ✓ | ✓ (see `colima.md`) | `~/.colima/<p>/docker.sock` |
 | `podman` | `podman` on PATH | ✓ (`podman machine …`) | ✓ (`init --now`, `set`, `rm -f`, `ssh`) | the machine's API socket, from `podman machine inspect` |
-| `docker-desktop` | `docker desktop` plugin — on PATH, or run straight from `Docker.app`'s bundle — or the app | ✓ (`docker desktop start/stop`, else `open -a` / quit) | — | context `desktop-linux` |
-| `rancher-desktop` | `rdctl`, or the app | ✓ (`rdctl start/shutdown`) | — | context `rancher-desktop` |
-| `orbstack` | `orb`, or the app | ✓ (`orb start/stop`) | — | context `orbstack` |
+| `docker-desktop` | `docker desktop` plugin — on PATH, or run straight from `Docker.app`'s bundle — or the app | ✓ (`docker desktop start/stop`, else `open -a` / quit) | shell only: the host shell | context `desktop-linux` |
+| `rancher-desktop` | `rdctl`, or the app | ✓ (`rdctl start/shutdown`) | shell only: the host shell | context `rancher-desktop` |
+| `orbstack` | `orb`, or the app | ✓ (`orb start/stop`) | shell only: the host shell | context `orbstack` |
+
+**`s` on a single-engine row is a root shell on its VM** (#59): those
+runtimes have no ssh of their own, so `s` runs the host-shell helper — a
+privileged, `--pid=host` container that `nsenter`s PID 1 — on the
+runtime's own socket, after a confirm. Colima and Podman rows keep their
+ssh. See `host-shell.md`.
 
 **A runtime counts as installed when its CLI or app is.** A docker context left
 behind by an uninstalled app does not count — the machine this was built on has

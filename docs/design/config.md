@@ -246,6 +246,12 @@ These behave as k9s's do (#17):
   prompt and the auto-forward confirm say so. It applies to forwards started
   after it is set, and `ui.reactive` picks it up. See
   [`port-forward.md`](port-forward.md).
+- `hostShell.image` — the privileged helper `:hostshell` and `s` on a
+  single-engine runtime run for a root shell on the daemon's host (k9s's
+  `shellPod.image`). It needs an `nsenter`; the default, `alpine:3`, has
+  busybox's. docker pulls it when the daemon lacks it. Empty, or starting
+  with `-` (docker would read it as a flag), is refused at load. See
+  `host-shell.md`.
 - `ui.enableMouse` — on by default, unlike k9s, because dockmaster has
   always had wheel scrolling; `false` turns mouse reporting off, so a
   plain drag selects text as in any other program.

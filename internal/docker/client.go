@@ -49,6 +49,9 @@ type Client struct {
 	OSArch      string
 	Name        string
 	statsMu     sync.RWMutex
+	// Rootless is a daemon that reports running rootless (Negotiate): a
+	// container there cannot enter its host's namespaces.
+	Rootless bool
 	// imageNames caches what an image ID is called (imageName); an ID
 	// names one image for good, so an entry never goes stale.
 	imageNames map[string]string
@@ -167,6 +170,7 @@ func (c *Client) Negotiate(ctx context.Context) error {
 	c.Version = info.ServerVersion
 	c.Name = info.Name
 	c.OSArch = info.OSType + "/" + info.Architecture
+	c.Rootless = rootless(info.SecurityOptions)
 	c.APIVersion = c.api.ClientVersion()
 	return nil
 }

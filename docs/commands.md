@@ -48,6 +48,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:lint` | | Each container's risky or fragile settings, worst first |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
+| `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
 | `:aliases` | `:alias` | Your own `:` names, from `aliases.yaml` |
 | `:help` | `:h`, `:?` | The key reference, as `?` |
@@ -164,8 +165,10 @@ scale down or to 0 confirms), `ctrl-d` compose down (confirms).
 
 `enter` connect to the machine's daemon, `n` new machine, `e` edit
 resources, `o` inspect, `u` / `x` / `R` start / stop / restart, `ctrl-d`
-delete, `s` ssh into the VM, `K` the kind cluster on it. The last four
-confirm where they take containers with them.
+delete, `s` a shell on the machine — ssh into the VM for Colima and Podman,
+a root host shell (as `:hostshell`, confirms) for Docker Desktop, OrbStack
+and Rancher Desktop — `K` the kind cluster on it. The last four confirm
+where they take containers with them.
 
 ### Logs
 

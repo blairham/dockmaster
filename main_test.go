@@ -32,10 +32,12 @@ func TestBehaviorOptions(t *testing.T) {
 	cfg.ScreenDumpDir = "~/dumps"
 	cfg.Shell = "zsh"
 	cfg.PortForwardAddress = "0.0.0.0"
+	cfg.HostShell.Image = "registry.local/tools:1"
 	behaviorOptions(cfg, &o)
 	home, _ := os.UserHomeDir()
 	if !o.NoMouse || !o.NoExitOnCtrlC || !o.LogWrap || !o.LogPaused || !o.LogFullscreen ||
-		o.DumpDir != filepath.Join(home, "dumps") || o.Shell != "zsh" || o.ForwardAddress.String() != "0.0.0.0" {
+		o.DumpDir != filepath.Join(home, "dumps") || o.Shell != "zsh" || o.ForwardAddress.String() != "0.0.0.0" ||
+		o.HostShellImage != "registry.local/tools:1" {
 		t.Errorf("set keys did not all arrive: %+v", o)
 	}
 }

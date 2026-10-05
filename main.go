@@ -336,6 +336,7 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.NoMouse = !cfg.UI.EnableMouse
 	o.Shell = cfg.Shell
 	o.ForwardAddress = cfg.ForwardAddress()
+	o.HostShellImage = cfg.HostShell.Image
 }
 
 // settings is everything read from the config directory: config.yaml with
