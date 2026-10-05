@@ -26,6 +26,7 @@ import (
 	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/engines"
+	"github.com/blairham/dockmaster/internal/scan"
 	"github.com/blairham/dockmaster/internal/tui/style"
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
@@ -207,6 +208,10 @@ type App struct {
 	// name, kept in contextStateFile between runs.
 	lastViews        map[string]string
 	contextStateFile string
+	// scans is the scan cache the VULN column reads and every scan writes
+	// (#63); imageScans is config.yaml's imageScans as last applied.
+	scans      *scan.Cache
+	imageScans ImageScans
 }
 
 // Options configures a new App.
@@ -289,6 +294,12 @@ type Options struct {
 	// ContextStateFile is where the view last open on each context is kept
 	// between runs; "" keeps it for this run only.
 	ContextStateFile string
+	// ImageScans is config.yaml's imageScans (#63): the VULN column, the
+	// cache's TTL and background scanning.
+	ImageScans ImageScans
+	// ScanCacheDir is where scan results are cached by image ID between
+	// runs (<state>/scans); "" keeps them for this run only.
+	ScanCacheDir string
 	// ForceReadOnly is --readonly on the command line: read-only on every
 	// context, whatever its readOnly says. ReadOnly is the top-level value.
 	ForceReadOnly bool
@@ -316,6 +327,9 @@ func containersView(client *docker.Client, opts Options) *views.ContainersView {
 func NewApp(client *docker.Client, opts Options) *App {
 	statsOn := !opts.NoStats
 	refresh := opts.RefreshRate
+	// Before the views are built: their columns depend on it.
+	scans := scan.NewCache(opts.ScanCacheDir, opts.ImageScans.TTL)
+	views.SetImageScans(scans, opts.ImageScans.Enable)
 	if refresh <= 0 {
 		refresh = pollInterval
 	}
@@ -395,11 +409,13 @@ func NewApp(client *docker.Client, opts Options) *App {
 		globalTheme:      style.Base(),
 		lastViews:        lastViews,
 		contextStateFile: opts.ContextStateFile,
+		scans:            scans,
 	}
 	if a.log == nil {
 		a.log = slog.New(slog.DiscardHandler)
 	}
 	views.SetColumnLayouts(opts.ColumnLayouts)
+	a.applyImageScans(opts.ImageScans)
 	// The starting context's skin, if it has one, before the chrome is
 	// built on it.
 	th := opts.themeFor(a.globalTheme, ctxName)
@@ -545,7 +561,9 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 		// Only the volatile views poll (see `polled`), and those
 		// single-flight their own refresh — so a tick landing while a slow
 		// `docker ps` is outstanding is a no-op, not a second request.
-		return a, tea.Batch(a.refreshPolledView(), a.checkReload(), a.tick())
+		// A background image scan, when one is due, is a command of its
+		// own: it never holds up the poll.
+		return a, tea.Batch(a.refreshPolledView(), a.scanNextImage(), a.checkReload(), a.tick())
 
 	case reloadedMsg:
 		a.applyReload(msg)
@@ -661,7 +679,20 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocogn
 		if !a.splashActive && a.refreshMsgMatchesView(msg) {
 			a.loading = false
 		}
+		cmd := a.updateActiveView(msg)
+		if _, ok := msg.(views.ImagesRefreshMsg); ok {
+			cmd = tea.Batch(cmd, a.scanNextImage())
+		}
+		return a, cmd
+
+	// A finished scan is cached whichever view is showing: a `v` scan
+	// that completed is worth keeping even if its view was left.
+	case views.ScanResultMsg:
+		a.recordScan(msg.ImageID, msg.Scanner, msg.Vulns, msg.Err, false)
 		return a, a.updateActiveView(msg)
+
+	case views.ImageScanMsg:
+		return a.handleImageScan(msg)
 
 	default:
 		return a, a.updateActiveView(msg)
@@ -748,6 +779,7 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		style.ViewEvents:       views.NewEventsView(a.client),
 		style.ViewPulses:       views.NewPulsesView(a.client, a.statsOn, a.refresh),
 	}
+	a.applyImageScans(a.imageScans)
 	a.flash = fmt.Sprintf("switched to context %s", msg.name)
 	if a.applied.readOnlyFromContext(msg.name) {
 		a.flash += " — readonly (its contexts: setting)"

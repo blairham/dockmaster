@@ -83,11 +83,31 @@ func TestParseRejectsBadValues(t *testing.T) {
 		"dockmaster:\n  logger:\n    tail: -5\n":                                     "logger.tail",
 		"dockmaster:\n  refreshRate: fast\n":                                         "line 2",
 		"dockmaster:\n  logger:\n    tail: 1e9\n":                                    "tail",
+		"dockmaster:\n  imageScans:\n    ttl: 0s\n":                                  "imageScans.ttl",
+		"dockmaster:\n  imageScans:\n    ttl: 30s\n":                                 "imageScans.ttl",
+		"dockmaster:\n  imageScans:\n    background: true\n":                         "imageScans.background needs",
 	} {
 		_, err := Parse(strings.NewReader(in))
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("Parse(%q) error = %v, want one naming %s", in, err, want)
 		}
+	}
+}
+
+// TestImageScans: imageScans is off by default with a week's TTL, and
+// takes a duration and background with enable.
+func TestImageScans(t *testing.T) {
+	if d := Default().ImageScans; d.Enable || d.Background || d.TTL != 168*time.Hour {
+		t.Errorf("default imageScans %+v", d)
+	}
+	got, err := Parse(
+		strings.NewReader("dockmaster:\n  imageScans:\n    enable: true\n    background: true\n    ttl: 24h\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (ImageScans{Enable: true, Background: true, TTL: 24 * time.Hour}); got.ImageScans != want {
+		t.Errorf("imageScans %+v, want %+v", got.ImageScans, want)
 	}
 }
 

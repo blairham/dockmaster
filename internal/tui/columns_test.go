@@ -216,7 +216,7 @@ func TestColumnLayoutsValidate(t *testing.T) {
 		{
 			entries: map[string]config.ViewColumns{"images": {Columns: []string{"NAME"}}},
 			want: `views.yaml: images: unknown column "NAME" ` +
-				`(columns are REPOSITORY, TAG, IMAGE ID, SIZE, USED BY, AGE)`,
+				`(columns are REPOSITORY, TAG, IMAGE ID, VULN, SIZE, USED BY, AGE)`,
 		},
 		{
 			entries: map[string]config.ViewColumns{"images": {Columns: []string{"TAG", "tag"}}},
