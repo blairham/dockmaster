@@ -60,8 +60,9 @@ var mutating = map[string]bool{
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
 	"node_shell": true, "confirm_node_remove": true,
 	// Root on the daemon's host: the most privileged thing dockmaster does.
-	"confirm_host_shell": true, "host_shell": true,
-	"run_image": true, "run_create": true, "copy_into": true,
+	// (The confirmed run re-checks readonly itself: a reload can turn it on.)
+	"confirm_host_shell": true,
+	"run_image":          true, "run_create": true, "copy_into": true,
 	"confirm_runtime_k8s": true, "edit_form": true, "edit_apply": true,
 	// Not daemon state, but a delete all the same: readonly means hands off.
 	"confirm_remove_dump": true,
