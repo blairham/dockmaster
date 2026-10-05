@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os/exec"
 	"strings"
 	"time"
@@ -174,6 +175,12 @@ type App struct {
 	urlOpener func(string) error
 	// stopForward replaces the daemon call that stops a forward; tests only.
 	stopForward func(context.Context, string) error
+	// startForwardFn replaces the daemon call that starts a forward; tests
+	// only, so no test ever runs a helper.
+	startForwardFn func(context.Context, docker.Container, netip.Addr, int, int) (docker.PortForward, error)
+	// forwardAddr is where a forward publishes (portForwardAddress);
+	// invalid means loopback.
+	forwardAddr netip.Addr
 	// headerLogo is whether this frame's header carries the logo; see
 	// shortcutGrid.
 	headerLogo bool
@@ -258,6 +265,9 @@ type Options struct {
 	// Shell is the shell s opens in a container when it has it, before the
 	// usual bash-then-sh.
 	Shell string
+	// ForwardAddress is where a port forward publishes (portForwardAddress);
+	// the zero value is 127.0.0.1.
+	ForwardAddress netip.Addr
 	// Reload re-reads the config directory, for ui.reactive; nil turns
 	// live reload off. WatchDir is the directory it watches.
 	Reload   func() (Reloaded, error)
@@ -363,6 +373,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logPaused:      opts.LogPaused,
 		logFullscreen:  opts.LogFullscreen,
 		shell:          opts.Shell,
+		forwardAddr:    opts.ForwardAddress,
 		noMouse:        opts.NoMouse,
 		reload:         opts.Reload,
 		watchDir:       opts.WatchDir,

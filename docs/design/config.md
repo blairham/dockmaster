@@ -11,7 +11,7 @@ match (`refreshRate`, `readOnly`, `requestTimeout` — k9s's `apiServerTimeout` 
 `ui.crumbsless`, `ui.splashless`, `ui.skin`, `ui.invert`, `logger.tail`, `logger.buffer`,
 `logger.sinceSeconds`, `logger.showTime`, `logger.textWrap`,
 `logger.disableAutoscroll`, `ui.enableMouse`, `ui.defaultsToFullScreen`,
-`noExitOnCtrlC`, `screenDumpDir`, `liveViewAutoRefresh`). Settings
+`noExitOnCtrlC`, `screenDumpDir`, `liveViewAutoRefresh`, `portForwardAddress`). Settings
 k9s has no equivalent for (`showAll`, `noStats`, `context`) follow the same
 spelling. k9s's per-context `skin` and `readOnly` live under `contexts:`
 (see [Per-context settings](#per-context-settings)). `dockmaster config init` writes the commented defaults
@@ -238,6 +238,14 @@ These behave as k9s's do (#17):
 - `shell` — what `s` opens in a container (zsh, ash, fish) when the
   container has it; otherwise bash, then sh. The name reaches the probe as
   an argument, never as script.
+- `portForwardAddress` — where a port forward (`shift-f`) listens: an IP
+  address, or `localhost`; default `127.0.0.1`, and empty means the default,
+  as in k9s. A hostname other than `localhost`, an address with a port, and
+  an IPv6 zone are refused at load. Anything but loopback — `0.0.0.0`
+  above all — makes a forward reachable from the network, so `shift-f`'s
+  prompt and the auto-forward confirm say so. It applies to forwards started
+  after it is set, and `ui.reactive` picks it up. See
+  [`port-forward.md`](port-forward.md).
 - `ui.enableMouse` — on by default, unlike k9s, because dockmaster has
   always had wheel scrolling; `false` turns mouse reporting off, so a
   plain drag selects text as in any other program.

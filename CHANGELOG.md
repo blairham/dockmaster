@@ -12,6 +12,23 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- Container labels that preset or skip the `shift-f` port-forward prompt,
+  k9s's FastForwards annotations: `dockmaster.port-forwards=8080:80`
+  prefills the prompt and `dockmaster.auto-port-forwards=8080:80` replaces
+  it with a yes/no confirm. The value is what the prompt takes, optionally
+  after a k9s-style `service::`. A label that does not parse is reported in
+  the prompt, and no label starts a forward without a yes (#64).
+- The `shift-f` prompt takes several forwards, comma-separated
+  (`8080:80,8443:443`).
+- `f` on a container opens `:pf` narrowed to that container's forwards,
+  as k9s's `f` (#64).
+- `portForwardAddress` in `config.yaml` (k9s's): the address a forward
+  listens on, an IP or `localhost`, default `127.0.0.1`. When it is not
+  loopback the `shift-f` prompt and confirm warn that the forward is
+  reachable from the network, and `:pf` shows the address (#64).
+
 ## [0.0.11] - 2026-10-04
 
 ### Fixed
