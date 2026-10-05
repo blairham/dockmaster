@@ -175,3 +175,27 @@ func TestXrayRootCommandsValidate(t *testing.T) {
 		}
 	}
 }
+
+// TestXrayRootInspectAndCopyKeys: through the app, i on a root inspects it
+// as o does (the d/y/i fallback), and c / I copy the root's name and ID.
+func TestXrayRootInspectAndCopyKeys(t *testing.T) {
+	for _, tc := range []struct{ word, node, copied string }{
+		{word: "net", node: "N:shop_default", copied: "copied shop_default"},
+		{word: "vol", node: "V:pgdata", copied: "copied ID pgdata"},
+		{word: "img", node: "I:sha256:cccc", copied: "copied ID sha256:cccc"},
+	} {
+		a, xv := openXrayRoot(t, tc.word)
+		gotoNode(t, a, xv, tc.node)
+		k := "I"
+		if tc.word == "net" {
+			k = "c" // a network root has a name and no ID
+		}
+		if cmd := step(a, key(k)); cmd == nil || a.flash != tc.copied {
+			t.Errorf("%s on %s: flash %q", k, tc.node, a.flash)
+		}
+		step(a, key("i"))
+		if a.view != style.ViewInspect {
+			t.Errorf("i on %s opened %v, want inspect", tc.node, a.view)
+		}
+	}
+}

@@ -49,7 +49,7 @@ func exprApp(t *testing.T, entries map[string]config.ViewColumns) (*App, *views.
 // an action on it.
 func selectedID(t *testing.T, a *App) string {
 	t.Helper()
-	return clipboard(step(a, key("i")))
+	return clipboard(step(a, key("I")))
 }
 
 // TestExprColumnValidate: an expression column's mistakes are refused at

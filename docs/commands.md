@@ -124,7 +124,7 @@ Keys every view shares:
 | `:` / `/` | Command bar / filter |
 | `?` | Help for this view |
 | `enter` | Drill in: logs, layers, a volume's files, a network's containers |
-| `o` | Inspect; `d` and `y` do the same where the view has no key of its own |
+| `o`, `i` | Inspect; `i`, `d` and `y` do the same as `o` where the view has no key of its own |
 | `esc` / `q` | Back out of a drill-in (`q` never quits) |
 | `[` / `]` / `-` | View history back / forward / last |
 | `r`, `ctrl-r` | Reload |
@@ -132,7 +132,7 @@ Keys every view shares:
 | `g` / `G`, `ctrl-f` / `ctrl-b` | Top / bottom, page down / up |
 | `shift-←/→`, `shift-↑/↓` | Sort by column, sort direction |
 | `space` / `ctrl-space` / `ctrl-\` | Mark a row / a range / clear marks; lifecycle and remove keys then act on every marked row |
-| `c` / `i` | Copy the row's name / its full ID |
+| `c` / `I` | Copy the row's name / its full ID |
 | `ctrl-s` | Save the table as text (`:sd` lists saves) |
 | `ctrl-a` | Every command and alias (`:aliases`); in the `:` and `/` bars it is still start of line |
 | `ctrl-g` / `ctrl-e` | Breadcrumbs / header on or off |

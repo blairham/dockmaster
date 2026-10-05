@@ -242,9 +242,9 @@ func (a *App) activeViewHandleKey(key string) (string, string) {
 		return "", ""
 	}
 	action, param := v.HandleKey(key)
-	// k9s's d (describe) and y (yaml) open what o opens here, in any view
-	// that does not bind them itself (#3).
-	if action == "" && (key == "d" || key == "y") {
+	// k9s's d (describe) and y (yaml), and i (inspect), open what o opens
+	// here, in any view that does not bind them itself (#3).
+	if action == "" && (key == "d" || key == "y" || key == "i") {
 		return v.HandleKey("o")
 	}
 	return action, param
