@@ -25,6 +25,8 @@ fails when the tag has none.
   rootless daemon, where it cannot work. Colima and Podman rows keep
   their ssh.
 
+## [0.0.11] - 2026-10-04
+
 ### Fixed
 
 - The table's border is k9s's `frame.border.focusColor` (light sky blue)
@@ -196,7 +198,8 @@ machines under the daemon — Colima, Podman, Docker Desktop, Rancher Desktop,
 OrbStack — managed from the runtimes view. Archives are cosign-signed and
 the formula is in `blairham/homebrew-tap`.
 
-[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.10...HEAD
+[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.11...HEAD
+[0.0.11]: https://github.com/blairham/dockmaster/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/blairham/dockmaster/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/blairham/dockmaster/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/blairham/dockmaster/compare/v0.0.7...v0.0.8
