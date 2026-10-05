@@ -109,7 +109,7 @@ Every `:` command, its other spellings, and each view's keys are in **[docs/comm
 - Tools: `:xray` (projects → services → containers → what they use, as a tree), `:lint` (each container's risky settings), `:dir` (bring a project up from its compose file, or `ctrl-d` take it down), `:sd` (what `ctrl-s` saved), `:ctx` (switch docker context; `ctrl-d` removes one).
 - `:pull <ref>`, `:prune` / `:prune all` / `:prune cache`, `:readonly`, `:q`.
 - `:hostshell` opens a **root** shell on the daemon's host — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged `nsenter` helper (`hostShell.image`, default `alpine:3`, pulled if missing). It always confirms and `--readonly` refuses it: see [`docs/design/host-shell.md`](docs/design/host-shell.md).
-- `v` on an image scans it for vulnerabilities with `grype` or `trivy`.
+- `v` on an image scans it for vulnerabilities with `grype` or `trivy`. The result is cached by image ID, and with `imageScans.enable` a `VULN` column in images and containers summarizes each image's last scan (`C2 H5`); `imageScans.background` scans the rest, one at a time, while the images view is open.
 
 Your own `:` names go in `aliases.yaml`, your own keys in `hotkeys.yaml`, your own commands on the selected row in `plugins.yaml` (with `inputs` and `pipes`), and each view's columns in `views.yaml` — including columns of your own read from a label or a field, as in `SVC:.Labels.com\.docker\.compose\.service` — all in k9s's formats: see [`docs/design/config.md`](docs/design/config.md). `-c` starts on any command or alias, and `dockmaster info` shows where everything lives.
 

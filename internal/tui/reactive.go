@@ -145,6 +145,7 @@ func (a *App) applyReload(m reloadedMsg) {
 	th := n.themeFor(a.globalTheme, ctxName)
 	style.SetBase(th)
 	a.buildChrome(th, headless, crumbsless)
+	a.applyImageScans(n.ImageScans)
 	a.applyColumnLayouts(n.ColumnLayouts)
 	a.resizeActiveView()
 	a.applied = n

@@ -94,7 +94,7 @@ func TestExprColumnValidate(t *testing.T) {
 		},
 		{
 			entries: map[string]config.ViewColumns{"containers": {Columns: []string{"X:.Image"}, SortColumn: "Y"}},
-			want:    `sortColumn "Y": unknown column "Y" (columns are NAME, IMAGE, STATE, HEALTH, CPU%, MEM, PORTS, AGE, ID, COMMAND, NETWORKS, IP, X)`,
+			want:    `sortColumn "Y": unknown column "Y" (columns are NAME, IMAGE, VULN, STATE, HEALTH, CPU%, MEM, PORTS, AGE, ID, COMMAND, NETWORKS, IP, X)`,
 		},
 	} {
 		if _, err := ColumnLayouts(tc.entries); err == nil || !strings.Contains(err.Error(), tc.want) {

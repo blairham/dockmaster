@@ -60,6 +60,15 @@ fails when the tag has none.
   rootless daemon, where it cannot work. Colima and Podman rows keep
   their ssh.
 
+- A `VULN` column in the images and containers views: each image's last
+  vulnerability scan, by severity (`C2 H5`, with medium and low when there
+  is room), read from a cache of scan results kept by image ID under the
+  state directory (`scans/`). Every `v` scan is cached; a result older than
+  `imageScans.ttl` (a week) is marked with a trailing `~`, and sorting on
+  the column orders by severity. Off by default — `imageScans.enable` turns
+  it on, or `views.yaml` can name `VULN` — and `imageScans.background` scans
+  images with no fresh result one at a time while the images view is open.
+
 ### Changed
 
 - `ctrl-a` is now a dockmaster key: a hotkey or plugin on `Ctrl-A` is

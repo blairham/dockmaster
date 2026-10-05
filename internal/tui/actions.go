@@ -172,7 +172,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		))
 		return a, nil
 	case "scan_image":
-		a.setView(style.ViewScan, views.NewScanView(param, a.dockerHostArg()))
+		sv := views.NewScanView(param, a.dockerHostArg())
+		sv.SetImageID(a.scanImageID(param))
+		a.setView(style.ViewScan, sv)
 		a.pushView(style.ViewScan)
 		return a, a.viewMap[style.ViewScan].Init()
 	case "vuln_detail":

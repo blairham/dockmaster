@@ -126,7 +126,7 @@ type ContainersView struct {
 // `docker ps -a` mode; statsOn enables the background CPU/MEM poll.
 func NewContainersView(client *docker.Client, showAll, statsOn bool) *ContainersView {
 	t := table.New(
-		table.WithColumns(containerColumns(false)),
+		table.WithColumns(vulnColumns("containers", containerColumns(false))),
 		table.WithFocused(true),
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
@@ -150,6 +150,7 @@ func containerColumns(wide bool) []table.Column {
 		return []table.Column{
 			{Title: "NAME", Width: 28},
 			{Title: "IMAGE", Width: 30},
+			{Title: VulnTitle, Width: vulnWidth},
 			{Title: "STATE", Width: 10},
 			{Title: "HEALTH", Width: 9},
 			{Title: "CPU%", Width: 7},
@@ -162,6 +163,7 @@ func containerColumns(wide bool) []table.Column {
 		{Title: "NAME", Width: 28},
 		{Title: "ID", Width: 12},
 		{Title: "IMAGE", Width: 30},
+		{Title: VulnTitle, Width: vulnWidth},
 		{Title: "COMMAND", Width: 24},
 		{Title: "STATE", Width: 10},
 		{Title: "HEALTH", Width: 9},
@@ -606,16 +608,16 @@ func (v *ContainersView) rebuildRows() {
 		state := style.StateStyle(c.State).Render(c.State)
 		healthCell := style.HealthStyle(c.Health).Render(health)
 		if v.wide {
-			rows = append(rows, table.Row{
+			rows = append(rows, withVuln(v.layoutKey, table.Row{
 				containerName(c), c.Short(), truncate(c.Image, 30), truncate(c.Command, 40),
 				state, healthCell, cpu, mem, truncate(c.Ports, 22),
 				truncate(c.Network, 24), c.IP, c.Age(),
-			})
+			}, 3, c.ImageID))
 		} else {
-			rows = append(rows, table.Row{
+			rows = append(rows, withVuln(v.layoutKey, table.Row{
 				containerName(c), truncate(c.Image, 30), state, healthCell,
 				cpu, mem, truncate(c.Ports, 22), c.Age(),
-			})
+			}, 2, c.ImageID))
 		}
 		v.visible = append(v.visible, c)
 	}
