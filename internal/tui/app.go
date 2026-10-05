@@ -151,9 +151,9 @@ type App struct {
 	commandBar      *chrome.CommandBar
 	filterBar       *chrome.FilterBar
 	prompt          *chrome.Prompt
-	confirm         *chrome.Confirm
+	confirm         *chrome.Modal
 	promptDispatch  chrome.Dispatch
-	confirmDispatch chrome.ConfirmDispatch
+	confirmDispatch chrome.ModalDispatch
 	filter          string
 	errFlash        string
 	flash           string
@@ -504,7 +504,7 @@ func (a *App) buildChrome(t theme.Theme, headless, crumbsless bool) {
 	a.chrome = chrome.New(cfg)
 	a.chrome.HeaderHidden, a.chrome.CrumbsHidden = headless, crumbsless
 	a.prompt = chrome.NewPrompt(t, chrome.PromptOpts{CharLimit: 256})
-	a.confirm = chrome.NewConfirm(t)
+	a.confirm = chrome.NewModal(t)
 	a.loader = loading.New(t, loadingTips)
 }
 

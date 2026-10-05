@@ -80,7 +80,7 @@ func (a *App) runtimeHostShell(p engines.Provider, m engines.Machine) {
 	a.openHostShellConfirm(runtimeLabel(p, m.Name), []string{"--host", m.Host})
 }
 
-// openHostShellConfirm parks the host shell behind the y/n bar. The image
+// openHostShellConfirm parks the host shell behind the confirm dialog. The image
 // and the endpoint are fixed now, so a reload while the bar is up cannot
 // change what yes runs from what the question named.
 func (a *App) openHostShellConfirm(label string, endpoint []string) {

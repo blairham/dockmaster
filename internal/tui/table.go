@@ -168,7 +168,7 @@ func (a *App) bulkKey(key string) (tea.Cmd, bool) {
 			m.ClearMarks()
 			return "", tea.Batch(cmds...)
 		}
-		a.confirm.Open(fmt.Sprintf("%s %d %ss: %s?%s", verb, len(acts), c.noun, labels(acts), note))
+		a.ask(confirmTitle(c.run), fmt.Sprintf("%s %d %ss: %s?%s", verb, len(acts), c.noun, labels(acts), note))
 		return nil, true
 	}
 

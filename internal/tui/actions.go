@@ -14,6 +14,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/blairham/tuikit/chrome"
 
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
@@ -667,8 +668,8 @@ func (a *App) handleActionDone(msg actionDoneMsg) (tea.Model, tea.Cmd) {
 	return a, a.refreshActiveView()
 }
 
-// openConfirm parks a destructive action behind the y/n bar. It returns
-// nothing: the confirm widget surfaces no focus command, and the real work
+// openConfirm parks a destructive action behind the confirm dialog. It
+// returns nothing: the dialog surfaces no focus command, and the real work
 // happens later in the dispatch closure.
 func (a *App) openConfirm(action, param, question string) {
 	pa := pendingAction{action: action, param: param}
@@ -678,7 +679,49 @@ func (a *App) openConfirm(action, param, question string) {
 		}
 		return "", a.executeConfirmed(pa)
 	}
-	a.confirm.Open(question)
+	a.ask(confirmTitle(action), question)
+}
+
+// ask opens the confirm dialog — k9s's popup over the table, focus on
+// Cancel so a stray enter never runs the action; y answers yes directly.
+// a.confirmDispatch must already be set.
+func (a *App) ask(title, question string) {
+	a.confirm.Open(question, chrome.ModalOpts{Title: title})
+}
+
+// confirmTitle names the dialog for an action, the way k9s heads its own
+// with <Delete> or <Kill>.
+func confirmTitle(action string) string {
+	switch action {
+	case "kill":
+		return "Kill"
+	case "host_shell":
+		return "Host Shell"
+	case "compose_down", "compose_down_file":
+		return "Compose Down"
+	case "compose_scale":
+		return "Scale"
+	case "runtime_k8s":
+		return "Kubernetes"
+	case "stop_forward":
+		return "Stop Forward"
+	case "stop_project":
+		return "Stop"
+	case "remove_dump":
+		return "Delete"
+	case "pod_rm", "node_remove":
+		return "Remove"
+	}
+	switch {
+	case strings.HasPrefix(action, "prune"):
+		return "Prune"
+	case strings.HasPrefix(action, "remove"):
+		return "Remove"
+	case action == "runtime_stop", action == "runtime_restart", action == "runtime_delete":
+		v := strings.TrimPrefix(action, "runtime_")
+		return strings.ToUpper(v[:1]) + v[1:]
+	}
+	return "Confirm"
 }
 
 // executeConfirmed runs an action the user just approved.

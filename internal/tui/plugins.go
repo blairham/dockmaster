@@ -374,7 +374,7 @@ func (a *App) launchPlugin(p Plugin, vars map[string]string) tea.Cmd {
 	for _, pipe := range p.Pipes {
 		line += " | " + strings.Join(pipe, " ")
 	}
-	a.confirm.Open(fmt.Sprintf("run %s? %s", p.Desc, line))
+	a.ask("Run", fmt.Sprintf("run %s? %s", p.Desc, line))
 	return nil
 }
 

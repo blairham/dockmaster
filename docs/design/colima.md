@@ -29,7 +29,7 @@ Two shapes of colima's output are load-bearing:
   vm: …` rather than a timestamp.
 
 `colima delete` is called with `--force`: colima's own y/n prompt has no
-terminal to ask on and would hang until the timeout. dockmaster's confirm bar is
+terminal to ask on and would hang until the timeout. dockmaster's confirm dialog is
 the prompt.
 
 ## Profile ↔ endpoint

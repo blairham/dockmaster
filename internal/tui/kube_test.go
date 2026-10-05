@@ -108,8 +108,8 @@ func TestKubeStopsAndStartsAnExistingCluster(t *testing.T) {
 		t.Fatalf("K8S column: %q", defaultRow(a))
 	}
 	step(a, key("K"))
-	if !strings.Contains(render(a), "stop kind k8s in colima default? its pods stop, and kind-registry with it") {
-		t.Fatalf("K on a running cluster:\n%s", render(a))
+	if !strings.Contains(a.confirm.Prompt(), "stop kind k8s in colima default? its pods stop, and kind-registry with it") {
+		t.Fatalf("K on a running cluster: %q", a.confirm.Prompt())
 	}
 	runCmd(a, step(a, key("y")))
 	if strings.Join(ops.calls, "|") != "running k8s off k8s-control-plane,k8s-worker|registry-running kind-registry off" {
@@ -218,8 +218,8 @@ func TestKubeKeepsASharedRegistry(t *testing.T) {
 	}
 	a, _, ops, _ := kubeHarness(t, []docker.Cluster{cluster("k8s"), cluster("other")}, nil)
 	step(a, key("K"))
-	if !strings.Contains(render(a), "kind-registry stays — kind other uses it") {
-		t.Fatalf("K with a second cluster:\n%s", render(a))
+	if !strings.Contains(a.confirm.Prompt(), "kind-registry stays — kind other uses it") {
+		t.Fatalf("K with a second cluster: %q", a.confirm.Prompt())
 	}
 	runCmd(a, step(a, key("y")))
 	for _, c := range ops.calls {

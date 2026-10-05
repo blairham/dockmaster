@@ -26,7 +26,7 @@ decide a review:
 - **Views never mutate.** A view's `HandleKey` returns an `(action, param)`
   pair and `App.handleAction` carries it out. A new action that changes
   daemon state goes in the `mutating` map, which is all `--readonly` checks.
-- **Every destructive action asks first**, through the confirm bar.
+- **Every destructive action asks first**, through the confirm dialog.
 - **`internal/docker`, `internal/colima` and `internal/engines` do not import
   Bubble Tea.** They return values and errors, which is what lets them be
   tested without the TUI.
