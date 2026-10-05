@@ -289,6 +289,25 @@ func (a *App) composeFileUp(file string) tea.Cmd {
 	}
 }
 
+// composeFileDown runs `docker compose -f file down` for a file found
+// with :dir, after the confirm: the project the file describes, named by
+// compose from the file or its directory as `up` named it.
+func (a *App) composeFileDown(file string) tea.Cmd {
+	c, err := a.newCompose()
+	if err != nil {
+		a.errFlash = err.Error()
+		return nil
+	}
+	name := filepath.Base(filepath.Dir(file)) + "/" + filepath.Base(file)
+	a.flash = "taking down " + name + "…"
+	p := fileProject(file)
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), composeTimeout)
+		defer cancel()
+		return composeDoneMsg{project: name, verb: "took down", err: c.Down(ctx, p)}
+	}
+}
+
 // composeFileEdit opens a compose file found with :dir in the user's editor
 // and, when it comes back changed, brings it up — composeEdit for a project
 // that may not have run yet.

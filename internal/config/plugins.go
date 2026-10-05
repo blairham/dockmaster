@@ -20,8 +20,9 @@ import (
 const PluginsFileName = "plugins.yaml"
 
 // Plugin is one entry under plugins:, in k9s's shape. Whether its inputs
-// and pipes make sense is the UI's to say (tui.Plugins). OverwriteOutput
-// has no effect — dockmaster does not capture a plugin's output.
+// and pipes make sense is the UI's to say (tui.Plugins). OverwriteOutput,
+// as k9s's, shows a background plugin's first line of output in place of
+// the "done" flash.
 type Plugin struct {
 	Confirm         *bool         `yaml:"confirm"`
 	ShortCut        string        `yaml:"shortCut"`

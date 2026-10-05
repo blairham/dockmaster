@@ -20,5 +20,6 @@ Current design notes:
 - [`design/runtimes.md`](design/runtimes.md) — the runtimes view: Colima, Podman, Docker Desktop, Rancher Desktop, OrbStack behind one interface.
 - [`design/colima.md`](design/colima.md) — managing the Colima VMs under the daemon, and starting dockmaster when one is down.
 - [`design/config.md`](design/config.md) — config.yaml: the k9s-shaped schema, where it lives, and flag precedence.
+- [`design/host-shell.md`](design/host-shell.md) — a root shell on the daemon's host through a privileged nsenter helper, and its readonly and confirm gates.
 - [`design/volume-browser.md`](design/volume-browser.md) — browsing a volume's files through a read-only helper container.
 - [`design/kubernetes-nodes.md`](design/kubernetes-nodes.md) — kind/k3d nodes: listing the pods' containers inside a node with crictl.

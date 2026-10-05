@@ -4,6 +4,8 @@
 package tui
 
 import (
+	"slices"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/viewfsm"
 
@@ -14,8 +16,30 @@ import (
 // switchView jumps to a top-level view, clearing the drill stack. Used by
 // the digit hotkeys and the `:` palette.
 func (a *App) switchView(v style.ViewType) tea.Cmd {
+	if a.keepStack && v != a.view && !slices.Contains(a.viewStack, v) {
+		return a.pushTopView(v)
+	}
 	a.history.Visit(viewfsm.ViewID(v))
 	return a.showView(v)
+}
+
+// pushTopView opens a top-level view on top of the one showing, as a
+// drill-in is, for a hotkey with keepHistory (k9s's): esc comes back to
+// where it was pressed. A view already on the stack is switched to
+// instead — one view has one instance, and leaving the copy on top would
+// stop the one underneath.
+func (a *App) pushTopView(v style.ViewType) tea.Cmd {
+	a.history.Visit(viewfsm.ViewID(v))
+	a.setFullscreen(false)
+	a.pushView(v)
+	a.setActiveFilter("")
+	if pv := typedView[*views.PulsesView](a, style.ViewPulses); pv != nil && v == style.ViewPulses {
+		pv.SetStatsEnabled(a.statsOn)
+	}
+	if av := a.activeView(); av != nil {
+		return av.Refresh()
+	}
+	return nil
 }
 
 // showView is switchView without recording a history visit, for the

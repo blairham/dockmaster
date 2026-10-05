@@ -335,6 +335,7 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.LogFullscreen = cfg.UI.DefaultsToFullScreen
 	o.NoMouse = !cfg.UI.EnableMouse
 	o.Shell = cfg.Shell
+	o.HostShellImage = cfg.HostShell.Image
 }
 
 // settings is everything read from the config directory: config.yaml with

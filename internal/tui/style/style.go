@@ -199,6 +199,7 @@ const (
 	ViewPulses
 	ViewPluginForm
 	ViewScaleForm
+	ViewAliases
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -262,6 +263,8 @@ func ViewName(v ViewType) string {
 		return "Plugin"
 	case ViewScaleForm:
 		return "Scale"
+	case ViewAliases:
+		return "Aliases"
 	default:
 		return "Unknown"
 	}
@@ -321,6 +324,8 @@ func ViewResource(v ViewType) string {
 		return "node"
 	case ViewPulses:
 		return "pulse"
+	case ViewAliases:
+		return "aliase"
 	default:
 		return ""
 	}

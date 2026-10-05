@@ -181,7 +181,7 @@ func (v *DirView) Selected() (DirEntry, bool) {
 
 // HandleKey maps a keystroke to an app action: enter opens a directory in
 // place or shows a file; u and e bring a compose file's project up, e after
-// editing it.
+// editing it, and ctrl+d takes it down (the app confirms first).
 func (v *DirView) HandleKey(key string) (string, string) {
 	e, ok := v.Selected()
 	if !ok {
@@ -194,14 +194,17 @@ func (v *DirView) HandleKey(key string) (string, string) {
 			return "dir_open", p
 		}
 		return "dir_file", p
-	case "u", "e":
+	case "u", "e", "ctrl+d":
 		if e.Dir || !IsComposeFile(e.Name) {
 			return "not_compose", e.Name
 		}
-		if key == "u" {
+		switch key {
+		case "u":
 			return "compose_up_file", p
+		case "e":
+			return "compose_edit_file", p
 		}
-		return "compose_edit_file", p
+		return "confirm_compose_down_file", p
 	}
 	return "", ""
 }

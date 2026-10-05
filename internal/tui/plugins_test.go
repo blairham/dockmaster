@@ -205,3 +205,41 @@ func TestPluginGuards(t *testing.T) {
 		t.Errorf("view moved to %v", a.view)
 	}
 }
+
+// TestPluginOverwriteOutput: k9s's overwriteOutput shows a background
+// plugin's first line of output in place of "done" — stdout only, cleaned
+// of escapes — and a plugin that printed nothing, or one without the
+// option, says "done".
+func TestPluginOverwriteOutput(t *testing.T) {
+	dir := t.TempDir()
+	script := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("#!/bin/sh\n"+body+"\n"), 0o700); err != nil { //nolint:gosec // a test script
+			t.Fatal(err)
+		}
+		return p
+	}
+	says := script("says", `echo "warn" >&2; echo; printf '\033[31mscaled\033[0m web to 3\tok\n'; echo second`)
+	quiet := script("quiet", "echo only-stderr >&2")
+	for _, tc := range []struct {
+		name, command, want string
+		overwrite           bool
+	}{
+		{name: "overwrite", command: says, overwrite: true, want: "scaled web to 3 ok"},
+		{name: "without", command: says, want: "plugin p done"},
+		{name: "nothing printed", command: quiet, overwrite: true, want: "plugin p done"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := pluginApp(t, Options{}, map[string]config.Plugin{
+				"p": {
+					ShortCut: "F5", Scopes: []string{"all"}, Command: tc.command,
+					Background: true, OverwriteOutput: tc.overwrite,
+				},
+			})
+			runOnce(a, step(a, tea.KeyPressMsg{Code: tea.KeyF5}))
+			if a.flash != tc.want || a.errFlash != "" {
+				t.Errorf("flash %q, err %q, want %q", a.flash, a.errFlash, tc.want)
+			}
+		})
+	}
+}

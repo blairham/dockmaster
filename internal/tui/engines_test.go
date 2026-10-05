@@ -121,8 +121,8 @@ func TestEachRuntimeGetsItsOwnVerbs(t *testing.T) {
 }
 
 // TestSingleEngineRefusesWhatItCannotDo: an app-managed engine has no
-// machines to delete, resize, shell into or create, and says so by name
-// instead of running anything.
+// machines to delete, resize or create, and says so by name instead of
+// running anything. (s opens the host shell there: hostshell_test.go.)
 func TestSingleEngineRefusesWhatItCannotDo(t *testing.T) {
 	a, f := newEnginesApp(t)
 	step(a, tea.KeyPressMsg{Code: tea.KeyDown}) // docker-desktop
@@ -130,7 +130,6 @@ func TestSingleEngineRefusesWhatItCannotDo(t *testing.T) {
 	for k, want := range map[string]string{
 		"ctrl+d": "docker-desktop cannot delete machines",
 		"e":      "docker-desktop cannot change resources",
-		"s":      "docker-desktop cannot open a shell",
 	} {
 		a.errFlash = ""
 		runCmd(a, step(a, key(k)))

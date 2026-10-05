@@ -58,12 +58,16 @@ var mutating = map[string]bool{
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
-	"node_shell": true, "confirm_node_remove": true,
+	// confirm_host_shell is a root shell on the daemon's host; its confirmed
+	// run re-checks readonly itself, since a reload can turn it on meanwhile.
+	"node_shell": true, "confirm_node_remove": true, "confirm_host_shell": true,
 	"run_image": true, "run_create": true, "copy_into": true,
 	"confirm_runtime_k8s": true, "edit_form": true, "edit_apply": true,
 	// Not daemon state, but a delete all the same: readonly means hands off.
 	"confirm_remove_dump": true,
-	"compose_up_file":     true, "compose_edit_file": true,
+	"compose_up_file":     true, "compose_edit_file": true, "confirm_compose_down_file": true,
+	// The context store, not the daemon — but a removal all the same.
+	"confirm_remove_context": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -140,6 +144,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.viewMap[style.ViewXray].Init()
 	case "xray_nav":
 		return a, nil
+	case "run_command":
+		return a, a.runCommand(param)
+	case "palette":
+		cmd := a.commandBar.OpenWith(param)
+		a.resizeActiveView()
+		return a, cmd
 	case "dir":
 		a.setView(style.ViewDir, views.NewDirView(param))
 		a.pushView(style.ViewDir)
@@ -158,6 +168,11 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.composeFileUp(param)
 	case "compose_edit_file":
 		return a, a.composeFileEdit(param)
+	case "confirm_compose_down_file":
+		a.openConfirm("compose_down_file", param, fmt.Sprintf(
+			"compose down %s? its containers and networks are removed — volumes are kept", param,
+		))
+		return a, nil
 	case "scan_image":
 		a.setView(style.ViewScan, views.NewScanView(param, a.dockerHostArg()))
 		a.pushView(style.ViewScan)
@@ -221,6 +236,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		name, host, _ := strings.Cut(param, "\x00")
 		a.flash = "connecting to " + name + "..."
 		return a, doSwitchContext(name, host)
+	case "confirm_remove_context":
+		a.confirmRemoveContext(param)
+		return a, nil
 
 	// ---- view toggles ---------------------------------------------------
 
@@ -535,6 +553,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, a.runtimeConnect(param)
 	case "runtime_shell":
 		return a, a.runtimeShell(param)
+	case "confirm_host_shell":
+		a.confirmHostShell()
+		return a, nil
 	case "runtime_start":
 		return a, a.runtimeStart(param)
 	case "runtime_inspect":
@@ -736,6 +757,10 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 		})
 	case "compose_down":
 		return a.composeDown(pa.param)
+	case "compose_down_file":
+		return a.composeFileDown(pa.param)
+	case "remove_context":
+		return a.removeContext(pa.param)
 	case "compose_scale":
 		sp, err := views.DecodeScaleSpec(pa.param)
 		if err != nil {
@@ -743,6 +768,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 			return nil
 		}
 		return a.composeScale(sp)
+	case "host_shell":
+		return a.hostShell(pa.param)
 	case "runtime_stop", "runtime_restart", "runtime_delete":
 		return a.runtimeConfirmed(strings.TrimPrefix(pa.action, "runtime_"), pa.param)
 	case "runtime_apply":
@@ -1004,4 +1031,41 @@ func splitUsedBy(p string) (kind, key, name string) {
 	kind, rest, _ := strings.Cut(p, "\x00")
 	key, name, _ = strings.Cut(rest, "\x00")
 	return kind, key, name
+}
+
+// confirmRemoveContext asks before `docker context rm`, refusing first the
+// contexts that must not go: docker's built-in default, the one dockmaster
+// is connected through, and the CLI's current one, which the CLI itself
+// refuses without -f.
+func (a *App) confirmRemoveContext(name string) {
+	switch {
+	case name == "default":
+		a.errFlash = "default is docker's built-in context — it cannot be removed"
+		return
+	case a.client != nil && a.client.ContextName == name:
+		a.errFlash = "dockmaster is connected through " + name + " — switch to another context before removing it"
+		return
+	}
+	for _, c := range docker.Contexts() {
+		if c.Name == name && c.Current {
+			a.errFlash = name + " is the docker CLI's current context — `docker context use` another before removing it"
+			return
+		}
+	}
+	a.openConfirm("remove_context", name, fmt.Sprintf(
+		"remove docker context %s? its endpoint and TLS files leave the context store", name,
+	))
+}
+
+// removeContext runs `docker context rm` in the background and refreshes
+// the contexts view after, whichever view is showing by then.
+func (a *App) removeContext(name string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+		defer cancel()
+		return actionDoneMsg{
+			verb: "removed context", subject: name, err: docker.RemoveContext(ctx, name),
+			refresh: style.ViewContexts, hasRefresh: true,
+		}
+	}
 }
