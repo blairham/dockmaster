@@ -194,6 +194,7 @@ func run() error {
 	opts.Notice = notice
 	opts.HistoryFile = historyFile()
 	opts.ContextStateFile = stateFile("contexts.json")
+	opts.ScanCacheDir = stateFile("scans")
 	opts.CommandFromFlag = flagSet["c"] || flagSet["command"]
 	opts.Logger = logger
 	if cfg.UI.Reactive {
@@ -444,6 +445,9 @@ func settingsOptions(st settings) tui.Options {
 		Plugins:       st.plugins,
 		ColumnLayouts: st.columns,
 		Thresholds:    tui.ThresholdsFrom(cfg.Thresholds),
+		ImageScans: tui.ImageScans{
+			Enable: cfg.ImageScans.Enable, Background: cfg.ImageScans.Background, TTL: cfg.ImageScans.TTL,
+		},
 	}
 	behaviorOptions(cfg, &o)
 	o.ForceReadOnly = st.forceReadOnly

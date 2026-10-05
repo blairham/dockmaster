@@ -71,6 +71,7 @@ func (a *App) showView(v style.ViewType) tea.Cmd {
 
 // pushView drills into a view, remembering where we came from.
 func (a *App) pushView(v style.ViewType) {
+	a.stopImageScan()
 	a.viewStack = append(a.viewStack, a.view)
 	a.view = v
 	a.showHelp = false

@@ -83,6 +83,7 @@ type Config struct {
 	Context        string                     `yaml:"context"`
 	Logger         Logger                     `yaml:"logger"`
 	Thresholds     Thresholds                 `yaml:"thresholds"`
+	ImageScans     ImageScans                 `yaml:"imageScans"`
 	RequestTimeout time.Duration              `yaml:"requestTimeout"`
 	RefreshRate    int                        `yaml:"refreshRate"`
 	UI             UI                         `yaml:"ui"`
@@ -189,6 +190,25 @@ type Threshold struct {
 	Critical int `yaml:"critical"`
 }
 
+// ImageScans is the vulnerability summary (#63), after k9s's `imageScans:`
+// block. Scans are expensive, so everything here is opt-in.
+//
+//   - Enable shows the VULN column in the images and containers views,
+//     from the scans cached under the state directory. `v` caches its
+//     result whatever this says.
+//   - Background scans the images with no fresh result, one at a time,
+//     while the images view is open; it needs Enable.
+//   - TTL is how long a cached result is fresh; an older one is marked
+//     stale (a trailing ~) and is scanned again in the background.
+type ImageScans struct {
+	TTL        time.Duration `yaml:"ttl"`
+	Enable     bool          `yaml:"enable"`
+	Background bool          `yaml:"background"`
+}
+
+// DefaultScanTTL is imageScans.ttl's default: a week.
+const DefaultScanTTL = 7 * 24 * time.Hour
+
 // Logger is the logs view, as k9s's `logger:` block.
 type Logger struct {
 	// Tail is how many lines of backlog a log view opens with.
@@ -230,6 +250,7 @@ func Default() Config {
 		Contexts:           map[string]ContextSettings{},
 		Logger:             Logger{Tail: DefaultLogTail, Buffer: DefaultLogBuffer, SinceSeconds: DefaultLogSince},
 		UI:                 UI{EnableMouse: true},
+		ImageScans:         ImageScans{TTL: DefaultScanTTL},
 		HostShell:          HostShell{Image: DefaultHostShellImage},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
@@ -325,6 +346,12 @@ func (c Config) Validate() error {
 		errs = append(errs, err.Error())
 	}
 	errs = append(errs, c.validateContexts()...)
+	if c.ImageScans.TTL < time.Minute {
+		errs = append(errs, fmt.Sprintf("imageScans.ttl must be at least 1m, got %v", c.ImageScans.TTL))
+	}
+	if c.ImageScans.Background && !c.ImageScans.Enable {
+		errs = append(errs, "imageScans.background needs imageScans.enable: true — its results show only in the VULN column")
+	}
 	if img := c.HostShell.Image; strings.TrimSpace(img) == "" || strings.HasPrefix(img, "-") {
 		errs = append(errs, fmt.Sprintf("hostShell.image is an image name, not empty or a flag, got %q", img))
 	}
@@ -443,6 +470,19 @@ dockmaster:
   #       readOnly: true
   #       defaultView: containers
   contexts: {}
+  # The VULN column (images, containers): a summary of each image's last
+  # vulnerability scan (grype or trivy), cached by image ID under the state
+  # directory. v caches its result either way. Scans are expensive, so all
+  # of this is off by default.
+  imageScans:
+    # Show the VULN column — "C2 H5": critical, high, then medium and low
+    # when there is room. Empty for an image never scanned.
+    enable: false
+    # How long a scan stays fresh; an older one is marked with a trailing ~.
+    ttl: 168h
+    # Scan images with no fresh result, one at a time, while the images
+    # view is open. Needs enable.
+    background: false
   # CPU% and MEM turn orange at warn and red at critical (percent). CPU is
   # a share of the CPUs the container can use; memory of its limit, or of
   # the host's memory when it has none.

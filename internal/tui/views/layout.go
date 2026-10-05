@@ -115,13 +115,15 @@ func (s *tableSort) layoutFor() (ColumnLayout, bool) {
 }
 
 // source is the full column set the view's rows are built from: the set it
-// was last laid out with, or the one it opens with before it ever was.
+// was last laid out with, or the one it opens with before it ever was —
+// without VULN while the view does not show it (vuln.go), judged now, so a
+// reload that turns it on or off is followed.
 func (s *tableSort) source() []table.Column {
 	if s.src != nil {
-		return s.src
+		return vulnColumns(s.layoutKey, s.src)
 	}
 	if sets := columnSets[s.layoutKey]; len(sets) > 0 {
-		return sets[0]()
+		return vulnColumns(s.layoutKey, sets[0]())
 	}
 	return nil
 }
@@ -146,7 +148,12 @@ func (s *tableSort) shownExprs(titles []string) []ExprColumn {
 		return nil
 	}
 	sets := columnSets[s.layoutKey]
-	wide := len(sets) > 1 && !slices.Equal(titles, columnTitles(sets[0]()))
+	// VULN is left out of both sides: whether it is shown is not a mode.
+	notVuln := func(t string) bool { return t == VulnTitle }
+	wide := len(sets) > 1 && !slices.Equal(
+		slices.DeleteFunc(slices.Clone(titles), notVuln),
+		slices.DeleteFunc(columnTitles(sets[0]()), notVuln),
+	)
 	var out []ExprColumn
 	for _, e := range l.Exprs {
 		if !e.Wide || wide {
@@ -247,6 +254,7 @@ func projectRow(r table.Row, idx []int, ncols int) table.Row {
 // expression column's cells.
 func (s *tableSort) layout(cols []table.Column, width int) []table.Column {
 	s.src, s.width = cols, width
+	cols = vulnColumns(s.layoutKey, cols)
 	titles := s.titlesOf(cols)
 	idx := s.projection(titles)
 	if idx == nil {

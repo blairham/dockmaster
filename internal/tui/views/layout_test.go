@@ -15,7 +15,21 @@ import (
 // leave out the untitled marker column, which is always shown.
 func TestColumnTitles(t *testing.T) {
 	got, ok := ColumnTitles("containers")
-	want := []string{"NAME", "IMAGE", "STATE", "HEALTH", "CPU%", "MEM", "PORTS", "AGE", "ID", "COMMAND", "NETWORKS", "IP"}
+	want := []string{
+		"NAME",
+		"IMAGE",
+		"VULN",
+		"STATE",
+		"HEALTH",
+		"CPU%",
+		"MEM",
+		"PORTS",
+		"AGE",
+		"ID",
+		"COMMAND",
+		"NETWORKS",
+		"IP",
+	}
 	if !ok || !slices.Equal(got, want) {
 		t.Errorf("containers: %q %v", got, ok)
 	}

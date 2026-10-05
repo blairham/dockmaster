@@ -28,6 +28,7 @@ type ImagesRefreshMsg struct {
 type ImagesView struct {
 	tableMarks
 	tableSort
+	bg     bgScan
 	client *docker.Client
 	err    error
 
@@ -45,7 +46,7 @@ type ImagesView struct {
 // build layers (`docker images -a`).
 func NewImagesView(client *docker.Client, showAll bool) *ImagesView {
 	t := table.New(
-		table.WithColumns(imageColumns()),
+		table.WithColumns(vulnColumns("images", imageColumns())),
 		table.WithFocused(true),
 		table.WithStyles(tableStyles()),
 		table.WithKeyMap(tableKeyMap()),
@@ -64,6 +65,7 @@ func imageColumns() []table.Column {
 		{Title: "REPOSITORY", Width: 44},
 		{Title: "TAG", Width: 22},
 		{Title: "IMAGE ID", Width: 13},
+		{Title: VulnTitle, Width: vulnWidth},
 		{Title: "SIZE", Width: 10},
 		{Title: "USED BY", Width: 8},
 		{Title: "AGE", Width: 6},
@@ -93,6 +95,10 @@ func (v *ImagesView) Selected() (docker.Image, bool) {
 
 // Update folds the refresh message in.
 func (v *ImagesView) Update(msg tea.Msg) tea.Cmd {
+	if m, ok := msg.(ImageScanMsg); ok {
+		v.scanDone(m)
+		return nil
+	}
 	if m, ok := msg.(ImagesRefreshMsg); ok {
 		v.loading = false
 		v.inFlight = false
@@ -245,14 +251,14 @@ func (v *ImagesView) rebuildRows() {
 			used = style.Muted.Render("0")
 		}
 
-		rows = append(rows, table.Row{
+		rows = append(rows, withVuln(v.layoutKey, table.Row{
 			truncate(repo, 44),
 			truncate(tag, 22),
 			im.Short(),
 			docker.HumanSize(im.Size),
 			used,
 			im.Age(),
-		})
+		}, 3, im.ID))
 		v.visible = append(v.visible, im)
 	}
 	sortRows(&v.tableSort, rows, v.visible)
@@ -265,6 +271,17 @@ func (v *ImagesView) RefFor(id string) string {
 	for i := range v.all {
 		if v.all[i].ID == id || v.all[i].Ref() == id {
 			return v.all[i].Ref()
+		}
+	}
+	return ""
+}
+
+// IDFor resolves a repo:tag reference to its image's ID; "" when no
+// listed image has it.
+func (v *ImagesView) IDFor(ref string) string {
+	for i := range v.all {
+		if v.all[i].Ref() == ref {
+			return v.all[i].ID
 		}
 	}
 	return ""
