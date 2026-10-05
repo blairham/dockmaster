@@ -212,10 +212,16 @@ func (a *App) runtimeConnect(key string) tea.Cmd {
 }
 
 // runtimeShell opens a shell in a machine's VM, handing the terminal to the
-// runtime's CLI as a container shell hands it to docker's.
+// runtime's CLI as a container shell hands it to docker's. A single-engine
+// runtime has no ssh, so its row gets the host shell, after a confirm.
 func (a *App) runtimeShell(key string) tea.Cmd {
 	p, m, ok := a.runtimeTarget(key)
 	if !ok {
+		return nil
+	}
+	if p.Caps().Single {
+		// No VM of its own to ssh into: a root shell on the daemon's host.
+		a.runtimeHostShell(p, m)
 		return nil
 	}
 	argv := p.ShellCommand(m.Name)
@@ -238,7 +244,7 @@ func (a *App) runtimeShell(key string) tea.Cmd {
 		bin,
 		argv[1:]...,
 	) //nolint:gosec // runtime CLI; machine name from its own listing
-	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+	return a.inTerminal(cmd, func(err error) tea.Msg {
 		var exitErr *exec.ExitError
 		if err != nil && !errors.As(err, &exitErr) {
 			return execDoneMsg{err: fmt.Errorf("%s shell: %w", p.Name(), err)}

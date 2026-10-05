@@ -717,6 +717,7 @@ func commandsHelp() []chrome.HelpEntry {
 		{Key: "<:xray>", Desc: "Xray tree"},
 		{Key: "<:pu>", Desc: "Pulses"},
 		{Key: "<:pull>", Desc: "Pull an image"},
+		{Key: "<:hostshell>", Desc: "Host shell"},
 		{Key: "<:prune>", Desc: "Prune"},
 		{Key: "<:aliases>", Desc: "Your aliases"},
 		{Key: "<:readonly>", Desc: "Read-only mode"},
