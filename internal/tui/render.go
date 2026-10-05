@@ -718,30 +718,6 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	return panel
 }
 
-// commandsHelp is the `:` commands no key opens, listed under GENERAL
-// beside :cmd (a fifth column does not fit 120 columns, and GENERAL's key
-// column leaves a description 14 cells).
-// TestHelpCoversEveryCommand fails when a command is added to
-// knownCommands without a line here or a reason it needs none.
-func commandsHelp() []chrome.HelpEntry {
-	return []chrome.HelpEntry{
-		{Key: "<:ctx>", Desc: "Contexts"},
-		{Key: "<:pf>", Desc: "Port forwards"},
-		{Key: "<:df>", Desc: "Disk usage"},
-		{Key: "<:pods>", Desc: "Podman pods"},
-		{Key: "<:sd>", Desc: "Saved dumps"},
-		{Key: "<:lint>", Desc: "Container lint"},
-		{Key: "<:dir>", Desc: "Compose files"},
-		{Key: "<:xray>", Desc: "Xray tree"},
-		{Key: "<:pu>", Desc: "Pulses"},
-		{Key: "<:pull>", Desc: "Pull an image"},
-		{Key: "<:hostshell>", Desc: "Host shell"},
-		{Key: "<:prune>", Desc: "Prune"},
-		{Key: "<ctrl-a>", Desc: "Commands"},
-		{Key: "<:readonly>", Desc: "Read-only mode"},
-	}
-}
-
 // projectHelp is the PROJECT column: the projects view's keys.
 func projectHelp() chrome.HelpSection {
 	return chrome.HelpSection{
@@ -803,8 +779,11 @@ func generalHelp() chrome.HelpSection {
 		chrome.HelpEntry{Key: "<shift-↑/↓>", Desc: "Sort direction"},
 		chrome.HelpEntry{Key: "<:logo>", Desc: "Toggle logo"},
 		chrome.HelpEntry{Key: "<ctrl-c>", Desc: "Quit"},
+		// The : commands have their own list, every one with its
+		// spellings, and enter runs it: listing them here as well pushed
+		// help past the bottom of a 40-row terminal.
+		chrome.HelpEntry{Key: "<ctrl-a>", Desc: "Commands"},
 	)
-	g.Entries = append(g.Entries, commandsHelp()...)
 	return g
 }
 

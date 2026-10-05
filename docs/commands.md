@@ -2,7 +2,8 @@
 
 Everything dockmaster does from the keyboard: the `:` commands, what `-c`
 accepts, and each view's keys. In the app, `?` shows the keys for the view
-you are in.
+you are in, and `ctrl-a` lists every `:` command and alias and runs the one
+you pick.
 
 `TestCommandsDocCoversEveryCommand` fails when a `:` command, or any of its
 spellings, is missing here, so this page cannot fall behind the palette.
