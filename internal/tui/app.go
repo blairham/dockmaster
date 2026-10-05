@@ -128,6 +128,9 @@ type App struct {
 	thresholds    views.Thresholds
 	dumpDir       string
 	noExitOnCtrlC bool
+	// keepStack is set while a keepHistory hotkey runs its command: a
+	// view it switches to is pushed instead (switchView).
+	keepStack     bool
 	logWrap       bool
 	logPaused     bool
 	logFullscreen bool

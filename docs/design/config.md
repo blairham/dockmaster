@@ -302,7 +302,10 @@ aliases:
 Words typed after an alias go along (`:img /node`). A view command can carry
 a filter itself — `:containers /postgres` — which is what makes the first
 example work; the filter keeps its case. Aliases join the palette's
-suggestions, and `:aliases` lists them.
+suggestions. `ctrl-a` (or `:aliases`) opens k9s's aliases view: every `:`
+command with its other spellings, and your aliases first, marked `alias`
+with what each stands for; `enter` runs the selected row as if it were
+typed at the palette, and `/` and the sort keys work as in any table.
 
 Like `config.yaml`, the file is checked at startup and a mistake stops it,
 naming the alias: a name is one word that is not already a dockmaster
@@ -328,16 +331,23 @@ hotKeys:
 `shortCut` is spelled as k9s spells it — `Shift-0`, `Shift-A`, `Ctrl-U`,
 `Alt-X`, `F2`, or one character — and translated to what the terminal
 sends: Shift with a digit is that digit's symbol on a US layout (`Shift-0`
-is `)`), Shift with a letter is the capital. `keepHistory` is accepted for
-k9s's files and does nothing; every view switch is already in the history.
+is `)`), Shift with a letter is the capital.
+
+`keepHistory: true` is k9s's: the view the command opens goes on top of the
+one the hotkey was pressed in, as a drill-in does, so `esc` (or `q`) comes
+back to it. Without it a hotkey that names a view switches to it the way a
+digit does, and the view stack starts over. It changes only commands that
+switch top-level views (`:images`, `:pf`, an alias for one); `:xray`,
+`:lint`, `:ctx` and the like always open on top. A view already under the
+stack is switched to rather than stacked twice.
 
 A hotkey is asked after the view's own keys and before navigation, so in a
 view that binds the same key the view keeps it — a hotkey on `x` stops a
 container in the containers view and opens its command elsewhere — unless
 it sets `override: true`, as in k9s, which asks it before the view's keys
 (after an `override` plugin on the same key). Keys that
-could never reach it (`?`, `:`, `/`, the digits, `esc`, `q`, `r`, the
-chrome and table keys) or that would take navigation away (`j`/`k`, arrows,
+could never reach it (`?`, `:`, `/`, the digits, `esc`, `q`, `r`, `ctrl-a`,
+the chrome and table keys) or that would take navigation away (`j`/`k`, arrows,
 page keys) are refused at startup, as are a key taken twice and a command
 that does not resolve. Help lists hotkeys in a HOTKEYS column, the
 description or else the command.
@@ -380,7 +390,11 @@ runs nothing.
 
 - A plugin hands the terminal over, as `s` does; `background: true` runs it
   detached and flashes its outcome — the exit code and last line on
-  failure.
+  failure. With `overwriteOutput: true`, as in k9s, a background plugin
+  that succeeds shows the first non-blank line it printed to stdout in
+  place of "done", escapes and control characters removed; one that
+  printed nothing still says "done". A foreground plugin's output is on the
+  terminal already, so there the option changes nothing (k9s's neither).
 - `confirm: true` asks first, showing the command line (and its pipes).
   With `inputs` it defaults to true, as k9s's does; `confirm: false` turns
   it off.
@@ -453,8 +467,7 @@ pipe does not.
 
 The key parses, is not one dockmaster keeps and is not taken by a hotkey or
 by another plugin in a view they share; there is a command and at least one
-scope, and every scope is a view. `overwriteOutput` is accepted and does
-nothing, as dockmaster does not capture output.
+scope, and every scope is a view.
 
 Inputs are held to k9s's rules — no name twice, a `dropdown` default among
 its options, a `bool` default `true` or `false`, a `number` default that
@@ -517,6 +530,7 @@ regardless of case. The view keys, and the columns each can show:
 | `layers` | `enter` on an image | LAYER, SIZE, AGE, CREATED BY |
 | `files` | `enter` on a volume | NAME, SIZE, MODE, AGE |
 | `scan` | `v` on an image | SEVERITY, ID, PACKAGE, INSTALLED, FIXED IN, TITLE |
+| `aliases` | `ctrl-a`, `:aliases` | COMMAND, ALSO, KIND, DESCRIPTION |
 
 The contexts and runtimes views' unnamed marker column (the current
 context, the connected machine) is always shown, first. `top`'s columns are

@@ -24,6 +24,10 @@ type HotKey struct {
 	// Override puts the hotkey before the view's own keys (k9s's
 	// override); otherwise a view that binds the key keeps it.
 	Override bool
+	// KeepHistory is k9s's: a view the hotkey opens goes on top of the
+	// one it was pressed in, so esc comes back, rather than replacing the
+	// stack as a view switch does.
+	KeepHistory bool
 }
 
 // shiftedDigits is what a terminal sends for Shift and a digit on a US
@@ -36,7 +40,7 @@ const shiftedDigits = ")!@#$%^&*("
 var reservedKeys = map[string]bool{
 	"?": true, ":": true, "/": true, "esc": true, "enter": true, "tab": true, "shift+tab": true,
 	"q": true, "r": true, "[": true, "]": true, "-": true,
-	"ctrl+c": true, "ctrl+r": true, "ctrl+g": true, "ctrl+e": true, "ctrl+s": true,
+	"ctrl+a": true, "ctrl+c": true, "ctrl+r": true, "ctrl+g": true, "ctrl+e": true, "ctrl+s": true,
 	"space": true, "ctrl+space": true, "ctrl+\\": true,
 	"shift+left": true, "shift+right": true, "shift+up": true, "shift+down": true,
 	"j": true, "k": true, "h": true, "l": true, "g": true, "G": true, "ctrl+f": true, "ctrl+b": true,
@@ -129,7 +133,7 @@ func HotKeys(entries map[string]config.HotKey, aliases map[string]string) ([]Hot
 		}
 		out = append(out, HotKey{
 			Key: key, Label: "<" + strings.ToLower(e.ShortCut) + ">", Desc: desc, Command: e.Command,
-			Override: e.Override,
+			Override: e.Override, KeepHistory: e.KeepHistory,
 		})
 	}
 	if len(errs) > 0 {
@@ -145,7 +149,9 @@ func (a *App) hotKey(key string, override bool) (tea.Cmd, bool) {
 	for _, hk := range a.hotKeys {
 		if hk.Key == key && hk.Override == override {
 			a.logHotKey(hk)
+			a.keepStack = hk.KeepHistory
 			msg, cmd := a.dispatchCommand(hk.Command)
+			a.keepStack = false
 			if msg != "" {
 				a.errFlash = msg
 			}

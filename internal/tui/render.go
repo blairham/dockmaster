@@ -361,6 +361,12 @@ func (a *App) renderShortcuts(info []string) []string {
 	case style.ViewContexts:
 		actions = []chrome.Shortcut{
 			{Key: "<enter>", Desc: "Switch"},
+			{Key: "<ctrl-d>", Desc: "Remove"},
+			{Key: "<esc>", Desc: "Back"},
+		}
+	case style.ViewAliases:
+		actions = []chrome.Shortcut{
+			{Key: "<enter>", Desc: "Run"},
 			{Key: "<esc>", Desc: "Back"},
 		}
 	case style.ViewXray:
@@ -385,6 +391,7 @@ func (a *App) renderShortcuts(info []string) []string {
 			{Key: "<enter>", Desc: "Open"},
 			{Key: "<u>", Desc: "Compose up"},
 			{Key: "<e>", Desc: "Edit, then up"},
+			{Key: "<ctrl-d>", Desc: "Compose down"},
 			{Key: "<esc>", Desc: "Up/Back"},
 		}
 	case style.ViewScan:
@@ -720,7 +727,7 @@ func commandsHelp() []chrome.HelpEntry {
 		{Key: "<:pull>", Desc: "Pull an image"},
 		{Key: "<:hostshell>", Desc: "Host shell"},
 		{Key: "<:prune>", Desc: "Prune"},
-		{Key: "<:aliases>", Desc: "Your aliases"},
+		{Key: "<ctrl-a>", Desc: "Commands"},
 		{Key: "<:readonly>", Desc: "Read-only mode"},
 	}
 }
