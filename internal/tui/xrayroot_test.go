@@ -18,12 +18,12 @@ func rootContainers() []docker.Container {
 	return []docker.Container{
 		{
 			ID: "c1", Name: "shop-web-1", State: "running", Project: "shop", Service: "web",
-			Image: "nginx:1.27", ImageID: "sha256:aaaa", Volumes: []string{"pgdata"},
+			Image: "nginx:1.27", ImageID: "sha256:cccc", Volumes: []string{"pgdata"},
 			Endpoints: []docker.Endpoint{{Network: "shop_default", IP: "172.18.0.2"}, {Network: "edge"}},
 		},
 		{
 			ID: "c2", Name: "shop-web-2", State: "exited", Project: "shop", Service: "web",
-			Image: "nginx:1.27", ImageID: "sha256:aaaa", Volumes: []string{"pgdata"},
+			Image: "nginx:1.27", ImageID: "sha256:cccc", Volumes: []string{"pgdata"},
 			Endpoints: []docker.Endpoint{{Network: "shop_default"}},
 		},
 		{ID: "c3", Name: "registry", State: "running", Image: "registry:2", ImageID: "sha256:bbbb"},
@@ -107,9 +107,9 @@ func TestXrayRootNodesAct(t *testing.T) {
 		{word: "vol", node: "V:pgdata", keys: map[string]want{
 			"enter": {"browse_volume", "pgdata"}, "o": {"inspect_volume", "pgdata"}, "x": {},
 		}},
-		{word: "img", node: "I:sha256:aaaa", keys: map[string]want{
-			"enter": {"layers", "sha256:aaaa"}, "o": {"inspect_image", "sha256:aaaa"},
-			"v": {"scan_image", "sha256:aaaa"}, "u": {}, "s": {},
+		{word: "img", node: "I:sha256:cccc", keys: map[string]want{
+			"enter": {"layers", "sha256:cccc"}, "o": {"inspect_image", "sha256:cccc"},
+			"v": {"scan_image", "sha256:cccc"}, "u": {}, "s": {},
 		}},
 	} {
 		a, xv := openXrayRoot(t, tc.word)

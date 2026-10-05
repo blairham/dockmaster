@@ -122,9 +122,9 @@ func TestJumpThroughTheApp(t *testing.T) {
 	a := jumpApp(t, map[string]config.Jump{
 		"containers": {TargetView: "volumes", LabelSelector: "com.docker.compose.project=$PROJECT"},
 	})
-	out := render(a)
-	if !strings.Contains(out, "Jump volumes") || strings.Contains(out, "<enter>  Logs") {
-		t.Errorf("the header does not show the jump on enter:\n%s", out)
+	header := strings.Join(strings.Split(render(a), "\n")[:6], "\n")
+	if !strings.Contains(header, "Jump volumes") || strings.Contains(header, "Logs") {
+		t.Errorf("the header does not show the jump on enter in place of Logs:\n%s", header)
 	}
 	if c, _ := typedView[*views.ContainersView](a, style.ViewContainers).Selected(); c.Project != "shop" {
 		t.Fatalf("fixture: cursor on %q (%q)", c.Name, c.Project)
