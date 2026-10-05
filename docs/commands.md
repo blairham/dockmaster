@@ -93,11 +93,15 @@ These act on the row selected in the current view, as their keys do.
 - **Aliases**, in `aliases.yaml`, name any command line: `pg: containers /postgres`.
 - **Hotkeys**, in `hotkeys.yaml`, put a command on a key. `override: true`
   makes the hotkey win over the view's own key.
-- **Plugins**, in `plugins.yaml`, run your own programs on the selected row,
-  with `$NAME`, `$IMAGE` and so on, an input form (`inputs`) and pipelines
-  (`pipes`).
+- **Plugins**, in `plugins.yaml` and any `*.yaml` in `plugins/` beside it,
+  run your own programs on the selected row, with `$NAME`, `$IMAGE` and so
+  on, an input form (`inputs`) and pipelines (`pipes`).
+- **Jumps**, in `jumps.yaml`, make `enter` in a view open another view
+  filtered by the selected row: `enter` on a container opens its compose
+  project's volumes, say. Help shows a JUMP column, and the header's
+  `<enter>` says where it goes.
 
-All three use k9s's file format; see [design/config.md](design/config.md).
+All four use k9s's file format; see [design/config.md](design/config.md).
 
 ## Starting on a command
 
