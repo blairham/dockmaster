@@ -135,7 +135,7 @@ Keys every view shares:
 
 | Key | What it does | Key | What it does |
 |---|---|---|---|
-| `enter`, `l` | Logs | `o` | Inspect |
+| `enter`, `l` | Logs; `enter` on a ⎈ node opens its pods instead | `o` | Inspect |
 | `u` / `x` | Start / stop | `R` | Restart |
 | `K` | Kill, SIGKILL (confirms) | `p` | Pause / unpause |
 | `s` | Shell (config `shell`, then bash, then sh) | `A` | Attach to the main process (ctrl-c ends the attach, not the container) |
@@ -143,7 +143,7 @@ Keys every view shares:
 | `H` / `T` / `D` / `S` | Health / top / diff / stats | `C` | Copy files in or out, as `docker cp` |
 | `e` | Edit limits, restart policy, name | `v` | Scan its image for vulnerabilities |
 | `shift-f` | Port-forward | `b` | Open a published port in the browser |
-| `J` | Jump to its compose project | `n` | On a ⎈ kind/k3d node: the pods' containers inside it |
+| `J` | Jump to its compose project | `enter`, `n` | On a ⎈ kind/k3d node: the pods' containers inside it (`l` is still its logs) |
 | `a` | Show stopped | `t` | CPU/MEM poll on or off |
 | `ctrl-w` | Wide columns | `ctrl-z` | Faults only |
 | `ctrl-k` | Containers a runtime's built-in Kubernetes runs | | |

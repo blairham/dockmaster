@@ -393,9 +393,15 @@ func (v *ContainersView) HandleKey(key string) (string, string) {
 
 // keyFor is the action key asks for on one row.
 func (v *ContainersView) keyFor(key string, c docker.Container) (string, string) {
-	// A Kubernetes node's workloads are inside it, not in this daemon: n
-	// opens them (c is copy, as in k9s — #3). enter stays logs on every
-	// row, so the key for logs never depends on what is selected.
+	// A Kubernetes node's workloads are inside it, not in this daemon:
+	// enter drills into them, as enter on a node does in k9s, and n does
+	// too (c is copy, as in k9s — #3). l is logs on every row, a node's
+	// included.
+	if key == KeyEnter {
+		if _, node := docker.NodeRole(c); node {
+			return "node_containers", NodeParam(c.ID, "", c.Name)
+		}
+	}
 	if key == "n" {
 		if _, node := docker.NodeRole(c); node {
 			return "node_containers", NodeParam(c.ID, "", c.Name)

@@ -36,8 +36,9 @@ func rigContainers() []docker.NodeContainer {
 }
 
 // TestKindNodeDrillIn: a kind cluster's pods run in the node's own
-// containerd, so docker ps shows only the node. c on the node lists what
-// is inside it; enter is logs on every row, the node included.
+// containerd, so docker ps shows only the node. enter on the node, as in
+// k9s, and n list what is inside it; l is its logs, and enter on any other
+// row is still logs.
 func TestKindNodeDrillIn(t *testing.T) {
 	a := newTestApp(t)
 	step(a, views.ContainersRefreshMsg{Containers: kindNodes()})
@@ -46,9 +47,15 @@ func TestKindNodeDrillIn(t *testing.T) {
 		step(a, key("j"))
 	}
 
-	step(a, key("enter"))
+	// enter drills into a node, as in k9s; l is still its logs.
+	step(a, key("l"))
 	if a.view != style.ViewLogs {
-		t.Fatalf("enter on a kind node opened %v, want its logs", a.view)
+		t.Fatalf("l on a kind node opened %v, want its logs", a.view)
+	}
+	step(a, key("esc"))
+	step(a, key("enter"))
+	if a.view != style.ViewNode {
+		t.Fatalf("enter on a kind node opened %v, want the node view", a.view)
 	}
 	step(a, key("esc"))
 	step(a, key("n"))
@@ -229,10 +236,11 @@ func keyAt(header, key string) (int, int) {
 	return -1, -1
 }
 
-// TestShortcutsHoldStillAcrossRows: the bar is the same whichever row is
-// selected — enter is logs everywhere, and c (a node's containers) lives in
-// help rather than appearing on node rows: the bar is sorted, so any entry
-// coming and going would reflow every key after it.
+// TestShortcutsHoldStillAcrossRows: the bar holds still whichever row is
+// selected. The bar is sorted, so an entry coming and going would reflow
+// every key after it; only enter's word changes — Pods on a node, where
+// enter drills into its pods, Logs elsewhere, the same width — and n (a
+// node's containers) lives in help rather than appearing on node rows.
 func TestShortcutsHoldStillAcrossRows(t *testing.T) {
 	a := newTestApp(t)
 	step(a, views.ContainersRefreshMsg{Containers: kindNodes()})
@@ -245,16 +253,16 @@ func TestShortcutsHoldStillAcrossRows(t *testing.T) {
 	step(a, key("j"))
 	plain := header() // nginx
 
-	if node != plain {
-		t.Errorf("the bar changed with the selected row:\nnode:\n%s\nplain:\n%s", node, plain)
+	if strings.Replace(node, "Pods", "Logs", 1) != plain {
+		t.Errorf("the bar changed with the selected row beyond enter's word:\nnode:\n%s\nplain:\n%s", node, plain)
 	}
-	// c is in help, not the bar: the bar holds the common actions, as k9s's.
-	if strings.Contains(node, "<c>") {
-		t.Errorf("the bar lists c:\n%s", node)
+	// n is in help, not the bar: the bar holds the common actions, as k9s's.
+	if strings.Contains(node, "<n>") {
+		t.Errorf("the bar lists n:\n%s", node)
 	}
 	step(a, key("?"))
 	if !strings.Contains(render(a), "Node containers ⎈") {
-		t.Error("help does not list c")
+		t.Error("help does not list n")
 	}
 	step(a, key("esc"))
 	for _, k := range []string{"<enter>", "<o>", "<H>", "<s>", "<shift-f>", "<ctrl-d>"} {
@@ -264,8 +272,8 @@ func TestShortcutsHoldStillAcrossRows(t *testing.T) {
 			t.Errorf("%s moved: line %d col %d on a node, line %d col %d otherwise", k, nl, nc, pl, pc)
 		}
 	}
-	if !regexp.MustCompile(`<enter> +Logs`).MatchString(node) {
-		t.Errorf("enter is not Logs on a node row:\n%s", node)
+	if !regexp.MustCompile(`<enter> +Pods`).MatchString(node) || !regexp.MustCompile(`<enter> +Logs`).MatchString(plain) {
+		t.Errorf("enter is not Pods on a node row and Logs elsewhere:\nnode:\n%s\nplain:\n%s", node, plain)
 	}
 }
 
@@ -282,4 +290,30 @@ func TestNodeRowsAreMarked(t *testing.T) {
 		t.Errorf("plain container is marked, or missing:\n%s", out)
 	}
 	assertFrameFits(t, a, "containers with a marked node")
+}
+
+// TestEnterHintFollowsTheRow: the header says what enter does on the row
+// selected — Pods on a kind node, Logs anywhere else.
+func TestEnterHintFollowsTheRow(t *testing.T) {
+	a := newTestApp(t)
+	step(a, views.ContainersRefreshMsg{Containers: kindNodes()})
+	cv := typedView[*views.ContainersView](a, style.ViewContainers)
+	for _, tc := range []struct{ row, want, not string }{
+		{row: "k8s-worker", want: "Pods", not: "Logs"},
+		{row: "nginx", want: "Logs", not: "Pods"},
+	} {
+		for c, _ := cv.Selected(); c.Name != tc.row; c, _ = cv.Selected() {
+			step(a, key("j"))
+		}
+		var hint string
+		for _, l := range strings.Split(render(a), "\n") {
+			if i := strings.Index(l, "<enter>"); i >= 0 {
+				hint = strings.Fields(l[i+len("<enter>"):])[0]
+				break
+			}
+		}
+		if hint != tc.want {
+			t.Errorf("on %s the header says <enter> %q, want %q", tc.row, hint, tc.want)
+		}
+	}
 }
