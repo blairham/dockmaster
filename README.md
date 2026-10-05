@@ -67,7 +67,7 @@ Digits pick the resource; `?` shows everything.
 |---|---|---|---|
 | `0`–`6` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events | `/` | filter: a regex (leading `!` negates), `-f term` fuzzy, `-l k=v,k!=v,k,!k` by label |
 | `enter` | drill in — logs, layers, inspect | `:` | command palette |
-| `n` | on a ⎈ kind/k3d node: the pods' containers inside it | `d` / `y` | inspect, as `o` (k9s's describe / yaml) |
+| `n` | on a ⎈ kind/k3d node: the pods' containers inside it | `i` / `d` / `y` | inspect, as `o` (`d` / `y` are k9s's describe / yaml) |
 | `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats; `C` copies files in or out (`docker cp`); `e` edits CPU/memory limits, restart policy and name, live (`docker update`, no restart) | `r` | refresh |
 | `u` / `x` | start ("up") / stop; on an image, `u` runs it (name, ports, env, volumes, command, `--rm`) | `R` | restart |
 | `K` | kill (SIGKILL — confirms) | `p` | pause / unpause |
@@ -87,7 +87,7 @@ Digits pick the resource; `?` shows everything.
 | on a project: `p` / `e` | pull / edit the compose files, then up | `ctrl-d` | compose down (confirms) |
 | on a project: `s` | scale a service: pick it, set its container count (fewer confirms) | | |
 | `ctrl-s` | save the table as text (`~/.local/state/dockmaster/dumps`) | `shift-←/→` / `shift-↑/↓` | sort column / direction |
-| `c` | copy the row's name to the clipboard | `i` | copy its full ID |
+| `c` | copy the row's name to the clipboard | `I` | copy its full ID |
 | in `:` or `/`: `↑` / `↓` | earlier commands / filters, kept across runs (`~/.local/state/dockmaster/history.json`) | `ctrl-n` / `ctrl-p` | cycle `:` suggestions (`tab` or `→` accepts) |
 | `U` | on an image, volume or network: the containers using it, stopped ones too (`esc` back) | `J` | on a container: jump to its compose project |
 | `shift-f` | port-forward to the container (a label can prefill or confirm it) | `f` | on a container: its port forwards (`esc` back) |

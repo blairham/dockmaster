@@ -14,6 +14,11 @@ fails when the tag has none.
 
 ### Changed
 
+- `i` inspects the selected row, as `o`, `d` and `y` do; copying the full
+  ID moved from `i` to `I`.
+
+### Changed
+
 - `enter` on a ⎈ kind/k3d node opens the pods' containers inside it, as
   `enter` on a node does in k9s; `l` is still the node's logs and `n` still
   works. The header's `<enter>` reads Pods on a node row.
