@@ -475,6 +475,8 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, nil
 	case "portforward":
 		return a, a.promptForward(param)
+	case "show_forwards":
+		return a, a.showForwards(param)
 	case "open_published":
 		return a, a.openPublished(param)
 	case "open_url":

@@ -20,7 +20,8 @@ import (
 func TestBehaviorOptions(t *testing.T) {
 	var o tui.Options
 	behaviorOptions(config.Default(), &o)
-	if o.NoMouse || o.NoExitOnCtrlC || o.LogWrap || o.LogPaused || o.LogFullscreen || o.DumpDir != "" {
+	if o.NoMouse || o.NoExitOnCtrlC || o.LogWrap || o.LogPaused || o.LogFullscreen || o.DumpDir != "" ||
+		o.ForwardAddress.String() != "127.0.0.1" {
 		t.Errorf("defaults changed behavior: %+v", o)
 	}
 
@@ -30,11 +31,12 @@ func TestBehaviorOptions(t *testing.T) {
 	cfg.Logger.TextWrap, cfg.Logger.DisableAutoscroll, cfg.UI.DefaultsToFullScreen = true, true, true
 	cfg.ScreenDumpDir = "~/dumps"
 	cfg.Shell = "zsh"
+	cfg.PortForwardAddress = "0.0.0.0"
 	cfg.HostShell.Image = "registry.local/tools:1"
 	behaviorOptions(cfg, &o)
 	home, _ := os.UserHomeDir()
 	if !o.NoMouse || !o.NoExitOnCtrlC || !o.LogWrap || !o.LogPaused || !o.LogFullscreen ||
-		o.DumpDir != filepath.Join(home, "dumps") || o.Shell != "zsh" ||
+		o.DumpDir != filepath.Join(home, "dumps") || o.Shell != "zsh" || o.ForwardAddress.String() != "0.0.0.0" ||
 		o.HostShellImage != "registry.local/tools:1" {
 		t.Errorf("set keys did not all arrive: %+v", o)
 	}
