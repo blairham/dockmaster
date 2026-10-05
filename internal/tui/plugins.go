@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"os/exec"
@@ -16,7 +17,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/chrome"
@@ -48,6 +51,10 @@ type Plugin struct {
 	Confirm    bool
 	Dangerous  bool
 	Override   bool
+	// OverwriteOutput is k9s's: a background plugin's first line of
+	// output replaces the "done" flash, so a plugin can report its own
+	// result. A foreground plugin's output is on the terminal already.
+	OverwriteOutput bool
 }
 
 // pluginTimeout bounds a background plugin; a foreground one is the
@@ -133,6 +140,7 @@ func plugin(name string, e config.Plugin) (Plugin, error) {
 		Desc: e.Description, Command: e.Command, Args: e.Args,
 		Inputs: inputs, Pipes: pipes,
 		Background: e.Background, Dangerous: e.Dangerous, Override: e.Override,
+		OverwriteOutput: e.OverwriteOutput,
 		// k9s's ShouldConfirm: confirm when asked to, and by default when
 		// there are inputs — the values typed are shown before they run.
 		Confirm: len(inputs) > 0,
@@ -270,10 +278,14 @@ func (p Plugin) in(vt style.ViewType) bool { return p.Views == nil || p.Views[vt
 
 // pluginDoneMsg reports a plugin run's end.
 type pluginDoneMsg struct {
-	err        error
-	name       string
+	err  error
+	name string
+	// output is stdout and stderr together, for a failure's reason;
+	// stdout alone is what overwriteOutput shows.
 	output     string
+	stdout     string
 	background bool
+	overwrite  bool
 }
 
 // pluginKey runs the plugin bound to key in the active view, if any — the
@@ -390,10 +402,16 @@ func (a *App) execPlugin(p Plugin, argv []string, vars map[string]string) tea.Cm
 			defer cancel()
 			cmd := exec.CommandContext(ctx, bin, argv...) //nolint:gosec // the user's own plugin
 			cmd.Env = env
-			var out bytes.Buffer
-			cmd.Stdout, cmd.Stderr = &out, &out
+			// Two writers mean exec copies stdout and stderr on two
+			// goroutines, both into out: it takes a lock.
+			var stdout bytes.Buffer
+			out := &lockedBuffer{}
+			cmd.Stdout, cmd.Stderr = io.MultiWriter(out, &stdout), out
 			err := cmd.Run()
-			return pluginDoneMsg{name: p.Name, background: true, err: err, output: out.String()}
+			return pluginDoneMsg{
+				name: p.Name, background: true, err: err, output: out.String(),
+				stdout: stdout.String(), overwrite: p.OverwriteOutput,
+			}
 		}
 	}
 	// context.Background(): the session is the user's, not a timeout's.
@@ -448,6 +466,11 @@ func (a *App) handlePluginDone(msg pluginDoneMsg) (tea.Model, tea.Cmd) {
 	case msg.background:
 		a.logPluginDone(msg, "")
 		a.flash = "plugin " + msg.name + " done"
+		// k9s's overwriteOutput: the plugin's own first line of output
+		// says what it did. A plugin that printed nothing keeps "done".
+		if line := firstLine(msg.stdout); msg.overwrite && line != "" {
+			a.flash = line
+		}
 	default:
 		a.logPluginDone(msg, "")
 	}
@@ -456,6 +479,46 @@ func (a *App) handlePluginDone(msg pluginDoneMsg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, tea.ClearScreen)
 	}
 	return a, tea.Batch(cmds...)
+}
+
+// lockedBuffer is a bytes.Buffer two goroutines can write to.
+type lockedBuffer struct {
+	buf bytes.Buffer
+	mu  sync.Mutex
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// firstLine is the first non-blank line of a plugin's output, as k9s's
+// overwriteOutput shows it, made safe for the status bar: the output is
+// the plugin's, and an escape or control character in it would act on the
+// frame.
+func firstLine(s string) string {
+	for l := range strings.SplitSeq(s, "\n") {
+		l = strings.TrimSpace(strings.Map(func(r rune) rune {
+			if r == '\t' {
+				return ' '
+			}
+			if unicode.IsControl(r) {
+				return -1
+			}
+			return r
+		}, xansi.Strip(l)))
+		if l != "" {
+			return l
+		}
+	}
+	return ""
 }
 
 func lastLine(s string) string {
