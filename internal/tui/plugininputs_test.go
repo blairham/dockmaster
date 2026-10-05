@@ -211,9 +211,11 @@ func TestPluginInputsForm(t *testing.T) {
 	if a.view != style.ViewContainers {
 		t.Errorf("the form did not close on submit: view %v", a.view)
 	}
-	if !a.confirm.Active() || !strings.Contains(render(a), "run Deploy?") ||
-		!strings.Contains(render(a), "--tag=v1 $NAME 2.5 true dev us") {
-		t.Fatalf("no confirm with the expanded command:\n%s", render(a))
+	// The prompt, not the frame: the dialog wraps it, and where depends on
+	// how long the recorder's temp path is.
+	if p := a.confirm.Prompt(); !a.confirm.Active() || !strings.HasPrefix(p, "run Deploy?") ||
+		!strings.Contains(p, "--tag=v1 $NAME 2.5 true dev us") {
+		t.Fatalf("no confirm with the expanded command: %q", p)
 	}
 	runOnce(a, step(a, key("y")))
 	want := "[web][--tag=v1 $NAME][2.5][true][dev][us]\n" +
