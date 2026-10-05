@@ -111,14 +111,19 @@ func (v *ContextsView) SetCurrent(name string) {
 	v.rebuildRows()
 }
 
-// HandleKey maps a keystroke to an app action.
+// HandleKey maps a keystroke to an app action: enter switches to the
+// context, ctrl+d removes it from the store (the app refuses the ones in
+// use and confirms the rest).
 func (v *ContextsView) HandleKey(key string) (string, string) {
 	c, ok := v.Selected()
 	if !ok {
 		return "", ""
 	}
-	if key == KeyEnter {
+	switch key {
+	case KeyEnter:
 		return "switch_context", c.Name + "\x00" + c.Host
+	case "ctrl+d":
+		return "confirm_remove_context", c.Name
 	}
 	return "", ""
 }

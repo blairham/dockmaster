@@ -151,6 +151,9 @@ func isSubsequence(needle, haystack string) bool {
 	return true
 }
 
+// keyAliases opens the aliases view, as in k9s.
+const keyAliases = "ctrl+a"
+
 // handleKey is the whole key path.
 //
 //nolint:gocyclo,gocognit // flat key dispatch
@@ -305,6 +308,11 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.chrome.ToggleHeader()
 		a.resizeActiveView()
 		return a, nil
+	// k9s's aliases view: every command and alias, enter running one. The
+	// bars got ctrl+a first, so inside them it is still line-start.
+	case keyAliases:
+		a.showAliases()
+		return a, nil
 	}
 
 	// A plugin, then a hotkey, that overrides a view's own key goes first.
@@ -448,7 +456,8 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 
 	switch lower {
 	case "aliases", "alias":
-		return "", a.showAliases()
+		a.showAliases()
+		return "", nil
 	case "q", "q!", "quit", "exit":
 		a.shutdown()
 		return "", tea.Quit
@@ -626,7 +635,7 @@ func validateCommand(input string, aliases map[string]string) error {
 	if _, ok := ViewForCommand(head); ok || head == "aliases" || head == "alias" {
 		return nil
 	}
-	if slices.Contains(knownCommands, head) {
+	if slices.Contains(knownCommands, head) || isOtherSpelling(head) {
 		return nil
 	}
 	if f := strings.Fields(head); len(f) > 1 && argCommands[f[0]] {

@@ -23,6 +23,7 @@ var (
 	_ View = (*PodsView)(nil)
 	_ View = (*EventsView)(nil)
 	_ View = (*PulsesView)(nil)
+	_ View = (*AliasesView)(nil)
 
 	_ InputCapturer = (*RuntimeFormView)(nil)
 

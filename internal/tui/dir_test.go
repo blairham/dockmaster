@@ -132,3 +132,55 @@ func TestIsComposeFile(t *testing.T) {
 		}
 	}
 }
+
+// TestDirComposeDown: ctrl-d on a compose file confirms, naming the file,
+// then runs compose down from it — no project name, as up has none — and a
+// "no" runs nothing. On anything else it says what a compose file is, as u
+// and e do, rather than paging the cursor.
+func TestDirComposeDown(t *testing.T) {
+	_, shop, file := composeTree(t)
+	a := newTestApp(t)
+	f := &fakeCompose{}
+	a.composeRunner = f.run
+	openDir(t, a, shop)
+
+	step(a, key("ctrl+d"))
+	if !a.confirm.Active() || !strings.Contains(a.confirm.Prompt(), "compose down "+file+"?") {
+		t.Fatalf("ctrl-d asked %q (active %v, err %q)", a.confirm.Prompt(), a.confirm.Active(), a.errFlash)
+	}
+	runCmd(a, step(a, key("n")))
+	if f.last() != "" {
+		t.Fatalf("compose ran %q after no", f.last())
+	}
+
+	step(a, key("ctrl+d"))
+	runCmd(a, step(a, key("y")))
+	want := "compose --project-directory " + shop + " -f " + file + " down"
+	if got := f.last(); got != want {
+		t.Errorf("compose ran %q, want %q", got, want)
+	}
+	if a.flash != "took down shop/compose.yaml" {
+		t.Errorf("flash %q", a.flash)
+	}
+
+	step(a, key("j")) // README.md
+	step(a, key("ctrl+d"))
+	if a.confirm.Active() || !strings.Contains(a.errFlash, "not a compose file") {
+		t.Errorf("ctrl-d on README.md: confirm %v, err %q", a.confirm.Active(), a.errFlash)
+	}
+}
+
+// TestDirComposeDownReadonly: --readonly refuses compose down from :dir
+// before it asks.
+func TestDirComposeDownReadonly(t *testing.T) {
+	_, shop, _ := composeTree(t)
+	a := newTestApp(t)
+	a.readonly = true
+	f := &fakeCompose{}
+	a.composeRunner = f.run
+	openDir(t, a, shop)
+	runCmd(a, step(a, key("ctrl+d")))
+	if a.confirm.Active() || f.last() != "" || !strings.Contains(a.errFlash, "readonly mode — compose down file refused") {
+		t.Errorf("readonly: confirm %v, compose ran %q, err %q", a.confirm.Active(), f.last(), a.errFlash)
+	}
+}
