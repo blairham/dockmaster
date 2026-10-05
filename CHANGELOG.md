@@ -12,6 +12,13 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Fixed
+
+- `?` no longer runs off the bottom of a 40-row terminal: it lists keys,
+  and points at `ctrl-a` for the `:` commands, which that list already
+  holds with every spelling. A test now fails when the help frame is
+  taller than the screen.
+
 ### Changed
 
 - `i` inspects the selected row, as `o`, `d` and `y` do; copying the full

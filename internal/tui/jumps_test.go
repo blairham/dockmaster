@@ -138,7 +138,7 @@ func TestJumpThroughTheApp(t *testing.T) {
 		t.Errorf("the jump's selector did not filter the volumes:\n%s", out)
 	}
 	step(a, key("?"))
-	if out := render(a); strings.Contains(out, "JUMP") {
+	if out := render(a); strings.Contains(out, "Jump to volumes") {
 		t.Errorf("help over the volumes view shows the containers view's jump:\n%s", out)
 	}
 	step(a, key("esc"))
@@ -148,8 +148,29 @@ func TestJumpThroughTheApp(t *testing.T) {
 		t.Fatalf("esc did not come back from the jump: %v", a.view)
 	}
 	step(a, key("?"))
-	if out := render(a); !strings.Contains(out, "JUMP") || !strings.Contains(out, "Jump to volumes") {
-		t.Errorf("help does not list the jump:\n%s", out)
+	out := render(a)
+	if !strings.Contains(out, "Jump to volumes") || strings.Contains(out, "Drill in") {
+		t.Errorf("help's <enter> is not the jump:\n%s", out)
+	}
+	// The jump changes a line, not the layout: help still fits 120×40.
+	step(a, tea.WindowSizeMsg{Width: 120, Height: 40})
+	out = render(a)
+	if lines := strings.Split(strings.TrimRight(out, "\n"), "\n"); len(lines) > 40 || len(a.helpPanel().Sections) > 4 {
+		t.Errorf("help with a jump: %d lines, %d columns", len(lines), len(a.helpPanel().Sections))
+	}
+	for _, sec := range a.helpPanel().Sections {
+		for _, e := range sec.Entries {
+			found := false
+			for _, l := range strings.Split(out, "\n") {
+				if i := strings.Index(l, e.Key); i >= 0 && strings.Contains(l[i:], e.Desc) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("help with a jump cuts %s %q", e.Key, e.Desc)
+			}
+		}
 	}
 }
 

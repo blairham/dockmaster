@@ -44,6 +44,15 @@ func TestHelpShowsEveryEntryInFull(t *testing.T) {
 		}
 		step(a, key("?"))
 		out := render(a)
+		// The whole frame fits the terminal: a column taller than the
+		// screen once pushed help's bottom border off it.
+		lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+		if len(lines) > size.h {
+			t.Errorf("%dx%d: the frame is %d lines tall", size.w, size.h, len(lines))
+		}
+		if !strings.Contains(out, "╰") {
+			t.Errorf("%dx%d: help's bottom border is not on screen", size.w, size.h)
+		}
 		entries := 0
 		for _, sec := range a.helpPanel().Sections {
 			for _, e := range sec.Entries {
@@ -68,44 +77,23 @@ func TestHelpShowsEveryEntryInFull(t *testing.T) {
 	}
 }
 
-// TestHelpCoversEveryCommand: every `:` command the palette knows is in
-// the help as <:name>, or reached by a key the help lists, or a spelling
-// of one that is (#53). A command added to knownCommands without either
-// fails here.
-func TestHelpCoversEveryCommand(t *testing.T) {
-	covered := map[string]string{
-		"q!": "q", "quit": "q", "exit": "q",
-		"containers": "<0>", "ps": "<0>", "images": "<1>", "volumes": "<2>", "networks": "<3>",
-		"projects": "<4>", "compose": "<4>", "runtimes": "<5>", "colima": "<5>", "events": "<6>",
-		"context": ":ctx", "contexts": ":ctx", "pulses": ":pu", "help": "<?>", "screendump": ":sd",
-		"logs": "<l>", "inspect": "<o>", "describe": "<d>", "top": "<T>", "diff": "<D>", "health": "<H>",
-		"prune all": ":prune", "prune all volumes": ":prune", "prune cache": ":prune",
-		"logo": ":logo", "logoless": ":logo", "stats": "<t>", "all": "<a>",
-		"xray net": ":xray", "xray vol": ":xray", "xray img": ":xray",
-	}
+// TestHelpPointsAtTheCommands: help lists keys, and points at ctrl-a for
+// the : commands, which TestAliasesViewCoversEveryCommand keeps complete;
+// keys the gap sweep found missing are pinned here.
+func TestHelpPointsAtTheCommands(t *testing.T) {
 	a := newTestApp(t)
 	keys := map[string]bool{}
 	for _, sec := range a.helpPanel().Sections {
 		for _, e := range sec.Entries {
 			keys[e.Key] = true
-		}
-	}
-	// Keys the sweep found missing that no command stands for.
-	for _, k := range []string{"<shift-f>"} {
-		if !keys[k] {
-			t.Errorf("%s is not in the help", k)
-		}
-	}
-	for _, c := range knownCommands {
-		want := "<:" + c + ">"
-		if via, ok := covered[c]; ok {
-			want = via
-			if strings.HasPrefix(via, ":") || !strings.HasPrefix(via, "<") {
-				want = "<:" + strings.TrimPrefix(via, ":") + ">"
+			if strings.HasPrefix(e.Key, "<:") && e.Key != "<:cmd>" && e.Key != "<:logo>" && e.Key != "<:q>" {
+				t.Errorf("help lists the command %s; commands belong in ctrl-a's list", e.Key)
 			}
 		}
-		if !keys[want] {
-			t.Errorf(":%s is not in the help (looked for %s)", c, want)
+	}
+	for _, k := range []string{"<ctrl-a>", "<shift-f>", "<i>", "<I>"} {
+		if !keys[k] {
+			t.Errorf("%s is not in the help", k)
 		}
 	}
 }

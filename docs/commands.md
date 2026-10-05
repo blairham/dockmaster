@@ -2,7 +2,8 @@
 
 Everything dockmaster does from the keyboard: the `:` commands, what `-c`
 accepts, and each view's keys. In the app, `?` shows the keys for the view
-you are in.
+you are in, and `ctrl-a` lists every `:` command and alias and runs the one
+you pick.
 
 `TestCommandsDocCoversEveryCommand` fails when a `:` command, or any of its
 spellings, is missing here, so this page cannot fall behind the palette.
@@ -101,8 +102,8 @@ These act on the row selected in the current view, as their keys do.
   true` shows a background plugin's first line of output when it finishes.
 - **Jumps**, in `jumps.yaml`, make `enter` in a view open another view
   filtered by the selected row: `enter` on a container opens its compose
-  project's volumes, say. Help shows a JUMP column, and the header's
-  `<enter>` says where it goes.
+  project's volumes, say. Help's and the header's `<enter>` say where it
+  goes.
 
 All four use k9s's file format; see [design/config.md](design/config.md).
 

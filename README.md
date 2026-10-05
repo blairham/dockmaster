@@ -61,7 +61,7 @@ dockmaster info                   # every path dockmaster uses, and the endpoint
 
 ## Keys
 
-Digits pick the resource; `?` shows everything.
+Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 
 | | | | |
 |---|---|---|---|

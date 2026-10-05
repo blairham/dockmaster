@@ -224,14 +224,19 @@ func (j Jump) expand(vars map[string]string) (string, error) {
 	return expandVars(j.Template, vars, regexp.QuoteMeta), nil
 }
 
-// jumpHelp is the JUMP column of help, over a view with a jump.
-func (a *App) jumpHelp() (chrome.HelpSection, bool) {
+// jumpHelp rewrites help's <enter> line over a view with a jump: the jump
+// replaces what enter does there, and a column of its own would be a fifth,
+// which does not fit 120 columns.
+func (a *App) jumpHelp(panel *chrome.HelpPanel) {
 	j, ok := a.jumpFor()
 	if !ok {
-		return chrome.HelpSection{}, false
+		return
 	}
-	return chrome.HelpSection{
-		Title:   "JUMP",
-		Entries: []chrome.HelpEntry{{Key: "<enter>", Desc: "Jump to " + j.ToName}},
-	}, true
+	for s := range panel.Sections {
+		for e := range panel.Sections[s].Entries {
+			if panel.Sections[s].Entries[e].Key == "<enter>" {
+				panel.Sections[s].Entries[e].Desc = "Jump to " + j.ToName
+			}
+		}
+	}
 }
