@@ -12,26 +12,7 @@ fails when the tag has none.
 
 ## [Unreleased]
 
-### Fixed
-
-- `?` no longer runs off the bottom of a 40-row terminal: it lists keys,
-  and points at `ctrl-a` for the `:` commands, which that list already
-  holds with every spelling. A test now fails when the help frame is
-  taller than the screen.
-- With plugins or hotkeys configured, their help columns stack under the
-  shortest columns instead of widening help past a 120-column screen and
-  cutting every description (tuikit's help overlay). (#84)
-
-### Changed
-
-- `i` inspects the selected row, as `o`, `d` and `y` do; copying the full
-  ID moved from `i` to `I`.
-
-### Changed
-
-- `enter` on a ⎈ kind/k3d node opens the pods' containers inside it, as
-  `enter` on a node does in k9s; `l` is still the node's logs and `n` still
-  works. The header's `<enter>` reads Pods on a node row.
+## [0.0.12] - 2026-10-04
 
 ### Added
 
@@ -101,11 +82,26 @@ fails when the tag has none.
 
 ### Changed
 
+- `i` inspects the selected row, as `o`, `d` and `y` do; copying the full
+  ID moved from `i` to `I`.
+- `enter` on a ⎈ kind/k3d node opens the pods' containers inside it, as
+  `enter` on a node does in k9s; `l` is still the node's logs and `n` still
+  works. The header's `<enter>` reads Pods on a node row.
 - `ctrl-a` is now a dockmaster key: a hotkey or plugin on `Ctrl-A` is
   refused at startup.
 - A hotkey, `-c`, `defaultView` or an alias may name a command by any
   spelling the palette takes (`x`, `log`, `h`, `dumps`, `screendumps`, `?`);
   those were refused as "not a command".
+
+### Fixed
+
+- `?` no longer runs off the bottom of a 40-row terminal: it lists keys,
+  and points at `ctrl-a` for the `:` commands, which that list already
+  holds with every spelling. A test now fails when the help frame is
+  taller than the screen.
+- With plugins or hotkeys configured, their help columns stack under the
+  shortest columns instead of widening help past a 120-column screen and
+  cutting every description (tuikit v0.0.23's help overlay). (#84)
 
 ## [0.0.11] - 2026-10-04
 
@@ -280,7 +276,8 @@ machines under the daemon — Colima, Podman, Docker Desktop, Rancher Desktop,
 OrbStack — managed from the runtimes view. Archives are cosign-signed and
 the formula is in `blairham/homebrew-tap`.
 
-[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.11...HEAD
+[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.12...HEAD
+[0.0.12]: https://github.com/blairham/dockmaster/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/blairham/dockmaster/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/blairham/dockmaster/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/blairham/dockmaster/compare/v0.0.8...v0.0.9
