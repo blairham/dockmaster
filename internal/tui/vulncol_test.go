@@ -6,6 +6,7 @@ package tui
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -403,6 +404,10 @@ func TestBackgroundScanStopsWhenLeft(t *testing.T) {
 			if a.view != style.ViewImages || a.scanNextImage() == nil {
 				t.Errorf("background scanning did not resume on %v", a.view)
 			}
+			// The canceled scan was not a failure: the same image is next.
+			if got := typedView[*views.ImagesView](a, style.ViewImages).BackgroundScanning(); got != "sha256:aaaa" {
+				t.Errorf("resumed on %q, want the canceled image again", got)
+			}
 			typedView[*views.ImagesView](a, style.ViewImages).Stop()
 		})
 	}
@@ -444,5 +449,58 @@ func TestReloadAppliesImageScans(t *testing.T) {
 	reloadNow(t, a)
 	if !slices.Contains(titles(v.Table()), "VULN") {
 		t.Errorf("VULN not shown after the reload: %q", titles(v.Table()))
+	}
+}
+
+// TestBackgroundScanSkipsFailed: an image whose scan failed is not tried
+// again this session — retrying would run the scanner back to back — and
+// the failure is logged, not flashed.
+func TestBackgroundScanSkipsFailed(t *testing.T) {
+	var asked []string
+	old := views.RunScan
+	views.RunScan = func(_ context.Context, ref, _ string) (string, []scan.Vuln, error) {
+		asked = append(asked, ref)
+		if ref == "sha256:aaaa" {
+			return "", nil, errors.New("grype: exit status 1: cannot read image")
+		}
+		return "grype", nil, nil
+	}
+	t.Cleanup(func() { views.RunScan = old })
+	var logBuf bytes.Buffer
+	a := optsApp(t, Options{
+		ImageScans:   ImageScans{Enable: true, Background: true},
+		ScanCacheDir: t.TempDir(),
+		Logger:       slog.New(slog.NewTextHandler(&logBuf, nil)),
+	})
+	a.dispatchCommand("images")
+	cmd := step(a, threeImages)
+	for i := 0; cmd != nil && i < 10; i++ {
+		cmd = step(a, cmd())
+	}
+	if want := []string{"sha256:aaaa", "sha256:bbbb", "sha256:cccc"}; !slices.Equal(asked, want) {
+		t.Errorf("scanned %v, want %v", asked, want)
+	}
+	if a.scanNextImage() != nil {
+		t.Error("the failed image would be scanned again")
+	}
+	if a.errFlash != "" || !strings.Contains(logBuf.String(), "background scan failed") {
+		t.Errorf("flash %q, log %q", a.errFlash, logBuf.String())
+	}
+}
+
+// TestScanResultAfterLeavingRedraws: a v scan that finishes after the user
+// went back to the images view is cached and shows there at once.
+func TestScanResultAfterLeavingRedraws(t *testing.T) {
+	fakeScan(t) // ignores cancellation, as a scan finishing just then would
+	a, _ := scanApp(t, ImageScans{Enable: true}, nil)
+	loadImages(a)
+	cmd := step(a, key("v"))
+	step(a, key("esc"))
+	if a.view != style.ViewImages {
+		t.Fatalf("esc left %v", a.view)
+	}
+	step(a, cmd())
+	if r := rowOf(render(a), "nginx"); !strings.Contains(r, "C1 H1 L1") {
+		t.Errorf("nginx row after a late result: %q", r)
 	}
 }
