@@ -105,9 +105,10 @@ func skinTheme(base theme.Theme, name string, invert bool) (theme.Theme, error) 
 		if err != nil {
 			return base, err
 		}
-		if t, err = t.WithSkin(s); err != nil {
+		if err := s.Check(); err != nil {
 			return base, fmt.Errorf("skin %s: %w", path, err)
 		}
+		t = t.WithSkin(s)
 	}
 	if invert {
 		t = t.Inverted()
