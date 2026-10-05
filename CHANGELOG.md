@@ -12,6 +12,13 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Fixed
+
+- The table's border is k9s's `frame.border.focusColor` (light sky blue)
+  only while the table has the keyboard; with the `:` or `/` bar or a
+  confirm open it is `frame.border.fgColor` (dodger blue), as k9s draws it.
+  It was the focus color all the time.
+
 ## [0.0.10] - 2026-10-04
 
 ### Added
