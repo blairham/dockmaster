@@ -456,7 +456,7 @@ func (a *App) buildChrome(t theme.Theme, headless, crumbsless bool) {
 
 	cfg := chrome.Config{
 		Theme:         t,
-		InfoPanelRows: 5, // Context, Host, Version, Containers, Dockmaster Rev
+		InfoPanelRows: 6, // Context, Host, Version, Containers, CPU/MEM, Dockmaster Rev
 		// Six view digits, one per row; tuikit would otherwise budget five
 		// when logoless and the sixth would overflow the header.
 		ShortcutRows: 6,
