@@ -137,7 +137,7 @@ func (a *App) contentSize() (int, int) {
 		a.height,
 		a.filterBar.Active(),
 		a.commandBar.Active() || a.prompt.Active(),
-		a.confirm.Active(),
+		false, // the confirm is a modal over the content, not a bar
 		a.errFlash != "" || a.flash != "",
 	)
 }
@@ -159,7 +159,7 @@ func (a *App) resizeActiveView() {
 // The content box's height depends on which bars are up — confirm, command,
 // filter, a status flash — and those open from many places: a key, an
 // action, a confirm dispatched from an action, a message landing. Leaving
-// each to remember resizeActiveView is how a confirm bar opened from an
+// each to remember resizeActiveView is how a bar opened from an
 // action came to sit above a table still sized for the whole screen: the box
 // grew by three rows and its bottom border and the breadcrumb fell off the
 // screen. Checking at render time cannot be forgotten.

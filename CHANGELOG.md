@@ -12,6 +12,14 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Changed
+
+- Confirmations are k9s's popup dialog instead of a bar above the table:
+  the question floats over the table, which keeps its rows, and is headed
+  by the action (`<Remove>`, `<Kill>`, `<Prune>`, …). **Focus starts on
+  Cancel**, so enter alone now declines — press `y`, or tab / → to OK and
+  enter, to go ahead. `n` and esc still decline.
+
 ## [0.0.12] - 2026-10-04
 
 ### Added

@@ -92,7 +92,7 @@ func (a *App) confirmLabelForwards(c docker.Container, specs []docker.ForwardSpe
 		}
 		return "", a.startForwards(c, specs)
 	}
-	a.confirm.Open(fmt.Sprintf("forward %s %s%s, as its %s label asks?",
+	a.ask("Port Forward", fmt.Sprintf("forward %s %s%s, as its %s label asks?",
 		c.Name, strings.ReplaceAll(docker.JoinForwardSpecs(specs), ",", " "), where, docker.LabelAutoPortForwards))
 }
 

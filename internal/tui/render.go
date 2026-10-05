@@ -54,7 +54,7 @@ func (a *App) View() tea.View {
 
 	switch {
 	case a.confirm.Active():
-		frame.Confirm = a.confirm.Prompt()
+		frame.Modal = a.confirm
 	case a.prompt.Active():
 		frame.Command = a.prompt.Input()
 	case a.filterBar.Active():
