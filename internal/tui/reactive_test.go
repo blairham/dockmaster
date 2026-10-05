@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/blairham/tuikit/theme"
 
+	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
@@ -141,4 +142,54 @@ func TestReactiveOff(t *testing.T) {
 		t.Error("watched a directory with ui.reactive off")
 	}
 	_ = tea.Quit
+}
+
+// TestReactiveReloadsPluginSnippetsAndJumps: a change inside plugins/ is a
+// change to the config directory — a new snippet, then an edit to it — and
+// a reload applies jumps.yaml, both read as startup reads them.
+func TestReactiveReloadsPluginSnippetsAndJumps(t *testing.T) {
+	a, dir := reactiveApp(t, func() (Reloaded, error) {
+		pf, err := config.LoadPlugins()
+		if err != nil {
+			return Reloaded{}, err
+		}
+		ps, err := Plugins(pf, nil)
+		if err != nil {
+			return Reloaded{}, err
+		}
+		jf, err := config.LoadJumps()
+		if err != nil {
+			return Reloaded{}, err
+		}
+		js, err := Jumps(jf)
+		if err != nil {
+			return Reloaded{}, err
+		}
+		return Reloaded{Theme: style.Base(), Options: Options{Plugins: ps, Jumps: js}}, nil
+	})
+	t.Setenv(config.EnvDir, dir)
+	if err := os.Mkdir(filepath.Join(dir, config.PluginsDirName), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	snippet := filepath.Join(dir, config.PluginsDirName, "dive.yaml")
+	write(t, snippet, "plugins:\n  dive:\n    shortCut: F2\n    scopes: [all]\n    command: dive\n")
+	reloadNow(t, a)
+	if len(a.plugins) != 1 || a.plugins[0].Key != "f2" {
+		t.Fatalf("a new snippet was not applied: %+v (%s)", a.plugins, a.errFlash)
+	}
+	write(t, snippet, "plugins:\n  dive:\n    shortCut: F12\n    scopes: [all]\n    command: dive --long\n")
+	reloadNow(t, a)
+	if len(a.plugins) != 1 || a.plugins[0].Key != "f12" {
+		t.Errorf("an edit inside plugins/ was not applied: %+v", a.plugins)
+	}
+
+	write(
+		t,
+		filepath.Join(dir, config.JumpsFileName),
+		"jumps:\n  images:\n    targetView: containers\n    filter: $IMAGE\n",
+	)
+	reloadNow(t, a)
+	if len(a.jumps) != 1 || a.jumps[0].From != style.ViewImages {
+		t.Errorf("jumps.yaml was not applied: %+v (%s)", a.jumps, a.errFlash)
+	}
 }

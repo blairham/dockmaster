@@ -32,6 +32,21 @@ fails when the tag has none.
 
 ### Added
 
+- Plugins can live one or more to a file in `plugins/` beside
+  `plugins.yaml`, k9s's snippet directory: every `*.yaml` there is merged
+  with `plugins.yaml` and checked with it, and a name defined in two files
+  is an error naming both. `ui.reactive` reloads a change inside it. (#64)
+- `jumps.yaml`, k9s's custom jumps: `enter` in a view opens another view
+  filtered by the selected row — `labelSelector: com.docker.compose.project=$PROJECT`
+  on containers opens that project's volumes. Values are filled in once and
+  matched as text; a variable the view's rows do not give is refused at
+  startup. (#64)
+- `:xray net`, `:xray vol` and `:xray img` root the xray tree at networks,
+  volumes or images, as k9s's `:xray <resource>`; container nodes keep every
+  container key. (#64)
+- The header's `CPU/MEM` line: the daemon host's CPU and memory in use, from
+  the CPU/MEM poll's samples and the host's size — no extra daemon call —
+  colored by `thresholds`, and `n/a` with the poll off. (#64)
 - Container labels that preset or skip the `shift-f` port-forward prompt,
   k9s's FastForwards annotations: `dockmaster.port-forwards=8080:80`
   prefills the prompt and `dockmaster.auto-port-forwards=8080:80` replaces

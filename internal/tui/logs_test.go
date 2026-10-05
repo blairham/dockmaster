@@ -216,3 +216,30 @@ func TestLogMarkStampsTheTime(t *testing.T) {
 		t.Errorf("mark = %q\nwant   %q", text, want)
 	}
 }
+
+// TestLogKeepsItsColumnWhileFollowing pins why k9s's shift-l (column
+// lock) has no counterpart here. With wrap off a log scrolls sideways
+// (l / →), and in k9s every new line, while following, snaps it back to
+// the first column unless the lock is on. Here following moves only the
+// row: the column holds as lines arrive, which is k9s with the lock on,
+// always. A lock key would toggle nothing.
+func TestLogKeepsItsColumnWhileFollowing(t *testing.T) {
+	a, lv := openLogs(t)
+	if !lv.Follow() || !strings.Contains(render(a), "POST /orders") {
+		t.Fatalf("setup: following %v\n%s", lv.Follow(), render(a))
+	}
+	for range 3 {
+		step(a, key("l"))
+	}
+	if strings.Contains(render(a), "POST /orders") {
+		t.Fatalf("l did not scroll the log sideways:\n%s", render(a))
+	}
+	step(a, views.LogBatchMsg{Lines: []docker.LogLine{{Text: "GET /later " + strings.Repeat("y", 200)}}})
+	out := render(a)
+	if !lv.Follow() || strings.Contains(out, "POST /orders") || strings.Contains(out, "GET /later") {
+		t.Errorf("a new line while following moved the column back (following %v):\n%s", lv.Follow(), out)
+	}
+	if !strings.Contains(out, "yyyy") {
+		t.Errorf("the new line is not on screen:\n%s", out)
+	}
+}

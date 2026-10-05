@@ -73,6 +73,16 @@ usage over the container's limit, which for an unlimited container is the
 host's memory. The selected row is drawn in the selection style and shows
 no threshold colour.
 
+The same thresholds colour the header's `CPU/MEM` line, k9s's cluster CPU
+and MEM for the daemon host: the CPU/MEM poll's CPU % summed over the
+running containers and spread over the host's CPUs, then their memory in
+use over the host's memory — both sizes from the `docker info` dockmaster
+already makes at startup, so the line adds no daemon call to the poll. It
+reads `n/a` with the poll off (`t`, `--no-stats`, `noStats`) or when the
+daemon did not report its size, and `…` until the first sample. It is what
+the containers view last sampled: away from that view the poll does not
+run, and the line holds its last figure, as `Counts` does.
+
 ## imageScans
 
 ```yaml
@@ -325,7 +335,8 @@ check to skip.
 
 With `ui.reactive: true`, saved changes to the files in the config
 directory — `config.yaml`, `skins/`, `aliases.yaml`, `hotkeys.yaml`,
-`plugins.yaml`, `views.yaml` — apply without a restart (#38). On each tick
+`plugins.yaml`, `plugins/`, `jumps.yaml`, `views.yaml` — apply without a
+restart (#38). On each tick
 the app takes a fingerprint of the directory (names, sizes, modification times); a change is
 read only once it has held still for a tick, so an editor's multi-write save
 or a half-written file is never what gets applied. The read is `main.go`'s
@@ -433,6 +444,25 @@ plugins:
     scopes: [containers]
     command: sh
     args: [-c, 'DOCKER_HOST=$DOCKER_HOST ctop -f $NAME']
+```
+
+Plugins can also live one or more to a file in `plugins/`, beside
+`plugins.yaml` — k9s's snippet directory (v0.40.9). Every `*.yaml` (or
+`*.yml`) directly in it is read, in name order, in `plugins.yaml`'s shape —
+a `plugins:` key holding entries — and merged with `plugins.yaml` into one
+set, checked as one set: a key two of them share in a view is refused
+whichever files they are in. A name defined in two files is an error naming
+both. Subdirectories and other files are not read. k9s also accepts a file
+holding one plugin with no `plugins:` key, named after the file; dockmaster
+refuses that shape (its keys are unknown at the top) rather than reading it
+as empty.
+
+```text
+~/.config/dockmaster/
+  plugins.yaml
+  plugins/
+    dive.yaml      # plugins: {dive: {...}}
+    ctop.yaml      # plugins: {ctop: {...}, ctop-all: {...}}
 ```
 
 `scopes` are view names as the palette spells them (`containers`, `images`,
@@ -552,6 +582,57 @@ spelled with an argument (`sort -s`) or dropped. `background: true` with
 pipes is refused too: k9s starts that pipeline without giving it the
 terminal, so its output lands over the UI, and there is nothing sensible
 to match.
+
+## Jumps
+
+`jumps.yaml`, beside `config.yaml`, is k9s's custom jumps: `enter` on a row
+of one view opens another view, filtered by the row. k9s keys a jump by
+resource and filters the target by a label or field selector built from the
+row; dockmaster keys it by view and filters with the `/` filter.
+
+```yaml
+jumps:
+  containers:                                      # enter on a container …
+    targetView: volumes                            # … opens the volumes …
+    labelSelector: com.docker.compose.project=$PROJECT   # … of its project
+  images:
+    targetView: containers
+    filter: ^$IMAGE$                               # the containers from this image, by name
+```
+
+- The key is the view whose `enter` the jump takes over, as the palette
+  spells it: `containers`, `images`, `volumes`, `networks`, `projects` or
+  `runtimes`. One jump per view. The view's own `enter` (logs, layers, …)
+  is then out of reach by that key; its palette command (`:logs`) and its
+  other keys still work.
+- `targetView` is any view `:` opens (`containers`, `images`, `pf`, …). It
+  opens over the view you were in, so `esc` comes back — the first `esc`
+  clears the filter, as anywhere.
+- Exactly one of `labelSelector` — the `-l` filter: `k=v`, `k!=v`, `k`,
+  `!k`, comma-separated, for a target whose rows have labels (containers,
+  images, volumes, networks) — or `filter`, a regex (`!` negates) or `-f`
+  fuzzy filter. k9s's `fieldSelector` and `targetNamespace` have no
+  counterpart; `targetGVR` is `targetView`.
+- `$VAR`s are the plugins' — `$NAME`, `$ID`, `$IMAGE`, `$PROJECT`,
+  `$COL-<HEADER>`, … as the source view gives them, plus `$DOCKER_HOST`,
+  `$CONTEXT` and `$FILTER` — filled in once, through the plugins' own
+  expansion, so a value holding `$X` stays that text. In a regex `filter` a
+  value is quoted (`nginx:1.27`'s dot matches a dot), so a row's value
+  matches itself and never widens the match; the regex around it is yours.
+  In a `labelSelector` a value holding a comma would add a term, so that
+  jump flashes why and goes nowhere.
+- A table with no row selected leaves `enter` to the view.
+
+Checked at startup and on a reload, a mistake stopping both: the key is a
+view a jump can start from, `targetView` is a view, exactly one of
+`labelSelector` and `filter` is given, a `labelSelector` is for a labeled
+target and every term has a key, `filter` is not a `-l` filter (that is
+`labelSelector`), two keys do not name the same view (`ps` and
+`containers`), and every `$VAR` is one the source view's rows give — a typo
+would otherwise fill in empty and filter on nothing.
+
+Hotkeys run a command but cannot read the row; plugins read the row but run
+a program, not a view. A jump is the one that does both.
 
 ## Views
 

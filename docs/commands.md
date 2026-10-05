@@ -45,7 +45,10 @@ A view command takes two optional parts, `@context` before `/filter`:
 
 | Command | Also | What it does |
 |---|---|---|
-| `:xray` | `:x` | k9s's xray: project → service → container → its image, volumes and networks, as a tree |
+| `:xray [root]` | `:x` | k9s's xray: project → service → container → its image, volumes and networks, as a tree |
+| `:xray net` | `:xray network`, `:xray networks` | xray grown from the networks: each network → the containers on it → what each uses |
+| `:xray vol` | `:xray volume`, `:xray volumes` | xray grown from the volumes: each volume → the containers mounting it |
+| `:xray img` | `:xray image`, `:xray images` | xray grown from the images: each image → the containers created from it |
 | `:lint` | | Each container's risky or fragile settings, worst first |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
@@ -93,12 +96,16 @@ These act on the row selected in the current view, as their keys do.
 - **Hotkeys**, in `hotkeys.yaml`, put a command on a key. `override: true`
   makes the hotkey win over the view's own key; `keepHistory: true` opens
   its view on top of the current one, so `esc` comes back.
-- **Plugins**, in `plugins.yaml`, run your own programs on the selected row,
-  with `$NAME`, `$IMAGE` and so on, an input form (`inputs`) and pipelines
-  (`pipes`); `overwriteOutput: true` shows a background plugin's first line
-  of output when it finishes.
+- **Plugins**, in `plugins.yaml` and any `*.yaml` in `plugins/` beside it,
+  run your own programs on the selected row, with `$NAME`, `$IMAGE` and so
+  on, an input form (`inputs`) and pipelines (`pipes`); `overwriteOutput:
+  true` shows a background plugin's first line of output when it finishes.
+- **Jumps**, in `jumps.yaml`, make `enter` in a view open another view
+  filtered by the selected row: `enter` on a container opens its compose
+  project's volumes, say. Help's and the header's `<enter>` say where it
+  goes.
 
-All three use k9s's file format; see [design/config.md](design/config.md).
+All four use k9s's file format; see [design/config.md](design/config.md).
 
 ## Starting on a command
 
@@ -193,6 +200,15 @@ the poll.
 container: `s` shell, `A` attach, `u` / `x` / `R` start / stop / restart,
 `K` kill, `p` pause, `ctrl-d` remove; `v` scans an image or a container's
 image; on a project or service, `s` opens the scale form (on that service).
+
+`:xray net`, `:xray vol` and `:xray img` (`:xray proj` is the default) root
+the tree at networks, volumes or images, as k9s's `:xray <resource>` does.
+It is the same one `docker ps -a`, so only what some container uses is in
+it: a network, volume or image no container uses is in its list view, not
+here. A container on two networks is under both. `enter` on a network root
+opens the containers on it, on a volume root its files, on an image root its
+layers; `o` inspects the root, `v` scans an image root; the containers under
+a root keep every container key above.
 
 ### Events
 

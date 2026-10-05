@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -58,6 +59,19 @@ func PluginsPath() (string, error) {
 	return filepath.Join(d, PluginsFileName), nil
 }
 
+// PluginsDirName is the directory of plugin snippet files beside
+// config.yaml — k9s's plugins/ (v0.40.9).
+const PluginsDirName = "plugins"
+
+// PluginsDirPath is the plugin snippets directory's path.
+func PluginsDirPath() (string, error) {
+	d, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, PluginsDirName), nil
+}
+
 // LoadPlugins reads the plugins file, as k9s's:
 //
 //	plugins:
@@ -68,13 +82,77 @@ func PluginsPath() (string, error) {
 //	    command: dive
 //	    args: [$IMAGE]
 //
-// No file is no plugins. An unknown key is an error; whether a plugin
-// makes sense is the UI's to say.
+// and then every *.yaml (or *.yml) in plugins/ beside it, in name order,
+// each in the same shape, merged into one set. A name defined in two files
+// is an error naming both. No file is no plugins. An unknown key is an
+// error; whether a plugin makes sense is the UI's to say.
 func LoadPlugins() (map[string]Plugin, error) {
 	path, err := PluginsPath()
 	if err != nil {
 		return nil, err
 	}
+	dir, err := PluginsDirPath()
+	if err != nil {
+		return nil, err
+	}
+	snippets, err := pluginSnippets(dir)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		out  map[string]Plugin
+		from = map[string]string{}
+	)
+	for _, p := range append([]string{path}, snippets...) {
+		entries, err := readPluginsFile(p)
+		if err != nil {
+			return nil, err
+		}
+		names := make([]string, 0, len(entries))
+		for name := range entries {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			if prev, ok := from[name]; ok {
+				return nil, fmt.Errorf("plugin %q is defined twice: in %s and in %s", name, prev, p)
+			}
+			if out == nil {
+				out = map[string]Plugin{}
+			}
+			from[name] = p
+			out[name] = entries[name]
+		}
+	}
+	return out, nil
+}
+
+// pluginSnippets lists the plugin files in dir, in name order: regular
+// files ending .yaml or .yml, not those in subdirectories. No directory is
+// no snippets.
+func pluginSnippets(dir string) ([]string, error) {
+	des, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
+	}
+	var out []string
+	for _, de := range des {
+		ext := filepath.Ext(de.Name())
+		if de.IsDir() || (ext != ".yaml" && ext != ".yml") {
+			continue
+		}
+		out = append(out, filepath.Join(dir, de.Name()))
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// readPluginsFile decodes one file of plugins: entries, strictly. A
+// missing file has none.
+func readPluginsFile(path string) (map[string]Plugin, error) {
 	f, err := os.Open(path) //nolint:gosec // the user's own config directory
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil //nolint:nilnil // no file: no plugins

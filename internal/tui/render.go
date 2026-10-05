@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -135,8 +136,44 @@ func (a *App) renderInfoPanelWith(ctxName, host, version string) []string {
 		label.Render("Endpoint: ") + value.Render(clipEnd(host, room)),
 		label.Render("Engine:   ") + value.Render(clipEnd(version, room)),
 		label.Render("Counts:   ") + value.Render(clipEnd(a.renderCounts(), room)),
+		label.Render("CPU/MEM:  ") + a.renderHostUsage(),
 		a.chrome.VersionLine("DM Rev:   ", a.version, ""),
 	}
+}
+
+// renderHostUsage is k9s's cluster CPU and MEM for the daemon host: the
+// CPU/MEM poll's sums over the running containers, as a share of the
+// host's CPUs and memory from the startup Info call — so it costs no
+// daemon call of its own. It is "n/a" with the poll off or the host's size
+// unknown, and "…" until a sample has landed. Each figure takes the
+// containers view's thresholds.
+func (a *App) renderHostUsage() string {
+	value := style.InfoValue
+	if !a.statsOn || a.client == nil || a.client.NCPU <= 0 || a.client.MemTotal <= 0 {
+		return value.Render("n/a")
+	}
+	cv := typedView[*views.ContainersView](a, style.ViewContainers)
+	if cv == nil || cv.Loading() {
+		return value.Render("…")
+	}
+	cpu, mem, running, sampled := cv.Usage()
+	if running > 0 && sampled == 0 {
+		return value.Render("…")
+	}
+	cpuPct := cpu / float64(a.client.NCPU)
+	memPct := float64(mem) * 100 / float64(a.client.MemTotal)
+	th := a.thresholds
+	if th == (views.Thresholds{}) {
+		th = views.DefaultThresholds()
+	}
+	pct := func(p, warn, critical float64) string {
+		text := fmt.Sprintf("%.0f%%", p)
+		if p >= warn {
+			return views.ThresholdText(text, p, warn, critical)
+		}
+		return value.Render(text)
+	}
+	return pct(cpuPct, th.CPUWarn, th.CPUCritical) + value.Render(" / ") + pct(memPct, th.MemWarn, th.MemCritical)
 }
 
 // renderCounts is a one-line inventory summary: running/total containers
@@ -433,6 +470,11 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	}
 
+	if j, ok := a.jumpFor(); ok {
+		// The jump has enter now; the view's own enter is out of reach.
+		actions = slices.DeleteFunc(actions, func(s chrome.Shortcut) bool { return s.Key == "<enter>" })
+		actions = append(actions, chrome.Shortcut{Key: "<enter>", Desc: "Jump " + j.ToName})
+	}
 	actions = append(actions, a.pluginShortcuts()...)
 	actions = append(
 		actions,
@@ -712,6 +754,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	if hk, ok := a.hotKeysHelp(); ok {
 		panel.Sections = append(panel.Sections, hk)
 	}
+	a.jumpHelp(&panel)
 	for i := range panel.Sections {
 		sortHelpEntries(panel.Sections[i].Entries)
 	}

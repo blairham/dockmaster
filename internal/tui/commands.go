@@ -22,6 +22,9 @@ import (
 var otherCommands = []views.Command{
 	{Name: "ctx", Also: []string{"context", "contexts"}, Desc: "The docker contexts; :ctx <name> switches to one"},
 	{Name: "xray", Also: []string{"x"}, Desc: "Projects, services, containers and what they use, as a tree"},
+	{Name: "xray net", Also: []string{"xray network", "xray networks"}, Desc: "Xray grown from the networks"},
+	{Name: "xray vol", Also: []string{"xray volume", "xray volumes"}, Desc: "Xray grown from the volumes"},
+	{Name: "xray img", Also: []string{"xray image", "xray images"}, Desc: "Xray grown from the images"},
 	{Name: "lint", Desc: "Each container's risky or fragile settings"},
 	{Name: "hostshell", Desc: "A root shell on the daemon's host (confirms)"},
 	{Name: "dir", Desc: "Browse for compose files; :dir <path> starts there"},

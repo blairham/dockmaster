@@ -48,7 +48,12 @@ type Client struct {
 	APIVersion  string
 	OSArch      string
 	Name        string
-	statsMu     sync.RWMutex
+	// NCPU and MemTotal are the daemon host's CPUs and memory in bytes,
+	// from the startup Info call; zero when unknown. The header's CPU/MEM
+	// line divides the sampler's sums by them.
+	NCPU     int
+	MemTotal int64
+	statsMu  sync.RWMutex
 	// Rootless is a daemon that reports running rootless (Negotiate): a
 	// container there cannot enter its host's namespaces.
 	Rootless bool
@@ -170,6 +175,7 @@ func (c *Client) Negotiate(ctx context.Context) error {
 	c.Version = info.ServerVersion
 	c.Name = info.Name
 	c.OSArch = info.OSType + "/" + info.Architecture
+	c.NCPU, c.MemTotal = info.NCPU, info.MemTotal
 	c.Rootless = rootless(info.SecurityOptions)
 	c.APIVersion = c.api.ClientVersion()
 	return nil
