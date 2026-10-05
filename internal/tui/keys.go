@@ -46,6 +46,9 @@ var knownCommands = []string{
 	"sd",
 	"lint",
 	"xray",
+	"xray net",
+	"xray vol",
+	"xray img",
 	"pulses",
 	"help",
 	"dir",
@@ -448,6 +451,15 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	if vt, ok := ViewForCommand(lower); ok {
 		return "", a.switchView(vt)
 	}
+	// :xray <root>, k9s's: the tree grown from networks, volumes or images.
+	if f := strings.Fields(lower); len(f) == 2 && (f[0] == "xray" || f[0] == "x") {
+		root, ok := views.XrayRoot(f[1])
+		if !ok {
+			return "xray grows from projects, net, vol or img — not " + f[1], nil
+		}
+		_, cmd := a.handleAction("xray", root)
+		return "", cmd
+	}
 
 	switch lower {
 	case "aliases", "alias":
@@ -597,8 +609,11 @@ var noContextCommands = map[string]bool{
 	"q": true, "q!": true, "quit": true, "exit": true, "ctx": true, "context": true, "contexts": true,
 }
 
-// argCommands take an argument after their name.
-var argCommands = map[string]bool{"pull": true, "dir": true, "ctx": true, "context": true, "prune": true}
+// argCommands take an argument after their name. xray's must be a root it
+// can grow from (validateCommand).
+var argCommands = map[string]bool{
+	"pull": true, "dir": true, "ctx": true, "context": true, "prune": true, "xray": true,
+}
 
 // ValidateCommand checks a command line as -c and defaultView take it: an
 // alias expands first, then it must be one the palette runs — a view (with
@@ -630,7 +645,12 @@ func validateCommand(input string, aliases map[string]string) error {
 		return nil
 	}
 	if f := strings.Fields(head); len(f) > 1 && argCommands[f[0]] {
-		return nil
+		if f[0] != "xray" {
+			return nil
+		}
+		if _, ok := views.XrayRoot(f[1]); ok && len(f) == 2 {
+			return nil
+		}
 	}
 	return errors.New("not a command")
 }

@@ -81,6 +81,7 @@ func TestHelpCoversEveryCommand(t *testing.T) {
 		"logs": "<l>", "inspect": "<o>", "describe": "<d>", "top": "<T>", "diff": "<D>", "health": "<H>",
 		"prune all": ":prune", "prune all volumes": ":prune", "prune cache": ":prune",
 		"logo": ":logo", "logoless": ":logo", "stats": "<t>", "all": "<a>",
+		"xray net": ":xray", "xray vol": ":xray", "xray img": ":xray",
 	}
 	a := newTestApp(t)
 	keys := map[string]bool{}
