@@ -523,8 +523,22 @@ func (a *App) renderContent() string {
 	}
 	_, innerH := a.contentSize()
 	body := a.renderActiveView()
-	box := a.chrome.BorderedContent(body, a.width, innerH)
-	return chrome.InjectBorderTitle(box, a.renderResourceTitle(), a.chrome.Theme)
+	// k9s's frame focusColor only while the table has the keyboard, as
+	// tview draws a box: with a bar or a confirm open the border falls back
+	// to frame.border.fgColor, dodger blue by default.
+	c, border := a.chrome, a.chrome.Theme.FocusBorder()
+	if !a.contentFocused() {
+		border = c.Theme.Border
+		c.Theme.TableBorder = c.Theme.TableBorder.BorderForeground(border)
+	}
+	box := c.BorderedContent(body, a.width, innerH)
+	return chrome.InjectBorderTitleColor(box, a.renderResourceTitle(), border, c.Theme)
+}
+
+// contentFocused reports whether the content box has the keyboard: not
+// while the command or filter bar, a prompt or a confirm is taking keys.
+func (a *App) contentFocused() bool {
+	return !a.confirm.Active() && !a.prompt.Active() && !a.filterBar.Active() && !a.commandBar.Active()
 }
 
 func (a *App) renderActiveView() string {
