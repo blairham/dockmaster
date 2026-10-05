@@ -23,6 +23,7 @@ var otherCommands = []views.Command{
 	{Name: "ctx", Also: []string{"context", "contexts"}, Desc: "The docker contexts; :ctx <name> switches to one"},
 	{Name: "xray", Also: []string{"x"}, Desc: "Projects, services, containers and what they use, as a tree"},
 	{Name: "lint", Desc: "Each container's risky or fragile settings"},
+	{Name: "hostshell", Desc: "A root shell on the daemon's host (confirms)"},
 	{Name: "dir", Desc: "Browse for compose files; :dir <path> starts there"},
 	{Name: "sd", Also: []string{"screendump", "screendumps", "dumps"}, Desc: "What ctrl-s has saved"},
 	{Name: "aliases", Also: []string{"alias"}, Desc: "This list (ctrl-a)"},

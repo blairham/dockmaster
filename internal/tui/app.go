@@ -134,11 +134,13 @@ type App struct {
 	logPaused     bool
 	logFullscreen bool
 	shell         string
-	noMouse       bool
-	reload        func() (Reloaded, error)
-	watchDir      string
-	watchFP       string
-	pendingFP     string
+	// hostShellImage is :hostshell's helper image; "" is the default.
+	hostShellImage string
+	noMouse        bool
+	reload         func() (Reloaded, error)
+	watchDir       string
+	watchFP        string
+	pendingFP      string
 	// applied is the config last read, so a reload changes a runtime
 	// toggle only when its value in the file changed.
 	applied         Options
@@ -261,6 +263,9 @@ type Options struct {
 	// Shell is the shell s opens in a container when it has it, before the
 	// usual bash-then-sh.
 	Shell string
+	// HostShellImage is the privileged helper :hostshell runs (config's
+	// hostShell.image); "" is config.DefaultHostShellImage.
+	HostShellImage string
 	// Reload re-reads the config directory, for ui.reactive; nil turns
 	// live reload off. WatchDir is the directory it watches.
 	Reload   func() (Reloaded, error)
@@ -366,6 +371,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		logPaused:      opts.LogPaused,
 		logFullscreen:  opts.LogFullscreen,
 		shell:          opts.Shell,
+		hostShellImage: opts.HostShellImage,
 		noMouse:        opts.NoMouse,
 		reload:         opts.Reload,
 		watchDir:       opts.WatchDir,

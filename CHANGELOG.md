@@ -29,6 +29,16 @@ fails when the tag has none.
   view the hotkey opens goes on top of the current one, so `esc` comes back.
 - `overwriteOutput` in `plugins.yaml` now does what it does in k9s (#64): a
   background plugin's first line of output replaces the "done" flash.
+- A root shell on the daemon's host, k9s's node shell (#59): `:hostshell`
+  for the daemon on screen — remote contexts and a plain dockerd included —
+  and `s` on a Docker Desktop, OrbStack or Rancher Desktop row in the
+  runtimes view. It runs a privileged, `--pid=host`, `--rm` helper that
+  `nsenter`s PID 1 and starts the host's `sh`. The image is
+  `hostShell.image` in config.yaml (default `alpine:3`, pulled if the
+  daemon lacks it). It always confirms, naming the daemon and the image;
+  `--readonly` and a context's `readOnly` refuse it, and so does a
+  rootless daemon, where it cannot work. Colima and Podman rows keep
+  their ssh.
 
 ### Changed
 
