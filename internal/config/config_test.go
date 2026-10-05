@@ -148,7 +148,8 @@ func TestPortForwardAddress(t *testing.T) {
 		t.Errorf("default = %s, want %s", got, DefaultPortForwardAddress)
 	}
 	for in, want := range map[string]string{
-		"":                      "127.0.0.1",
+		"":                      "127.0.0.1", // no value: the key is null, the default stays
+		"''":                    "127.0.0.1", // an empty string is the default, as in k9s
 		"127.0.0.1":             "127.0.0.1",
 		"localhost":             "127.0.0.1",
 		"LocalHost":             "127.0.0.1",
