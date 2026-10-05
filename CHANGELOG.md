@@ -12,6 +12,8 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-10-05
+
 ### Changed
 
 - Confirmations are k9s's popup dialog instead of a bar above the table:
