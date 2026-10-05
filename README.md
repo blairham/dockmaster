@@ -102,10 +102,10 @@ Every destructive action asks first, and `--readonly` refuses them outright.
 
 ### Commands
 
-Every `:` command, its other spellings, and each view's keys are in **[docs/commands.md](docs/commands.md)**. The ones you will reach for first:
+Every `:` command, its other spellings, and each view's keys are in **[docs/commands.md](docs/commands.md)** — and in the app, `ctrl-a` lists every command and your aliases, with `enter` running one. The ones you will reach for first:
 
 - Views: `:containers` `:images` `:volumes` `:networks` `:projects` `:runtimes` `:events`, plus `:pf` (port forwards), `:df` (disk usage), `:pods` and `:pulses` (a dashboard for the whole daemon). Add a filter or another docker context: `:containers @prod /postgres`.
-- Tools: `:xray` (projects → services → containers → what they use, as a tree), `:lint` (each container's risky settings), `:dir` (bring a project up from its compose file), `:sd` (what `ctrl-s` saved), `:ctx` (switch docker context).
+- Tools: `:xray` (projects → services → containers → what they use, as a tree), `:lint` (each container's risky settings), `:dir` (bring a project up from its compose file, or `ctrl-d` take it down), `:sd` (what `ctrl-s` saved), `:ctx` (switch docker context; `ctrl-d` removes one).
 - `:pull <ref>`, `:prune` / `:prune all` / `:prune cache`, `:readonly`, `:q`.
 - `v` on an image scans it for vulnerabilities with `grype` or `trivy`.
 

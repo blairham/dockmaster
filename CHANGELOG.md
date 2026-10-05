@@ -12,6 +12,32 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- `ctrl-a` opens k9s's aliases view (#64): every `:` command with its other
+  spellings, and your `aliases.yaml` entries, marked `alias`, as a table you
+  can filter and sort; `enter` runs the selected one as if typed at the
+  palette. `:aliases` opens the same view (it was a plain-text list of your
+  aliases). In the `:` and `/` bars `ctrl-a` is still start of line.
+- `ctrl-d` in the contexts view runs `docker context rm <name>` after a
+  confirm (#64). `default`, the context dockmaster is connected through and
+  the docker CLI's current context are refused with the reason; `--readonly`
+  refuses it.
+- `ctrl-d` on a compose file in `:dir` runs `compose -f <file> down` after a
+  confirm (#64); `--readonly` refuses it.
+- `keepHistory` in `hotkeys.yaml` now does what it does in k9s (#64): the
+  view the hotkey opens goes on top of the current one, so `esc` comes back.
+- `overwriteOutput` in `plugins.yaml` now does what it does in k9s (#64): a
+  background plugin's first line of output replaces the "done" flash.
+
+### Changed
+
+- `ctrl-a` is now a dockmaster key: a hotkey or plugin on `Ctrl-A` is
+  refused at startup.
+- A hotkey, `-c`, `defaultView` or an alias may name a command by any
+  spelling the palette takes (`x`, `log`, `h`, `dumps`, `screendumps`, `?`);
+  those were refused as "not a command".
+
 ## [0.0.11] - 2026-10-04
 
 ### Fixed
