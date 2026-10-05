@@ -686,6 +686,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<s>", Desc: "Shell into it"},
 					{Key: "<A>", Desc: "Attach"},
 					{Key: "<shift-f>", Desc: "Port-forward"},
+					{Key: "<f>", Desc: "Its forwards"},
 					{Key: "<l>", Desc: "Logs"},
 					{Key: "<t>", Desc: "CPU/MEM poll"},
 					{Key: "<ctrl-d>", Desc: "Remove"},

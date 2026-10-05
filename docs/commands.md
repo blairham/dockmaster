@@ -142,7 +142,8 @@ Keys every view shares:
 | `ctrl-d` | Remove (confirms) | `P` | Prune stopped (confirms) |
 | `H` / `T` / `D` / `S` | Health / top / diff / stats | `C` | Copy files in or out, as `docker cp` |
 | `e` | Edit limits, restart policy, name | `v` | Scan its image for vulnerabilities |
-| `shift-f` | Port-forward | `b` | Open a published port in the browser |
+| `shift-f` | Port-forward: `local:container`, comma-separated for more; labels can prefill or confirm it | `b` | Open a published port in the browser |
+| `f` | Its port forwards (`:pf` narrowed to it; `esc` back) | | |
 | `J` | Jump to its compose project | `enter`, `n` | On a ⎈ kind/k3d node: the pods' containers inside it (`l` is still its logs) |
 | `a` | Show stopped | `t` | CPU/MEM poll on or off |
 | `ctrl-w` | Wide columns | `ctrl-z` | Faults only |
