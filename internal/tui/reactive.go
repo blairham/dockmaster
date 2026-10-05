@@ -104,7 +104,7 @@ func (a *App) applyReload(m reloadedMsg) {
 	}
 	n, prev := m.r.Options, a.applied
 
-	a.aliases, a.hotKeys, a.plugins = n.Aliases, n.HotKeys, n.Plugins
+	a.aliases, a.hotKeys, a.plugins, a.jumps = n.Aliases, n.HotKeys, n.Plugins, n.Jumps
 	a.thresholds = n.Thresholds
 	if cv := typedView[*views.ContainersView](a, style.ViewContainers); cv != nil {
 		cv.SetThresholds(n.Thresholds)

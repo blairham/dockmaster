@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -417,6 +418,11 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	}
 
+	if j, ok := a.jumpFor(); ok {
+		// The jump has enter now; the view's own enter is out of reach.
+		actions = slices.DeleteFunc(actions, func(s chrome.Shortcut) bool { return s.Key == "<enter>" })
+		actions = append(actions, chrome.Shortcut{Key: "<enter>", Desc: "Jump " + j.ToName})
+	}
 	actions = append(actions, a.pluginShortcuts()...)
 	actions = append(
 		actions,
@@ -693,6 +699,9 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	}
 	if hk, ok := a.hotKeysHelp(); ok {
 		panel.Sections = append(panel.Sections, hk)
+	}
+	if jh, ok := a.jumpHelp(); ok {
+		panel.Sections = append(panel.Sections, jh)
 	}
 	for i := range panel.Sections {
 		sortHelpEntries(panel.Sections[i].Entries)

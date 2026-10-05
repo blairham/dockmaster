@@ -120,6 +120,7 @@ type App struct {
 	aliases     map[string]string
 	hotKeys     []HotKey
 	plugins     []Plugin
+	jumps       []Jump
 	// requestTimeout is --request-timeout, carried onto each client a
 	// context switch dials.
 	requestTimeout time.Duration
@@ -272,6 +273,8 @@ type Options struct {
 	HotKeys []HotKey
 	// Plugins are the user's plugins (plugins.yaml), validated by Plugins.
 	Plugins []Plugin
+	// Jumps are the user's jumps (jumps.yaml), validated by Jumps.
+	Jumps []Jump
 	// ColumnLayouts are the user's per-view columns (views.yaml), by view,
 	// validated by ColumnLayouts. nil keeps every view's own.
 	ColumnLayouts map[string]views.ColumnLayout
@@ -388,6 +391,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		aliases:        opts.Aliases,
 		hotKeys:        opts.HotKeys,
 		plugins:        opts.Plugins,
+		jumps:          opts.Jumps,
 		requestTimeout: opts.RequestTimeout,
 		thresholds:     opts.Thresholds,
 		log:            opts.Logger,

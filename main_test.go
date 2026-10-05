@@ -148,3 +148,57 @@ func TestLoadSettingsContexts(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadSettingsPluginSnippetsAndJumps: plugins/ snippets and jumps.yaml
+// reach the app's options, checked as plugins.yaml is — a snippet's bad
+// scope, or a key it shares with plugins.yaml in a view, stops startup and
+// a reload, and so does a jump to no view.
+func TestLoadSettingsPluginSnippetsAndJumps(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKMASTER_CONFIG_DIR", dir)
+	cfgPath := filepath.Join(dir, "config.yaml")
+	put := func(name, body string) {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put("config.yaml", "dockmaster: {}\n")
+	put("plugins.yaml", "plugins:\n  a:\n    shortCut: F2\n    scopes: [images]\n    command: a\n")
+	put("plugins/b.yaml", "plugins:\n  b:\n    shortCut: F3\n    scopes: [containers]\n    command: b\n")
+	put("jumps.yaml", "jumps:\n  images:\n    targetView: containers\n    filter: $IMAGE\n")
+	st, err := loadSettings(cfgPath, nil, config.FlagValues{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := settingsOptions(st)
+	if len(o.Plugins) != 2 || o.Plugins[0].Name != "a" || o.Plugins[1].Name != "b" {
+		t.Errorf("plugins %+v", o.Plugins)
+	}
+	if len(o.Jumps) != 1 || o.Jumps[0].From != style.ViewImages || o.Jumps[0].To != style.ViewContainers {
+		t.Errorf("jumps %+v", o.Jumps)
+	}
+
+	for _, tc := range []struct{ name, body, want string }{
+		{
+			name: "plugins/b.yaml", body: "plugins:\n  b:\n    shortCut: F3\n    scopes: [nope]\n    command: b\n",
+			want: `scope "nope" is not a view`,
+		},
+		{
+			name: "plugins/b.yaml", body: "plugins:\n  b:\n    shortCut: F2\n    scopes: [all]\n    command: b\n",
+			want: `already plugin "a"`,
+		},
+		{name: "jumps.yaml", body: "jumps:\n  images:\n    targetView: nope\n    filter: x\n", want: `targetView "nope"`},
+	} {
+		put("plugins/b.yaml", "plugins:\n  b:\n    shortCut: F3\n    scopes: [containers]\n    command: b\n")
+		put("jumps.yaml", "jumps: {}\n")
+		put(tc.name, tc.body)
+		if _, err := loadSettings(cfgPath, nil, config.FlagValues{}); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err %v, want %q", tc.name, err, tc.want)
+		}
+	}
+}

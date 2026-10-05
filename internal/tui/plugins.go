@@ -564,16 +564,30 @@ var pluginVarRe = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_-]*)\}|\$([A-Za-z
 // then the environment, as k9s does — $COL-IMAGE included, which os.Expand
 // would read as $COL. A name not found reads as empty.
 func expandPluginVars(arg string, vars map[string]string) string {
+	return expandVars(arg, vars, nil)
+}
+
+// expandVars is expandPluginVars with each value passed through quote
+// first, when it is not nil: a jump's regex filter quotes what it fills
+// in, so a value matches itself. The text around the values is not
+// quoted, and a value is never expanded again.
+func expandVars(arg string, vars map[string]string, quote func(string) string) string {
+	value := func(v string) string {
+		if quote != nil {
+			return quote(v)
+		}
+		return v
+	}
 	return pluginVarRe.ReplaceAllStringFunc(arg, func(m string) string {
 		sub := pluginVarRe.FindStringSubmatch(m)
 		name := sub[1] + sub[2]
 		if v, ok := lookupVar(name, vars); ok {
-			return v
+			return value(v)
 		}
 		// "$NAME-suffix": a name, then text.
 		if head, tail, ok := strings.Cut(name, "-"); ok && sub[2] != "" {
 			if v, ok := lookupVar(head, vars); ok {
-				return v + "-" + tail
+				return value(v) + "-" + tail
 			}
 		}
 		return ""

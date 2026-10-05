@@ -318,6 +318,10 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if cmd, ok := a.bulkKey(key); ok {
 		return a, cmd
 	}
+	// A jump (jumps.yaml) takes over its view's enter, as k9s's does.
+	if cmd, ok := a.jumpKey(key); ok {
+		return a, cmd
+	}
 
 	// View-specific keys next, then table navigation.
 	if action, param := a.activeViewHandleKey(key); action != "" {

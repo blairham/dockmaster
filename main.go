@@ -338,8 +338,8 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 }
 
 // settings is everything read from the config directory: config.yaml with
-// the command line's flags over it, the aliases, hotkeys, plugins and view
-// columns, and the skin's theme — validated, as dockmaster will not start
+// the command line's flags over it, the aliases, hotkeys, plugins, jumps
+// and view columns, and the skin's theme — validated, as dockmaster will not start
 // on a bad file.
 type settings struct {
 	theme theme.Theme
@@ -349,6 +349,7 @@ type settings struct {
 	cfg       config.Config
 	hotKeys   []tui.HotKey
 	plugins   []tui.Plugin
+	jumps     []tui.Jump
 	columns   map[string]views.ColumnLayout
 	// forceReadOnly is --readonly given on the command line, which beats
 	// every context's readOnly.
@@ -390,6 +391,14 @@ func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagV
 	if err != nil {
 		return settings{}, err
 	}
+	jumpFile, err := config.LoadJumps()
+	if err != nil {
+		return settings{}, err
+	}
+	jumps, err := tui.Jumps(jumpFile)
+	if err != nil {
+		return settings{}, err
+	}
 	viewFile, err := config.LoadViews()
 	if err != nil {
 		return settings{}, err
@@ -417,7 +426,7 @@ func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagV
 		}
 	}
 	return settings{
-		cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, columns: columns, theme: th,
+		cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, jumps: jumps, columns: columns, theme: th,
 		ctxThemes: ctxThemes, forceReadOnly: flagSet["readonly"] && flagVals.ReadOnly,
 	}, nil
 }
@@ -440,6 +449,7 @@ func settingsOptions(st settings) tui.Options {
 		Aliases:       st.aliases,
 		HotKeys:       st.hotKeys,
 		Plugins:       st.plugins,
+		Jumps:         st.jumps,
 		ColumnLayouts: st.columns,
 		Thresholds:    tui.ThresholdsFrom(cfg.Thresholds),
 	}
