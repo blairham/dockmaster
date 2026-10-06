@@ -94,12 +94,10 @@ func TestThemeInverts(t *testing.T) {
 func TestSkinErrors(t *testing.T) {
 	skinDir(t, map[string]string{
 		"empty.yaml": "dockmaster:\n  frame: {}\n",
-		"bad.yaml":   "k9s:\n  frame:\n    menu:\n      keyColor: bluish\n",
 	})
 	for name, want := range map[string]string{
 		"missing": `no skin named "missing"`,
 		"empty":   "sets no colors under a top-level k9s: key",
-		"bad":     "k9s.frame.menu.keyColor",
 	} {
 		c := Default()
 		c.UI.Skin = name
@@ -118,5 +116,26 @@ func TestInvertFlag(t *testing.T) {
 	c := ApplyFlags(Default(), map[string]bool{"invert": true}, FlagValues{Invert: true})
 	if !c.UI.Invert {
 		t.Error("--invert did not set ui.invert")
+	}
+}
+
+// A color that does not parse is drawn in the terminal's own, as k9s
+// draws it, and the rest of the skin still applies: k9s's own stock skin
+// names "linegreen".
+func TestSkinUnreadableColorIsTerminalDefault(t *testing.T) {
+	skinDir(t, map[string]string{
+		"stock.yaml": "k9s:\n  frame:\n    menu:\n      keyColor: linegreen\n      fgColor: '#ff0000'\n",
+	})
+	c := Default()
+	c.UI.Skin = "stock"
+	th, err := c.Theme(theme.Default())
+	if err != nil {
+		t.Fatalf("a skin with an unreadable color was refused: %v", err)
+	}
+	if _, ok := th.MenuKey.(lipgloss.NoColor); !ok {
+		t.Errorf("keyColor linegreen = %v, want the terminal's own color", th.MenuKey)
+	}
+	if th.MenuText == theme.Default().MenuText {
+		t.Error("the skin's readable colors were not applied")
 	}
 }

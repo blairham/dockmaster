@@ -12,6 +12,12 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Fixed
+
+- k9s's stock skins load: a skin color that does not parse (the stock
+  skins name `linegreen`) is drawn in the terminal's own color, as k9s
+  draws it, instead of stopping startup.
+
 ## [0.0.13] - 2026-10-05
 
 ### Changed
