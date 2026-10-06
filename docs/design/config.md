@@ -152,9 +152,11 @@ which image is being scanned. With `background` off nothing scans unless
 file is k9s's own format — colors under a top-level `k9s:` key — so a k9s
 skin drops in unchanged; tuikit's `theme.Skin` maps the keys it draws with
 and ignores the rest. `views.charts.defaultChartColors`' first two
-entries color `:pulses`' sparklines (CPU, then memory). A skin with no colors under `k9s:`, an unknown name,
-or an unreadable color stops startup with the reason (the color's key
-path included), rather than silently drawing the default.
+entries color `:pulses`' sparklines (CPU, then memory). A skin with no colors under `k9s:`, or an unknown
+name, stops startup with the reason rather than silently drawing the
+default. A color that does not parse is drawn in the terminal's own, as
+k9s draws it — k9s's own stock skins name `linegreen` — and the rest of
+the skin applies.
 
 `--invert` (or `ui.invert: true`) is k9s's: every color's lightness is
 flipped in OkLch and its hue kept, so a dark skin turns light. It applies

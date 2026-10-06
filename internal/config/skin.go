@@ -101,13 +101,13 @@ func (c Config) Theme(base theme.Theme) (theme.Theme, error) {
 func skinTheme(base theme.Theme, name string, invert bool) (theme.Theme, error) {
 	t := base
 	if name != "" {
-		s, path, err := LoadSkin(name)
+		s, _, err := LoadSkin(name)
 		if err != nil {
 			return base, err
 		}
-		if err := s.Check(); err != nil {
-			return base, fmt.Errorf("skin %s: %w", path, err)
-		}
+		// A color that does not parse is drawn in the terminal's own, as
+		// k9s draws it: k9s's stock skins name "linegreen", and refusing
+		// them would refuse skins that work in k9s.
 		t = t.WithSkin(s)
 	}
 	if invert {
