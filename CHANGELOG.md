@@ -14,6 +14,9 @@ fails when the tag has none.
 
 ### Fixed
 
+- The confirm dialog's buttons are k9s's colors: the focused one black on
+  dodgerblue, the other cadetblue, and a skin's `dialog:` block recolors
+  them.
 - k9s's stock skins load: a skin color that does not parse (the stock
   skins name `linegreen`) is drawn in the terminal's own color, as k9s
   draws it, instead of stopping startup.
