@@ -12,6 +12,8 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-10-06
+
 ### Fixed
 
 - The confirm dialog's buttons are k9s's colors: the focused one black on
