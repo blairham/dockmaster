@@ -12,6 +12,16 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+## [0.0.16] - 2026-10-07
+
+### Changed
+
+- The `:` palette suggests the shortest command that extends what is
+  typed, as k9s does: `q` suggests `q!` and `qu` suggests `quit`, where `q`
+  used to suggest only itself. A command that begins a longer one now
+  suggests the longer one (`logo` → `logoless`); enter still runs what was
+  typed.
+
 ## [0.0.15] - 2026-10-07
 
 ### Added
@@ -307,7 +317,11 @@ machines under the daemon — Colima, Podman, Docker Desktop, Rancher Desktop,
 OrbStack — managed from the runtimes view. Archives are cosign-signed and
 the formula is in `blairham/homebrew-tap`.
 
-[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.12...HEAD
+[Unreleased]: https://github.com/blairham/dockmaster/compare/v0.0.16...HEAD
+[0.0.16]: https://github.com/blairham/dockmaster/compare/v0.0.15...v0.0.16
+[0.0.15]: https://github.com/blairham/dockmaster/compare/v0.0.14...v0.0.15
+[0.0.14]: https://github.com/blairham/dockmaster/compare/v0.0.13...v0.0.14
+[0.0.13]: https://github.com/blairham/dockmaster/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/blairham/dockmaster/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/blairham/dockmaster/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/blairham/dockmaster/compare/v0.0.9...v0.0.10
