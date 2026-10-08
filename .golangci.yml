@@ -199,7 +199,10 @@ formatters:
         - github.com/blairham/dockmaster
 
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
 
     gci:
       sections:

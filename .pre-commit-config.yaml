@@ -30,7 +30,7 @@ repos:
   # surface — there is no `make lint`, and CI runs these same hooks. Keep `rev`
   # in lockstep with go.mod's tool pin.
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.12.2
+    rev: v2.14.0
     hooks:
       - id: golangci-lint-fmt
       - id: golangci-lint

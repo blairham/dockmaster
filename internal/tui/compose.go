@@ -322,7 +322,8 @@ func (a *App) composeFileEdit(file string) tea.Cmd {
 	cmd := exec.CommandContext(
 		context.Background(),
 		bin,
-		append(argv[1:], file)...) //nolint:gosec // the user's own editor on a file they chose
+		append(argv[1:], file)..., //nolint:gosec // the user's own editor on a file they chose
+	)
 	return a.inTerminal(cmd, func(err error) tea.Msg {
 		return composeEditedMsg{
 			project: filepath.Base(file),
