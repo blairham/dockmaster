@@ -118,7 +118,8 @@ func Command(ctx context.Context, s Scanner, ref, dockerHost string) *exec.Cmd {
 	cmd := exec.CommandContext(
 		ctx,
 		s.Path,
-		args...) //nolint:gosec // a scanner the user installed, on a ref from the daemon
+		args..., //nolint:gosec // a scanner the user installed, on a ref from the daemon
+	)
 	cmd.Env = os.Environ()
 	if dockerHost != "" {
 		cmd.Env = append(cmd.Env, "DOCKER_HOST="+dockerHost)

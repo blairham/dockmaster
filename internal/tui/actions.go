@@ -918,7 +918,8 @@ func (a *App) attach(id string) tea.Cmd {
 	cmd := exec.CommandContext(
 		context.Background(),
 		"/bin/sh",
-		args...) //nolint:gosec // fixed script; id comes from the daemon's listing
+		args..., //nolint:gosec // fixed script; id comes from the daemon's listing
+	)
 	return a.inTerminal(cmd, func(err error) tea.Msg {
 		// Detaching, and the container exiting under ctrl-c, both end the
 		// session with a non-zero status; neither is an error worth a flash.
