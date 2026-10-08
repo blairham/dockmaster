@@ -78,6 +78,9 @@ These act on the row selected in the current view, as their keys do.
 | `:prune all` | | As `docker system prune`: stopped containers, unused networks, dangling images, build cache; volumes are kept (confirms) |
 | `:prune all volumes` | `:prune all -v`, `:prune all --volumes` | The same, and every unused volume (confirms) |
 | `:prune cache` | `:prune build`, `:prune builder` | The build cache (confirms) |
+| `:delete all` | | In the images or volumes view: delete every one, never forced — anything a container uses, or the daemon refuses, is skipped (confirms) |
+| `:delete all images` | | Every image, from any view; skips as above (confirms) |
+| `:delete all volumes` | | Every volume and its data, from any view; skips as above (confirms) |
 
 ### Settings for this session
 

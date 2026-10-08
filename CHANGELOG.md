@@ -12,6 +12,14 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- `:delete all` deletes every image in the images view, or every volume in
+  the volumes view (`:delete all images` / `:delete all volumes` from
+  anywhere). Nothing is forced: whatever a container uses, or the daemon
+  refuses, is skipped and counted. It confirms first, and `--readonly`
+  refuses it.
+
 ## [0.0.14] - 2026-10-06
 
 ### Fixed

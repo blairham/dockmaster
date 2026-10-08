@@ -9,6 +9,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/blairham/dockmaster/internal/docker"
+	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
 func kinds(steps []pruneStep) []string {
@@ -122,5 +125,62 @@ func TestContainersPPrunes(t *testing.T) {
 		if !a.confirm.Active() || !strings.Contains(a.confirm.Prompt(), "stopped") {
 			t.Errorf("loaded %v: confirm = %v %q", loaded, a.confirm.Active(), a.confirm.Prompt())
 		}
+	}
+}
+
+// TestDeleteAllCommands: :delete all takes its kind from the view, the
+// explicit forms work anywhere, each confirms first, declining runs
+// nothing, and elsewhere :delete all says how to name a kind.
+func TestDeleteAllCommands(t *testing.T) {
+	for _, tc := range []struct {
+		cmd  string
+		want string
+		view style.ViewType
+	}{
+		{view: style.ViewImages, cmd: "delete all", want: "EVERY image"},
+		{view: style.ViewVolumes, cmd: "delete all", want: "EVERY volume"},
+		{view: style.ViewContainers, cmd: "delete all images", want: "EVERY image"},
+		{view: style.ViewContainers, cmd: "delete all volumes", want: "EVERY volume"},
+	} {
+		a := newTestApp(t)
+		a.view = tc.view
+		msg, cmd := a.dispatchCommand(tc.cmd)
+		if cmd != nil || msg != "" {
+			t.Errorf("%v :%s ran something before confirming (%q)", tc.view, tc.cmd, msg)
+		}
+		if !a.confirm.Active() || !strings.Contains(a.confirm.Prompt(), tc.want) {
+			t.Errorf("%v :%s confirm = %v %q, want %q", tc.view, tc.cmd, a.confirm.Active(), a.confirm.Prompt(), tc.want)
+		}
+		if got := step(a, key("n")); got != nil {
+			t.Errorf(":%s declined still returned a command", tc.cmd)
+		}
+	}
+
+	a := newTestApp(t)
+	a.view = style.ViewContainers
+	if msg, _ := a.dispatchCommand("delete all"); a.confirm.Active() || !strings.Contains(msg, ":delete all images") {
+		t.Errorf("containers :delete all = %q, confirm %v; want the explicit forms named", msg, a.confirm.Active())
+	}
+
+	ro := NewApp(nil, Options{Version: "test", ReadOnly: true})
+	for _, cmd := range []string{"delete all images", "delete all volumes"} {
+		ro.errFlash = ""
+		ro.dispatchCommand(cmd)
+		if ro.confirm.Active() || !strings.Contains(ro.errFlash, "readonly") {
+			t.Errorf(":%s not refused in readonly (flash %q)", cmd, ro.errFlash)
+		}
+	}
+}
+
+// TestDeleteAllDone: skips are counted, not errors; anything else is an
+// error that still says what was deleted.
+func TestDeleteAllDone(t *testing.T) {
+	m := deleteAllDone("volumes", docker.RemoveAllResult{Removed: 1, Skipped: 2})
+	if m.err != nil || m.verb+" "+m.subject != "deleted 1 volume, skipped 2" {
+		t.Errorf("got %q %v", m.verb+" "+m.subject, m.err)
+	}
+	m = deleteAllDone("images", docker.RemoveAllResult{Removed: 3, Skipped: 1, Err: errors.New("boom")})
+	if m.err == nil || m.err.Error() != "deleted 3 images, skipped 1 — boom" {
+		t.Errorf("err = %v", m.err)
 	}
 }

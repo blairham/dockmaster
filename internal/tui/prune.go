@@ -119,3 +119,43 @@ func (a *App) runPruneAll(steps []pruneStep) tea.Cmd {
 		return actionDoneMsg{verb: "pruned", subject: summary}
 	}
 }
+
+// deleteAllPrompt is the question each delete-all asks.
+var deleteAllPrompt = map[string]string{
+	"images":  "delete EVERY image? anything a container uses, or the daemon refuses, is skipped",
+	"volumes": "delete EVERY volume and its data? anything a container uses, or the daemon refuses, is skipped",
+}
+
+// confirmDeleteAll asks before :delete all on kind, images or volumes.
+func (a *App) confirmDeleteAll(kind string) {
+	a.openConfirm("delete_all_"+kind, "", deleteAllPrompt[kind])
+}
+
+// runDeleteAll removes every image or volume the daemon lets go, one at a
+// time and never forced, and reports what was removed and what was left.
+func (a *App) runDeleteAll(kind string, fn func(context.Context) (docker.RemoveAllResult, error)) tea.Cmd {
+	a.flash = "deleting all " + kind + "…"
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), pruneAllTimeout)
+		defer cancel()
+		res, err := fn(ctx)
+		if err != nil {
+			return actionDoneMsg{verb: "delete all", subject: kind, err: err}
+		}
+		return deleteAllDone(kind, res)
+	}
+}
+
+// deleteAllDone is the flash for a finished delete-all. Skips are the
+// expected outcome and only counted; an error that was not "in use" is
+// surfaced, after what was removed.
+func deleteAllDone(kind string, res docker.RemoveAllResult) actionDoneMsg {
+	subject := fmt.Sprintf("%d %s", res.Removed, pruneNoun(kind, res.Removed))
+	if res.Skipped > 0 {
+		subject += fmt.Sprintf(", skipped %d", res.Skipped)
+	}
+	if res.Err != nil {
+		return actionDoneMsg{verb: "delete all", err: fmt.Errorf("deleted %s — %w", subject, res.Err)}
+	}
+	return actionDoneMsg{verb: "deleted", subject: subject}
+}
