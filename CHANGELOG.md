@@ -12,6 +12,8 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-10-07
+
 ### Added
 
 - `:delete all` deletes every image in the images view, or every volume in
