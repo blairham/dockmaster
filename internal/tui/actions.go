@@ -57,6 +57,7 @@ var mutating = map[string]bool{
 	"compose_up": true, "compose_edit": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
 	"scale_form": true, "compose_scale": true,
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
+	"confirm_delete_all_images": true, "confirm_delete_all_volumes": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
 	// confirm_host_shell is a root shell on the daemon's host; its confirmed
@@ -497,6 +498,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			"prune all INCLUDING VOLUMES? stopped containers, unused networks, dangling images, build cache, "+
 				"and every unused volume, named ones too — their data is gone")
 		return a, nil
+	case "confirm_delete_all_images":
+		a.confirmDeleteAll("images")
+		return a, nil
+	case "confirm_delete_all_volumes":
+		a.confirmDeleteAll("volumes")
+		return a, nil
 	case "confirm_prune_cache":
 		a.openConfirm("prune_cache", "", "prune the build cache? cache no image still uses is removed")
 		return a, nil
@@ -715,6 +722,8 @@ func confirmTitle(action string) string {
 	switch {
 	case strings.HasPrefix(action, "prune"):
 		return "Prune"
+	case strings.HasPrefix(action, "delete_all"):
+		return "Delete"
 	case strings.HasPrefix(action, "remove"):
 		return "Remove"
 	case action == "runtime_stop", action == "runtime_restart", action == "runtime_delete":
@@ -792,6 +801,10 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // f
 		return a.runPruneAll(a.pruneAllSteps(false))
 	case "prune_all_volumes":
 		return a.runPruneAll(a.pruneAllSteps(true))
+	case "delete_all_images":
+		return a.runDeleteAll("images", a.client.RemoveAllImages)
+	case "delete_all_volumes":
+		return a.runDeleteAll("volumes", a.client.RemoveAllVolumes)
 	case "prune_cache":
 		return a.runPruneAll(pruneOnly(a.pruneAllSteps(false), "build cache"))
 	case "stop_project":

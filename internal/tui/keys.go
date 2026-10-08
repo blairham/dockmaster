@@ -64,6 +64,9 @@ var knownCommands = []string{
 	"prune all",
 	"prune all volumes",
 	"prune cache",
+	"delete all",
+	"delete all images",
+	"delete all volumes",
 	"pull",
 	"readonly",
 	"logo",
@@ -521,6 +524,23 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return "", cmd
 	case "prune":
 		_, cmd := a.handleAction("confirm_prune_containers", "")
+		return "", cmd
+	case "delete all":
+		// The view decides what "all" is; anywhere else, say how to name it.
+		switch a.view {
+		case style.ViewImages:
+			_, cmd := a.handleAction("confirm_delete_all_images", "")
+			return "", cmd
+		case style.ViewVolumes:
+			_, cmd := a.handleAction("confirm_delete_all_volumes", "")
+			return "", cmd
+		}
+		return "delete all works in the images or volumes view — or :delete all images / :delete all volumes", nil
+	case "delete all images":
+		_, cmd := a.handleAction("confirm_delete_all_images", "")
+		return "", cmd
+	case "delete all volumes":
+		_, cmd := a.handleAction("confirm_delete_all_volumes", "")
 		return "", cmd
 	case "all":
 		_, cmd := a.handleAction("toggle_all", "")
