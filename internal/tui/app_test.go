@@ -354,7 +354,10 @@ func TestFuzzyMatchPrefersPrefixes(t *testing.T) {
 		{in: "im", want: "images"},
 		{in: "vol", want: "volumes"},
 		{in: "ctx", want: "ctx"},
-		{in: "q", want: "q"},
+		{in: "q", want: "q!"},
+		{in: "qu", want: "quit"},
+		{in: "Q", want: "q!"},
+		{in: "quit", want: "quit"},
 		{in: "", want: ""},
 	} {
 		if got := fuzzyMatch(tc.in); got != tc.want {

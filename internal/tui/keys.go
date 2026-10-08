@@ -110,8 +110,12 @@ func ViewCommandNames() []string {
 	}
 }
 
-// fuzzyMatch picks the best command for a partial input: exact prefixes
-// first, then subsequence matches, shortest winning ties.
+// fuzzyMatch picks the best command for a partial input: the shortest
+// command that extends it, then the input itself when it is a command,
+// then subsequence matches, shortest winning ties. Extending first is what
+// gives the palette something to show — `q` suggests `q!` and `qu` suggests
+// `quit`, as k9s does — where a command that only matched itself would
+// leave no completion to draw.
 func fuzzyMatch(input string, aliases ...string) string {
 	if input == "" {
 		return ""
@@ -121,12 +125,15 @@ func fuzzyMatch(input string, aliases ...string) string {
 
 	var best string
 	for _, cmd := range candidates {
-		if strings.HasPrefix(cmd, lower) && (best == "" || len(cmd) < len(best)) {
+		if len(cmd) > len(lower) && strings.HasPrefix(cmd, lower) && (best == "" || len(cmd) < len(best)) {
 			best = cmd
 		}
 	}
 	if best != "" {
 		return best
+	}
+	if slices.Contains(candidates, lower) {
+		return lower
 	}
 	for _, cmd := range candidates {
 		if isSubsequence(lower, cmd) && (best == "" || len(cmd) < len(best)) {
