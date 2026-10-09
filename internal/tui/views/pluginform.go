@@ -58,45 +58,55 @@ func NewPluginForm(name, desc string, inputs []PluginInput) *PluginFormView {
 	v := &PluginFormView{plugin: name, desc: desc, inputs: inputs}
 	v.valueWidth = pluginInputWidth + 4
 	for _, in := range inputs {
-		f := formField{key: in.Name, label: in.Label}
 		if w := len([]rune(in.Label)) + 2; w > v.labelWidth {
 			v.labelWidth = w
 		}
-		switch in.Type {
-		case InputBool:
-			f.choices = []string{"false", "true"}
-			if in.Default == "true" {
-				f.choice = 1
-			}
-			f.hint = "space or y/n"
-		case InputDropdown:
-			f.choices = in.Options
-			f.choice = -1
-			for i, o := range in.Options {
-				if o == in.Default {
-					f.choice = i
-				}
-			}
-			if f.choice < 0 {
-				f.choices = append([]string{""}, in.Options...)
-				f.choice = 0
-			}
-			f.hint = "←/→ to choose"
-		default:
-			f.input = newFormInput(in.Default, 1024)
-			f.input.SetWidth(pluginInputWidth)
-			if in.Type == InputNumber {
-				f.hint = "a number"
-			}
-		}
-		if in.Required {
-			f.hint = joinHint("required", f.hint)
-		}
-		v.fields = append(v.fields, f)
+		v.fields = append(v.fields, pluginField(in))
 	}
 	v.labelWidth = max(v.labelWidth, 10)
 	v.focusField(0)
 	return v
+}
+
+// pluginField is the form field for one input.
+func pluginField(in PluginInput) formField {
+	f := formField{key: in.Name, label: in.Label}
+	switch in.Type {
+	case InputBool:
+		f.choices = []string{"false", "true"}
+		if in.Default == f.choices[1] {
+			f.choice = 1
+		}
+		f.hint = "space or y/n"
+	case InputDropdown:
+		f.choices, f.choice = dropdownChoices(in)
+		f.hint = "←/→ to choose"
+	default:
+		f.input = newFormInput(in.Default, 1024)
+		f.input.SetWidth(pluginInputWidth)
+		if in.Type == InputNumber {
+			f.hint = "a number"
+		}
+	}
+	if in.Required {
+		f.hint = joinHint("required", f.hint)
+	}
+	return f
+}
+
+// dropdownChoices are a dropdown's choices and the one its default picks; a
+// dropdown with no default starts on an empty choice put first.
+func dropdownChoices(in PluginInput) ([]string, int) {
+	choice := -1
+	for i, o := range in.Options {
+		if o == in.Default {
+			choice = i
+		}
+	}
+	if choice < 0 {
+		return append([]string{""}, in.Options...), 0
+	}
+	return in.Options, choice
 }
 
 func joinHint(a, b string) string {

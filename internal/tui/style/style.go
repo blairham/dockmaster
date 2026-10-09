@@ -204,129 +204,89 @@ const (
 
 // ViewName returns the breadcrumb display name for a view.
 func ViewName(v ViewType) string {
-	switch v {
-	case ViewContainers:
-		return "Containers"
-	case ViewImages:
-		return "Images"
-	case ViewVolumes:
-		return "Volumes"
-	case ViewNetworks:
-		return "Networks"
-	case ViewProjects:
-		return "Projects"
-	case ViewRuntimes:
-		return "Runtimes"
-	case ViewLogs:
-		return "Logs"
-	case ViewInspect:
-		return "Inspect"
-	case ViewLayers:
-		return "Layers"
-	case ViewContexts:
-		return "Contexts"
-	case ViewRuntimeForm:
-		return "Machine"
-	case ViewDiskUsage:
-		return "Disk Usage"
-	case ViewPortForwards:
-		return "Port Forwards"
-	case ViewPods:
-		return "Pods"
-	case ViewEvents:
-		return "Events"
-	case ViewNode:
-		return "Node"
-	case ViewTop:
-		return "Top"
-	case ViewRunForm:
-		return "Run"
-	case ViewCopyForm:
-		return "Copy"
-	case ViewEditForm:
-		return "Edit"
-	case ViewVolumeBrowse:
-		return "Files"
-	case ViewDumps:
-		return "Dumps"
-	case ViewLint:
-		return "Lint"
-	case ViewScan:
-		return "Scan"
-	case ViewDir:
-		return "Dir"
-	case ViewXray:
-		return "Xray"
-	case ViewPulses:
-		return "Pulses"
-	case ViewPluginForm:
-		return "Plugin"
-	case ViewScaleForm:
-		return "Scale"
-	case ViewAliases:
-		return "Aliases"
-	default:
-		return "Unknown"
+	if name, ok := viewNames[v]; ok {
+		return name
 	}
+	return "Unknown"
+}
+
+var viewNames = map[ViewType]string{
+	ViewContainers:   "Containers",
+	ViewImages:       "Images",
+	ViewVolumes:      "Volumes",
+	ViewNetworks:     "Networks",
+	ViewProjects:     "Projects",
+	ViewRuntimes:     "Runtimes",
+	ViewLogs:         "Logs",
+	ViewInspect:      "Inspect",
+	ViewLayers:       "Layers",
+	ViewContexts:     "Contexts",
+	ViewRuntimeForm:  "Machine",
+	ViewDiskUsage:    "Disk Usage",
+	ViewPortForwards: "Port Forwards",
+	ViewPods:         "Pods",
+	ViewEvents:       "Events",
+	ViewNode:         "Node",
+	ViewTop:          "Top",
+	ViewRunForm:      "Run",
+	ViewCopyForm:     "Copy",
+	ViewEditForm:     "Edit",
+	ViewVolumeBrowse: "Files",
+	ViewDumps:        "Dumps",
+	ViewLint:         "Lint",
+	ViewScan:         "Scan",
+	ViewDir:          "Dir",
+	ViewXray:         "Xray",
+	ViewPulses:       "Pulses",
+	ViewPluginForm:   "Plugin",
+	ViewScaleForm:    "Scale",
+	ViewAliases:      "Aliases",
 }
 
 // ViewResource returns the singular resource noun for the border title,
 // which renders as "<resource>s(<filter>)[<count>]".
 func ViewResource(v ViewType) string {
-	switch v {
-	case ViewContainers:
-		return "container"
-	case ViewImages:
-		return "image"
-	case ViewVolumes:
-		return "volume"
-	case ViewNetworks:
-		return "network"
-	case ViewProjects:
-		return "project"
-	case ViewRuntimes:
-		return "runtime"
-	case ViewLogs:
-		return "line"
-	case ViewInspect:
-		return "line"
-	case ViewLayers:
-		return "layer"
-	case ViewContexts:
-		return "context"
-	case ViewRuntimeForm:
-		return "field"
-	case ViewDiskUsage:
-		return "type"
-	case ViewPortForwards:
-		return "portforward"
-	case ViewPods:
-		return "pod"
-	case ViewEvents:
-		return "event"
-	case ViewNode:
-		return "container"
-	case ViewTop:
-		return "process"
-	case ViewRunForm, ViewCopyForm, ViewEditForm, ViewPluginForm, ViewScaleForm:
-		return "field"
-	case ViewVolumeBrowse:
-		return "file"
-	case ViewDumps:
-		return "dump"
-	case ViewLint:
-		return "container"
-	case ViewScan:
-		return "vulnerabilitie"
-	case ViewDir:
-		return "entrie"
-	case ViewXray:
-		return "node"
-	case ViewPulses:
-		return "pulse"
-	case ViewAliases:
-		return "aliase"
-	default:
-		return ""
+	if name, ok := viewResources[v]; ok {
+		return name
 	}
+	return ""
+}
+
+// The resource nouns more than one view shares.
+const (
+	resContainer = "container"
+	resField     = "field"
+)
+
+var viewResources = map[ViewType]string{
+	ViewContainers:   resContainer,
+	ViewImages:       "image",
+	ViewVolumes:      "volume",
+	ViewNetworks:     "network",
+	ViewProjects:     "project",
+	ViewRuntimes:     "runtime",
+	ViewLogs:         "line",
+	ViewInspect:      "line",
+	ViewLayers:       "layer",
+	ViewContexts:     "context",
+	ViewRuntimeForm:  resField,
+	ViewDiskUsage:    "type",
+	ViewPortForwards: "portforward",
+	ViewPods:         "pod",
+	ViewEvents:       "event",
+	ViewNode:         resContainer,
+	ViewTop:          "process",
+	ViewRunForm:      resField,
+	ViewCopyForm:     resField,
+	ViewEditForm:     resField,
+	ViewPluginForm:   resField,
+	ViewScaleForm:    resField,
+	ViewVolumeBrowse: "file",
+	ViewDumps:        "dump",
+	ViewLint:         resContainer,
+	ViewScan:         "vulnerabilitie",
+	ViewDir:          "entrie",
+	ViewXray:         "node",
+	ViewPulses:       "pulse",
+	ViewAliases:      "aliase",
 }

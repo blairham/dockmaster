@@ -194,7 +194,7 @@ func (v *LintView) HandleKey(key string) (string, string) {
 	case KeyEnter:
 		return "lint_detail", r.Container.ID
 	case "o":
-		return "inspect_container", r.Container.ID
+		return actInspectContainer, r.Container.ID
 	}
 	return "", ""
 }

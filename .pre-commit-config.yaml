@@ -1,13 +1,20 @@
-# Pre-commit configuration for dockmaster
+# Pre-commit configuration for dockmaster.
 # Install: pre-commit install
 # Run:     pre-commit run --all-files
 # Update:  pre-commit autoupdate
+#
+# Rendered from blairham/.github baseline/pre-commit-config.yaml.tmpl by
+# `make sync`. Edit the baseline (or, with a reason, the override file
+# overrides/dockmaster.yml), not this file: the weekly drift check
+# reports any difference. No `repo: local` hooks, ever — upstream hooks with
+# an alias and args instead.
 
 repos:
   # General hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # The two fixers rewrite in place, so generated files stay out of them.
       - id: trailing-whitespace
         exclude: ^dist/
       - id: end-of-file-fixer
@@ -18,28 +25,38 @@ repos:
         args: ['--maxkb=500']
       - id: detect-private-key
 
-  # Go housekeeping
+  # golangci-lint via the upstream hooks. Keep `rev` in step with go.mod's
+  # `tool` block.
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.14.0
+    hooks:
+      # Runs the formatters configured in .golangci.yml.
+      - id: golangci-lint-fmt
+      # `--new-from-rev HEAD`: reports what you just wrote, not the backlog.
+      - id: golangci-lint
+
+      # The same hook, asked the question a CI runner can answer. On a clean
+      # checkout `--new-from-rev HEAD` compares the tree with an identical
+      # HEAD and reports nothing; `--new-from-merge-base` overrides it.
+      # `--fix=false` overrides the entry's `--fix`: a linter that repairs its
+      # own findings on the runner exits 0 over still-broken committed code,
+      # and pre-commit's "files were modified" net cannot see it because the
+      # hook is `pass_filenames: false`. Manual stage: CI asks for it by name
+      # (blairham/.github go-ci.yml); it never runs on a local commit.
+      - id: golangci-lint
+        alias: golangci-lint-new
+        name: golangci-lint (issues this change introduces)
+        stages: [manual]
+        args: [--new-from-merge-base=origin/main, --fix=false]
+
+  # Go housekeeping.
   - repo: https://github.com/TekWizely/pre-commit-golang
     rev: v1.0.0-rc.4
     hooks:
       - id: go-mod-tidy-repo
 
-  # golangci-lint via the upstream hooks (no local scripts). `golangci-lint-fmt`
-  # runs the formatters configured in .golangci.yml (gofumpt, gci, golines);
-  # `golangci-lint` lints what changed since HEAD. This is the repo's only lint
-  # surface — there is no `make lint`, and CI runs these same hooks. Keep `rev`
-  # in lockstep with go.mod's tool pin.
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v2.14.0
-    hooks:
-      - id: golangci-lint-fmt
-      - id: golangci-lint
-
-  # Personal hooks: keep go.mod's Go version and .tool-versions' golang pin from
-  # drifting, and catch committed conflict markers. `check-conflict-markers`
-  # replaces upstream's `check-merge-conflict`, which knows only git's three
-  # default markers (so a diff3 `|||||||` line slips through) and does not scan
-  # at all outside an in-progress merge.
+  # go.mod and .tool-versions must pin the same Go. check-conflict-markers
+  # replaces upstream's check-merge-conflict, which misses diff3 base markers.
   - repo: https://github.com/blairham/pre-commit-hooks
     rev: v0.4.0
     hooks:
@@ -52,7 +69,18 @@ repos:
       # Known-vulnerable dependencies fail the commit, not the release.
       - id: go-vulncheck
 
-  # Secret scanning
+  # US English over prose: golangci-lint's misspell reaches Go files and
+  # nothing else. Reports, never rewrites — unlike a formatter it can reach
+  # inside a string literal. `importas` is a linter's name, not a typo.
+  - repo: https://github.com/golangci/misspell
+    rev: v0.8.0
+    hooks:
+      - id: misspell
+        args: [-locale, US, -i, "importas", -error]
+        files: \.(md|ya?ml)$
+        exclude: ^dist/
+
+  # Secret scanning; the rules and any allowlist are in .gitleaks.toml.
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:

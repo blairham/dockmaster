@@ -115,30 +115,14 @@ func (v *EventsView) drain() tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		batch := make([]docker.Event, 0, 32)
-		deadline := time.NewTimer(logBatchWindow)
-		defer deadline.Stop()
-		for {
-			select {
-			case e, ok := <-st.Events:
-				if !ok {
-					if len(batch) > 0 {
-						return EventsBatchMsg{Gen: gen, Events: batch}
-					}
-					return EventsClosedMsg{Gen: gen}
-				}
-				batch = append(batch, e)
-				if len(batch) >= logBatchMax {
-					return EventsBatchMsg{Gen: gen, Events: batch}
-				}
-			case err := <-st.Err:
-				if err != nil {
-					return EventsClosedMsg{Gen: gen, Err: err}
-				}
-			case <-deadline.C:
-				return EventsBatchMsg{Gen: gen, Events: batch}
-			}
+		batch, closed, err := collectBatch(st.Events, st.Err, 32)
+		switch {
+		case err != nil:
+			return EventsClosedMsg{Gen: gen, Err: err}
+		case closed && len(batch) == 0:
+			return EventsClosedMsg{Gen: gen}
 		}
+		return EventsBatchMsg{Gen: gen, Events: batch}
 	}
 }
 

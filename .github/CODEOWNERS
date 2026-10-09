@@ -1,5 +1,3 @@
-# Every change needs the maintainer's review; actions.go is where --readonly
-# is enforced, and plugins.go is where user commands are run.
-*                         @blairham
-/internal/tui/actions.go  @blairham
-/internal/tui/plugins.go  @blairham
+# Every change needs the maintainer's review.
+# Rendered from blairham/.github baseline/CODEOWNERS.tmpl by `make sync`.
+*  @blairham

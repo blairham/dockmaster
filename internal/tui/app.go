@@ -344,6 +344,47 @@ func containersView(client *docker.Client, opts Options) *views.ContainersView {
 	return v
 }
 
+// rootViews builds the top-level views for one daemon connection. The
+// runtimes view is passed in: it lists VMs, not daemon objects, so it
+// survives a context switch.
+func rootViews(
+	client *docker.Client,
+	ctrOpts Options,
+	runtimes *views.RuntimesView,
+	statsOn bool,
+	refresh time.Duration,
+) map[style.ViewType]views.View {
+	return map[style.ViewType]views.View{
+		style.ViewContainers:   containersView(client, ctrOpts),
+		style.ViewImages:       views.NewImagesView(client, false),
+		style.ViewVolumes:      views.NewVolumesView(client),
+		style.ViewNetworks:     views.NewNetworksView(client),
+		style.ViewProjects:     views.NewProjectsView(client),
+		style.ViewRuntimes:     runtimes,
+		style.ViewDiskUsage:    views.NewDiskUsageView(client),
+		style.ViewPortForwards: views.NewPortForwardsView(client),
+		style.ViewPods:         views.NewPodsView(podmanOf(runtimes.Providers())),
+		style.ViewEvents:       views.NewEventsView(client),
+		style.ViewPulses:       views.NewPulsesView(client, statsOn, refresh),
+	}
+}
+
+// startingView is the view the app opens on and the command, if any, it
+// runs from Init: a view's command opens that view, and any other command
+// (-c xray, -c pg, -c "images @prod") runs as if typed at the palette (#57).
+func startingView(opts Options, command string) (style.ViewType, string) {
+	startView, startCommand := style.ViewContainers, ""
+	if vt, ok := ViewForCommand(command); ok {
+		startView = vt
+	} else if strings.TrimSpace(command) != "" {
+		startCommand = command
+	}
+	if opts.StartOnRuntimes {
+		startView = style.ViewRuntimes
+	}
+	return startView, startCommand
+}
+
 // NewApp builds the root model.
 func NewApp(client *docker.Client, opts Options) *App {
 	statsOn := !opts.NoStats
@@ -354,37 +395,13 @@ func NewApp(client *docker.Client, opts Options) *App {
 	if refresh <= 0 {
 		refresh = pollInterval
 	}
-	vm := map[style.ViewType]views.View{
-		style.ViewContainers:   containersView(client, opts),
-		style.ViewImages:       views.NewImagesView(client, false),
-		style.ViewVolumes:      views.NewVolumesView(client),
-		style.ViewNetworks:     views.NewNetworksView(client),
-		style.ViewProjects:     views.NewProjectsView(client),
-		style.ViewRuntimes:     views.NewRuntimesView(opts.Engines, hostOf(client)),
-		style.ViewDiskUsage:    views.NewDiskUsageView(client),
-		style.ViewPortForwards: views.NewPortForwardsView(client),
-		style.ViewPods:         views.NewPodsView(podmanOf(opts.Engines)),
-		style.ViewEvents:       views.NewEventsView(client),
-		style.ViewPulses:       views.NewPulsesView(client, statsOn, refresh),
-	}
+	vm := rootViews(client, opts, views.NewRuntimesView(opts.Engines, hostOf(client)), statsOn, refresh)
 	ctxName := ""
 	if client != nil {
 		ctxName = client.ContextName
 	}
 	lastViews := readContextState(opts.ContextStateFile)
-	startView := style.ViewContainers
-	startCommand := ""
-	command := startingCommand(opts, ctxName, lastViews)
-	if vt, ok := ViewForCommand(command); ok {
-		startView = vt
-	} else if strings.TrimSpace(command) != "" {
-		// Any other command (-c xray, -c pg, -c "images @prod"): run
-		// from Init, as if typed at the palette (#57).
-		startCommand = command
-	}
-	if opts.StartOnRuntimes {
-		startView = style.ViewRuntimes
-	}
+	startView, startCommand := startingView(opts, startingCommand(opts, ctxName, lastViews))
 
 	if client != nil && opts.RequestTimeout > 0 {
 		client.RequestTimeout = opts.RequestTimeout
@@ -568,7 +585,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // update is the flat message dispatch.
-func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocognit // flat message dispatch
+//
+//nolint:gocyclo,gocognit,funlen // flat message dispatch: one case per message type, long by count not depth
+func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height
@@ -787,22 +806,13 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 	}
 	cv.SetConnectedHost(a.client.Host)
 
-	a.viewMap = map[style.ViewType]views.View{
-		style.ViewContainers: containersView(
-			a.client,
-			Options{ShowAll: a.showAll, NoStats: !a.statsOn, Thresholds: a.thresholds},
-		),
-		style.ViewImages:       views.NewImagesView(a.client, false),
-		style.ViewVolumes:      views.NewVolumesView(a.client),
-		style.ViewNetworks:     views.NewNetworksView(a.client),
-		style.ViewProjects:     views.NewProjectsView(a.client),
-		style.ViewRuntimes:     cv,
-		style.ViewDiskUsage:    views.NewDiskUsageView(a.client),
-		style.ViewPortForwards: views.NewPortForwardsView(a.client),
-		style.ViewPods:         views.NewPodsView(podmanOf(cv.Providers())),
-		style.ViewEvents:       views.NewEventsView(a.client),
-		style.ViewPulses:       views.NewPulsesView(a.client, a.statsOn, a.refresh),
-	}
+	a.viewMap = rootViews(
+		a.client,
+		Options{ShowAll: a.showAll, NoStats: !a.statsOn, Thresholds: a.thresholds},
+		cv,
+		a.statsOn,
+		a.refresh,
+	)
 	a.applyImageScans(a.imageScans)
 	a.flash = fmt.Sprintf("switched to context %s", msg.name)
 	if a.applied.readOnlyFromContext(msg.name) {
@@ -818,30 +828,37 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		// last open on it.
 		msg.land = a.contextLanding(msg.name)
 	}
-	if msg.land != nil && msg.land.command == "" && msg.land.view != style.ViewContainers {
-		cmd := a.switchView(msg.land.view)
-		a.filter = msg.land.filter
+	cmd := a.landAfterSwitch(msg.land)
+	return a, cmd
+}
+
+// landAfterSwitch opens the view a context switch lands on, with its filter,
+// or the containers view, then runs the landing's command if it has one.
+func (a *App) landAfterSwitch(land *landing) tea.Cmd {
+	if land != nil && land.command == "" && land.view != style.ViewContainers {
+		cmd := a.switchView(land.view)
+		a.filter = land.filter
 		a.setActiveFilter(a.filter)
-		return a, cmd
+		return cmd
 	}
 	a.viewStack = nil
 	a.view = style.ViewContainers
 	a.filter = ""
 	a.closeAllBars()
-	if msg.land != nil {
-		a.filter = msg.land.filter
+	if land != nil {
+		a.filter = land.filter
 		a.setActiveFilter(a.filter)
 	}
 	a.resizeActiveView()
 	initCmd := a.viewMap[style.ViewContainers].Init()
-	if msg.land != nil && msg.land.command != "" {
-		errMsg, cmd := a.dispatchCommand(msg.land.command)
+	if land != nil && land.command != "" {
+		errMsg, cmd := a.dispatchCommand(land.command)
 		if errMsg != "" {
 			a.errFlash = errMsg
 		}
-		return a, tea.Batch(initCmd, cmd)
+		return tea.Batch(initCmd, cmd)
 	}
-	return a, initCmd
+	return initCmd
 }
 
 // doSwitchContext dials a context's endpoint on a background goroutine.

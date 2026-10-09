@@ -368,36 +368,41 @@ func (v *PulsesView) drain() tea.Cmd {
 	return func() tea.Msg {
 		drains.Add(1)
 		defer drains.Add(-1)
-		n := 0
-		errs := st.Err
-		var timer *time.Timer
-		var window <-chan time.Time
-		defer func() {
-			if timer != nil {
-				timer.Stop()
+		n, closed, err := countBurst(st.Events, st.Err)
+		return PulsesEventsMsg{from: from, Gen: gen, Count: n, Closed: closed, Err: err}
+	}
+}
+
+// countBurst counts events until pulseEventWindow after the first, or until
+// the stream ends (closed) or fails.
+func countBurst[T any](events <-chan T, errs <-chan error) (n int, closed bool, err error) {
+	var timer *time.Timer
+	var window <-chan time.Time
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
+	for {
+		select {
+		case _, ok := <-events:
+			if !ok {
+				return n, true, nil
 			}
-		}()
-		for {
-			select {
-			case _, ok := <-st.Events:
-				if !ok {
-					return PulsesEventsMsg{from: from, Gen: gen, Count: n, Closed: true}
-				}
-				n++
-				if timer == nil {
-					timer = time.NewTimer(pulseEventWindow)
-					window = timer.C
-				}
-			case err, ok := <-errs:
-				switch {
-				case !ok:
-					errs = nil // closed: only the events channel is left to end it
-				case err != nil:
-					return PulsesEventsMsg{from: from, Gen: gen, Count: n, Closed: true, Err: err}
-				}
-			case <-window:
-				return PulsesEventsMsg{from: from, Gen: gen, Count: n}
+			n++
+			if timer == nil {
+				timer = time.NewTimer(pulseEventWindow)
+				window = timer.C
 			}
+		case e, ok := <-errs:
+			switch {
+			case !ok:
+				errs = nil // closed: only the events channel is left to end it
+			case e != nil:
+				return n, true, e
+			}
+		case <-window:
+			return n, false, nil
 		}
 	}
 }
@@ -408,66 +413,80 @@ func (v *PulsesView) drain() tea.Cmd {
 func (v *PulsesView) Update(msg tea.Msg) tea.Cmd {
 	switch m := msg.(type) {
 	case PulsesListMsg:
-		if m.from != v {
-			return nil
+		if m.from == v {
+			return v.onList(m)
 		}
-		v.loading = false
-		v.listErr = m.Err
-		if m.Err != nil {
-			v.listInFlight = false
-			return nil
-		}
-		v.count(m.Containers)
-		if !v.statsOn {
-			v.listInFlight = false
-			return nil
-		}
-		cmd := v.sampleStats(m.Containers)
-		if cmd == nil {
-			// Nothing running: nothing to sample, and nothing in use.
-			v.listInFlight = false
-			v.pushUsage(nil)
-		}
-		return cmd
 	case PulsesStatsMsg:
-		if m.from != v {
-			return nil
-		}
-		v.listInFlight = false
-		if v.statsOn {
-			v.pushUsage(m.Stats)
-		}
-	case PulsesDiskMsg:
-		if m.from != v {
-			return nil
-		}
-		v.diskInFlight = false
-		v.diskErr = m.Err
-		if m.Err == nil {
-			v.diskSeen = true
-			v.diskSize, v.diskFree = 0, 0
-			for _, r := range m.Rows {
-				v.diskSize += r.Size
-				v.diskFree += r.Reclaimable
+		if m.from == v {
+			v.listInFlight = false
+			if v.statsOn {
+				v.pushUsage(m.Stats)
 			}
 		}
+	case PulsesDiskMsg:
+		if m.from == v {
+			v.onDisk(m)
+		}
 	case PulsesEventsMsg:
-		if m.from != v || m.Gen != v.gen {
-			return nil
+		if m.from == v && m.Gen == v.gen {
+			return v.onEvents(m)
 		}
-		v.pending += m.Count
-		if !m.Closed {
-			return v.drain()
-		}
-		if m.Err != nil && !strings.Contains(m.Err.Error(), "context canceled") {
-			v.evErr = m.Err
-		}
-		// The next poll subscribes again.
-		v.stream = nil
-		if v.cancel != nil {
-			v.cancel()
-			v.cancel = nil
-		}
+	}
+	return nil
+}
+
+// onList folds a listing in and samples the running containers' stats.
+func (v *PulsesView) onList(m PulsesListMsg) tea.Cmd {
+	v.loading = false
+	v.listErr = m.Err
+	if m.Err != nil {
+		v.listInFlight = false
+		return nil
+	}
+	v.count(m.Containers)
+	if !v.statsOn {
+		v.listInFlight = false
+		return nil
+	}
+	cmd := v.sampleStats(m.Containers)
+	if cmd == nil {
+		// Nothing running: nothing to sample, and nothing in use.
+		v.listInFlight = false
+		v.pushUsage(nil)
+	}
+	return cmd
+}
+
+// onDisk folds the disk usage in.
+func (v *PulsesView) onDisk(m PulsesDiskMsg) {
+	v.diskInFlight = false
+	v.diskErr = m.Err
+	if m.Err != nil {
+		return
+	}
+	v.diskSeen = true
+	v.diskSize, v.diskFree = 0, 0
+	for _, r := range m.Rows {
+		v.diskSize += r.Size
+		v.diskFree += r.Reclaimable
+	}
+}
+
+// onEvents adds an event count, re-arming the drain while the stream is
+// open.
+func (v *PulsesView) onEvents(m PulsesEventsMsg) tea.Cmd {
+	v.pending += m.Count
+	if !m.Closed {
+		return v.drain()
+	}
+	if m.Err != nil && !strings.Contains(m.Err.Error(), "context canceled") {
+		v.evErr = m.Err
+	}
+	// The next poll subscribes again.
+	v.stream = nil
+	if v.cancel != nil {
+		v.cancel()
+		v.cancel = nil
 	}
 	return nil
 }

@@ -55,28 +55,42 @@ func ParseShortcut(s string) (string, error) {
 	if !hasMod || k == "" {
 		k, mod = mod, ""
 	}
+	if key, ok := shortcutKey(strings.ToLower(mod), k); ok {
+		return key, nil
+	}
+	return "", fmt.Errorf("%q is not a key — use Shift-0, Shift-A, Ctrl-U, Alt-X, F2 or one character", s)
+}
+
+// shortcutKey is the key bubbletea reports for k under modifier mod
+// (lower-cased, "" for none).
+func shortcutKey(mod, k string) (string, bool) {
 	lower := strings.ToLower(k)
-	switch strings.ToLower(mod) {
+	fkey := len(lower) >= 2 && lower[0] == 'f' && isDigits(lower[1:])
+	switch mod {
 	case "":
 		switch {
 		case len(k) == 1:
-			return k, nil
-		case len(lower) >= 2 && lower[0] == 'f' && isDigits(lower[1:]):
-			return lower, nil
+			return k, true
+		case fkey:
+			return lower, true
 		}
 	case "shift":
 		switch {
 		case len(k) == 1 && k[0] >= '0' && k[0] <= '9':
-			return string(shiftedDigits[k[0]-'0']), nil
-		case len(k) == 1 && strings.ToUpper(k) != lower:
-			return strings.ToUpper(k), nil
+			return string(shiftedDigits[k[0]-'0']), true
+		case len(k) == 1 && isASCIILetter(k[0]):
+			return strings.ToUpper(k), true
 		}
 	case "ctrl", "alt":
-		if len(k) == 1 || (lower[0] == 'f' && isDigits(lower[1:])) {
-			return strings.ToLower(mod) + "+" + lower, nil
+		if len(k) == 1 || fkey {
+			return mod + "+" + lower, true
 		}
 	}
-	return "", fmt.Errorf("%q is not a key — use Shift-0, Shift-A, Ctrl-U, Alt-X, F2 or one character", s)
+	return "", false
+}
+
+func isASCIILetter(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
 }
 
 func isDigits(s string) bool {
@@ -147,16 +161,17 @@ func HotKeys(entries map[string]config.HotKey, aliases map[string]string) ([]Hot
 // that binds the same key keeps it.
 func (a *App) hotKey(key string, override bool) (tea.Cmd, bool) {
 	for _, hk := range a.hotKeys {
-		if hk.Key == key && hk.Override == override {
-			a.logHotKey(hk)
-			a.keepStack = hk.KeepHistory
-			msg, cmd := a.dispatchCommand(hk.Command)
-			a.keepStack = false
-			if msg != "" {
-				a.errFlash = msg
-			}
-			return cmd, true
+		if hk.Key != key || hk.Override != override {
+			continue
 		}
+		a.logHotKey(hk)
+		a.keepStack = hk.KeepHistory
+		msg, cmd := a.dispatchCommand(hk.Command)
+		a.keepStack = false
+		if msg != "" {
+			a.errFlash = msg
+		}
+		return cmd, true
 	}
 	return nil, false
 }

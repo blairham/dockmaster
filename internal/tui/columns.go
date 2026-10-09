@@ -61,56 +61,68 @@ func columnLayout(view string, e config.ViewColumns, titles []string) (views.Col
 	)
 	known := strings.Join(titles, ", ")
 	for _, c := range e.Columns {
-		if views.IsExprColumn(c) {
-			x, err := exprColumn(view, c, titles, l.Columns)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("column %q: %s", c, err))
-				continue
-			}
-			l.Columns, l.Exprs = append(l.Columns, x.Title), append(l.Exprs, x)
-			continue
-		}
-		title, ok := matchTitle(c, titles)
-		switch {
-		case ok && slices.Contains(l.Columns, title):
-			errs = append(errs, fmt.Sprintf("column %q is listed twice", c))
-		case ok:
-			l.Columns = append(l.Columns, title)
-		case strings.Contains(c, "|"):
-			errs = append(errs, fmt.Sprintf("column %q: attributes go only on an expression column, "+
-				"as in SVC:.Labels.com\\.docker\\.compose\\.service|R", c))
-		default:
-			errs = append(errs, fmt.Sprintf("unknown column %q (columns are %s)", c, known))
+		if err := addColumn(&l, view, c, titles, known); err != "" {
+			errs = append(errs, err)
 		}
 	}
 	// An expression column's title can be sorted on like the view's own.
 	for _, x := range l.Exprs {
 		titles = append(slices.Clip(titles), x.Title)
 	}
-	known = strings.Join(titles, ", ")
 	if e.SortColumn == "" {
 		return l, errs
 	}
-	col, dir, hasDir := cutLast(e.SortColumn, ":")
+	if err := sortColumn(&l, e.SortColumn, titles); err != "" {
+		errs = append(errs, err)
+	}
+	return l, errs
+}
+
+// addColumn adds column c to l, or explains why it cannot.
+func addColumn(l *views.ColumnLayout, view, c string, titles []string, known string) string {
+	if views.IsExprColumn(c) {
+		x, err := exprColumn(view, c, titles, l.Columns)
+		if err != nil {
+			return fmt.Sprintf("column %q: %s", c, err)
+		}
+		l.Columns, l.Exprs = append(l.Columns, x.Title), append(l.Exprs, x)
+		return ""
+	}
+	title, ok := matchTitle(c, titles)
+	switch {
+	case ok && slices.Contains(l.Columns, title):
+		return fmt.Sprintf("column %q is listed twice", c)
+	case ok:
+		l.Columns = append(l.Columns, title)
+		return ""
+	case strings.Contains(c, "|"):
+		return fmt.Sprintf("column %q: attributes go only on an expression column, "+
+			"as in SVC:.Labels.com\\.docker\\.compose\\.service|R", c)
+	default:
+		return fmt.Sprintf("unknown column %q (columns are %s)", c, known)
+	}
+}
+
+// sortColumn sets l's sort column from spec, as in AGE:desc, or explains
+// why it cannot.
+func sortColumn(l *views.ColumnLayout, spec string, titles []string) string {
+	col, dir, hasDir := cutLast(spec, ":")
 	switch {
 	case hasDir && !strings.EqualFold(dir, "asc") && !strings.EqualFold(dir, "desc"):
-		errs = append(errs, fmt.Sprintf("sortColumn %q: the direction is asc or desc, as in AGE:desc", e.SortColumn))
-		return l, errs
+		return fmt.Sprintf("sortColumn %q: the direction is asc or desc, as in AGE:desc", spec)
 	case strings.TrimSpace(col) == "":
-		errs = append(errs, fmt.Sprintf("sortColumn %q: no column, as in AGE:desc", e.SortColumn))
-		return l, errs
+		return fmt.Sprintf("sortColumn %q: no column, as in AGE:desc", spec)
 	}
 	title, ok := matchTitle(col, titles)
 	switch {
 	case !ok:
-		errs = append(errs, fmt.Sprintf("sortColumn %q: unknown column %q (columns are %s)", e.SortColumn, col, known))
+		return fmt.Sprintf("sortColumn %q: unknown column %q (columns are %s)", spec, col, strings.Join(titles, ", "))
 	case len(l.Columns) > 0 && !slices.Contains(l.Columns, title):
-		errs = append(errs, fmt.Sprintf("sortColumn %q: %s is not among the columns shown (%s)",
-			e.SortColumn, title, strings.Join(l.Columns, ", ")))
-	default:
-		l.SortColumn, l.SortDesc = title, strings.EqualFold(dir, "desc")
+		return fmt.Sprintf("sortColumn %q: %s is not among the columns shown (%s)",
+			spec, title, strings.Join(l.Columns, ", "))
 	}
-	return l, errs
+	l.SortColumn, l.SortDesc = title, strings.EqualFold(dir, "desc")
+	return ""
 }
 
 // exprColumn parses an expression column, and refuses its title if it is

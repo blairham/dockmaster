@@ -280,7 +280,7 @@ func (v *XrayView) containerNode(prefix string, c docker.Container) *tree.Node {
 	cid := prefix + "c:" + c.ID
 	v.names[c.ID] = c.Name
 	v.targets[cid] = xrayTarget{
-		enter: "logs", enterParam: c.ID, inspect: "inspect_container", inspectParam: c.ID,
+		enter: actLogs, enterParam: c.ID, inspect: actInspectContainer, inspectParam: c.ID,
 		container: &c, copyName: c.Name, copyID: c.ID,
 	}
 	n := &tree.Node{ID: cid, Label: fmt.Sprintf("▣ %s %s", c.Name, stateStyle(c.State).Render(c.State))}
@@ -358,7 +358,7 @@ func (v *XrayView) HandleKey(key string) (string, string) {
 		return t.inspect, t.inspectParam
 	case "v":
 		if t.scan != "" {
-			return "scan_image", t.scan
+			return actScanImage, t.scan
 		}
 	case "s":
 		if t.scale != "" {

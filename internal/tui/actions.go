@@ -734,7 +734,9 @@ func confirmTitle(action string) string {
 }
 
 // executeConfirmed runs an action the user just approved.
-func (a *App) executeConfirmed(pa pendingAction) tea.Cmd { //nolint:gocyclo // flat action dispatch
+//
+//nolint:gocyclo,funlen // flat action dispatch: one case per confirmed action, long by count not depth
+func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 	switch pa.action {
 	case "kill":
 		return a.run("killed", a.containerName(pa.param), func(ctx context.Context) error {

@@ -318,56 +318,19 @@ var machineName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 func (v *RuntimeFormView) validate() (RuntimeSpec, string) {
 	spec := RuntimeSpec{Provider: v.provider(), Name: v.field(keyName).value()}
 	if !v.editing {
-		switch {
-		case spec.Name == "":
-			return spec, "Name: a machine needs a name"
-		case !machineName.MatchString(spec.Name):
-			return spec, "Name: letters, digits, - and _ only, starting with a letter or digit"
-		}
-		for _, m := range v.existing {
-			if m.Provider == spec.Provider && strings.EqualFold(m.Name, spec.Name) {
-				return spec, "Name: a " + m.Provider + " machine named " + m.Name + " already exists"
-			}
+		if msg := v.validateName(spec); msg != "" {
+			return spec, msg
 		}
 	}
-
-	cpus, err := strconv.Atoi(v.field(keyCPUs).value())
-	if err != nil || cpus < 1 {
-		return spec, "CPUs: a whole number, 1 or more"
+	cfg, msg := v.validateResources()
+	if msg != "" {
+		return spec, msg
 	}
-	if n := HostCPUs(); cpus > n {
-		return spec, fmt.Sprintf("CPUs: this machine has %d", n)
-	}
-
-	mem, err := strconv.ParseFloat(v.field(keyMemory).value(), 64)
-	if err != nil || mem < 0.5 {
-		return spec, "Memory: GiB, at least 0.5"
-	}
-	if g := HostMemoryGiB(); g > 0 && mem > float64(g) {
-		return spec, fmt.Sprintf("Memory: this machine has %d GiB", g)
-	}
-
-	disk, err := strconv.Atoi(v.field(keyDisk).value())
-	if err != nil || disk < 1 {
-		return spec, "Disk: whole GiB, 1 or more"
-	}
-	if v.editing && disk < currentDiskGiB(v.machine) {
-		return spec, fmt.Sprintf("Disk: a disk cannot shrink — at least %d", currentDiskGiB(v.machine))
-	}
-
-	spec.Config = engines.Config{CPUs: cpus, MemoryGiB: mem, DiskGiB: disk}
+	spec.Config = cfg
 	if f := v.field(keyRuntime); f != nil && !v.editing {
 		spec.Config.Runtime = f.value()
 	}
-	var rootful, usernet *bool
-	if f := v.field(keyRootful); f != nil {
-		b := f.value() == "yes"
-		rootful = &b
-	}
-	if f := v.field(keyUserNet); f != nil {
-		b := f.value() == "yes"
-		usernet = &b
-	}
+	rootful, usernet := v.toggle(keyRootful), v.toggle(keyUserNet)
 	if v.editing {
 		// Only what changed, so an untouched toggle is not re-applied.
 		if rootful != nil && *rootful == v.machine.Rootful {
@@ -376,13 +339,72 @@ func (v *RuntimeFormView) validate() (RuntimeSpec, string) {
 		if usernet != nil && *usernet == v.machine.UserNet {
 			usernet = nil
 		}
-		if cpus == v.machine.CPUs && mem == bytesGiB(v.machine.Memory) && disk == currentDiskGiB(v.machine) &&
-			rootful == nil && usernet == nil {
+		if v.unchanged(cfg) && rootful == nil && usernet == nil {
 			return spec, "nothing changed"
 		}
 	}
 	spec.Config.Rootful, spec.Config.UserNet = rootful, usernet
 	return spec, ""
+}
+
+// validateName explains what is wrong with a new machine's name, or is "".
+func (v *RuntimeFormView) validateName(spec RuntimeSpec) string {
+	switch {
+	case spec.Name == "":
+		return "Name: a machine needs a name"
+	case !machineName.MatchString(spec.Name):
+		return "Name: letters, digits, - and _ only, starting with a letter or digit"
+	}
+	for _, m := range v.existing {
+		if m.Provider == spec.Provider && strings.EqualFold(m.Name, spec.Name) {
+			return "Name: a " + m.Provider + " machine named " + m.Name + " already exists"
+		}
+	}
+	return ""
+}
+
+// validateResources reads CPUs, memory and disk, or explains the first one
+// that is wrong.
+func (v *RuntimeFormView) validateResources() (engines.Config, string) {
+	cpus, err := strconv.Atoi(v.field(keyCPUs).value())
+	if err != nil || cpus < 1 {
+		return engines.Config{}, "CPUs: a whole number, 1 or more"
+	}
+	if n := HostCPUs(); cpus > n {
+		return engines.Config{}, fmt.Sprintf("CPUs: this machine has %d", n)
+	}
+	mem, err := strconv.ParseFloat(v.field(keyMemory).value(), 64)
+	if err != nil || mem < 0.5 {
+		return engines.Config{}, "Memory: GiB, at least 0.5"
+	}
+	if g := HostMemoryGiB(); g > 0 && mem > float64(g) {
+		return engines.Config{}, fmt.Sprintf("Memory: this machine has %d GiB", g)
+	}
+	disk, err := strconv.Atoi(v.field(keyDisk).value())
+	if err != nil || disk < 1 {
+		return engines.Config{}, "Disk: whole GiB, 1 or more"
+	}
+	if v.editing && disk < currentDiskGiB(v.machine) {
+		return engines.Config{}, fmt.Sprintf("Disk: a disk cannot shrink — at least %d", currentDiskGiB(v.machine))
+	}
+	return engines.Config{CPUs: cpus, MemoryGiB: mem, DiskGiB: disk}, ""
+}
+
+// toggle reads a yes/no field, or nil when the form has no such field.
+func (v *RuntimeFormView) toggle(key string) *bool {
+	f := v.field(key)
+	if f == nil {
+		return nil
+	}
+	b := f.value() == "yes"
+	return &b
+}
+
+// unchanged reports whether an edit leaves the machine's resources as they
+// are.
+func (v *RuntimeFormView) unchanged(cfg engines.Config) bool {
+	return cfg.CPUs == v.machine.CPUs && cfg.MemoryGiB == bytesGiB(v.machine.Memory) &&
+		cfg.DiskGiB == currentDiskGiB(v.machine)
 }
 
 // View renders the form.
