@@ -585,7 +585,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // update is the flat message dispatch.
-func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:gocyclo,gocognit // flat message dispatch
+//
+//nolint:gocyclo,gocognit,funlen // flat message dispatch: one case per message type, long by count not depth
+func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Height

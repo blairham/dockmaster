@@ -169,7 +169,7 @@ const keyAliases = "ctrl+a"
 
 // handleKey is the whole key path.
 //
-//nolint:gocyclo,gocognit // flat key dispatch
+//nolint:gocyclo,gocognit,funlen // flat key dispatch: one case per key, long by count not depth
 func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
@@ -415,7 +415,7 @@ var labelledViews = map[style.ViewType]bool{
 
 // dispatchCommand parses a `:` command.
 //
-//nolint:gocyclo // flat command table
+//nolint:gocyclo,gocognit,funlen // flat command table: one case per command, long by count not depth
 func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	raw, err := expand(a.aliases, strings.TrimSpace(input))
 	if err != nil {

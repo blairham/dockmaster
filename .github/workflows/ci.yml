@@ -32,7 +32,7 @@ concurrency:
 jobs:
   ci:
     name: CI
-    uses: blairham/.github/.github/workflows/go-ci.yml@99060d62d0693570a360127ab698307d276630da # v0.0.0
+    uses: blairham/.github/.github/workflows/go-ci.yml@9711060ad4860f35860bcbf90d90f103617082d2 # v0.0.1
     with:
       # -short skips the live-daemon tests. The runner has a docker daemon, but
       # what is on it is GitHub's business, not a fixture; the suite that
