@@ -166,16 +166,10 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 		return "used_by", UsedByParam("image", im.ID, im.Ref())
 	case "v":
 		// Scan by reference, or by ID for an untagged image (#11).
-		if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
-			return "scan_image", im.ID
-		}
-		return "scan_image", im.Ref()
+		return actScanImage, runRef(im)
 	case "u":
 		// Run it: by reference, or by ID for a dangling image.
-		if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
-			return "run_image", im.ID
-		}
-		return "run_image", im.Ref()
+		return "run_image", runRef(im)
 	case "a":
 		return "toggle_all", ""
 	case "P":
@@ -191,6 +185,15 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 		return "confirm_remove_image", ref
 	}
 	return "", ""
+}
+
+// runRef names an image to scan or run: its reference, or its ID when it
+// has no repository.
+func runRef(im docker.Image) string {
+	if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
+		return im.ID
+	}
+	return im.Ref()
 }
 
 // View renders the table.

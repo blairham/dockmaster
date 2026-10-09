@@ -29,7 +29,11 @@ Only the latest release receives fixes.
 
 Releases are signed with [cosign](https://github.com/sigstore/cosign) keyless
 signing: the signature is tied to the GitHub Actions workflow that built the
-release, not to a key someone could leak.
+release, not to a key someone could leak. `.github/workflows/release.yml` runs
+the shared release workflow in
+[blairham/.github](https://github.com/blairham/.github)
+(`.github/workflows/go-release.yml`), so the signing identity is that shared
+workflow; the certificate also names this repository and the tag.
 
 `checksums.txt` is signed; it lists the digest of every archive. Each archive
 also carries SLSA build provenance tying it to the workflow run and commit that
@@ -37,13 +41,16 @@ built it. Verify the signature, then the archives against it, then the
 provenance:
 
 ```sh
-VERSION=v0.0.0
+VERSION=v0.0.17
 cosign verify-blob \
-  --certificate-identity "https://github.com/blairham/dockmaster/.github/workflows/release.yml@refs/tags/$VERSION" \
+  --certificate-identity-regexp '^https://github\.com/blairham/\.github/\.github/workflows/go-release\.yml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-github-workflow-repository blairham/dockmaster \
+  --certificate-github-workflow-ref "refs/tags/$VERSION" \
   --bundle checksums.txt.sigstore.json checksums.txt
 sha256sum --check --ignore-missing checksums.txt
-gh attestation verify dockmaster_Darwin_arm64.tar.gz --repo blairham/dockmaster
+gh attestation verify dockmaster_Darwin_arm64.tar.gz --repo blairham/dockmaster \
+  --signer-workflow blairham/.github/.github/workflows/go-release.yml
 ```
 
 The provenance bundle is also attached to the release as
@@ -51,9 +58,14 @@ The provenance bundle is also attached to the release as
 
 ```sh
 gh attestation verify dockmaster_Darwin_arm64.tar.gz --repo blairham/dockmaster \
+  --signer-workflow blairham/.github/.github/workflows/go-release.yml \
   --bundle "dockmaster-$VERSION.intoto.jsonl"
 ```
 
+**Tags released before the move to blairham/.github** (v0.0.16 and earlier)
+were signed by this repository's own `release.yml`. Verify those with
+`--certificate-identity "https://github.com/blairham/dockmaster/.github/workflows/release.yml@refs/tags/$VERSION"`
+in place of the three identity flags above, and without `--signer-workflow`.
 v0.0.0 predates the provenance and has the cosign signature only.
 
 ## Reporting a vulnerability

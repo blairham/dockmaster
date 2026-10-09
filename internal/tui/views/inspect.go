@@ -222,7 +222,7 @@ func (v *InspectView) HandleKey(key string) (string, string) {
 	if v.kind == InspectContainer {
 		switch key {
 		case "l":
-			return "logs", v.id
+			return actLogs, v.id
 		case "s":
 			return "exec", v.id
 		}
@@ -315,7 +315,7 @@ func colorizeJSONValue(s string) string {
 		return jsonNumStyle.Render(bare) + suffix
 	case strings.HasPrefix(bare, `"`):
 		return jsonStrStyle.Render(bare) + suffix
-	case len(bare) > 0 && (bare[0] == '-' || (bare[0] >= '0' && bare[0] <= '9')):
+	case bare != "" && (bare[0] == '-' || (bare[0] >= '0' && bare[0] <= '9')):
 		return jsonNumStyle.Render(bare) + suffix
 	default:
 		return s

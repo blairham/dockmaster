@@ -101,6 +101,12 @@ func applyDaemonReclaimable(rows []DiskUsageRow, du daemonUsage) {
 //   - build cache: shared records are not counted; in-use ones are not
 //     reclaimable.
 func SummarizeDiskUsage(du client.DiskUsageResult) []DiskUsageRow {
+	return []DiskUsageRow{
+		imageUsage(du), containerUsage(du), volumeUsage(du), buildCacheUsage(du),
+	}
+}
+
+func imageUsage(du client.DiskUsageResult) DiskUsageRow {
 	img := DiskUsageRow{Type: DiskImages, Total: len(du.Images.Items), Size: du.Images.TotalSize}
 	var used int64
 	for _, i := range du.Images.Items {
@@ -113,7 +119,10 @@ func SummarizeDiskUsage(du client.DiskUsageResult) []DiskUsageRow {
 		}
 	}
 	img.Reclaimable = max(img.Size-used, 0)
+	return img
+}
 
+func containerUsage(du client.DiskUsageResult) DiskUsageRow {
 	ctr := DiskUsageRow{Type: DiskContainers, Total: len(du.Containers.Items)}
 	for _, c := range du.Containers.Items {
 		ctr.Size += c.SizeRw
@@ -123,7 +132,10 @@ func SummarizeDiskUsage(du client.DiskUsageResult) []DiskUsageRow {
 			ctr.Reclaimable += c.SizeRw
 		}
 	}
+	return ctr
+}
 
+func volumeUsage(du client.DiskUsageResult) DiskUsageRow {
 	vol := DiskUsageRow{Type: DiskVolumes, Total: len(du.Volumes.Items)}
 	for _, v := range du.Volumes.Items {
 		if v.UsageData == nil {
@@ -137,7 +149,10 @@ func SummarizeDiskUsage(du client.DiskUsageResult) []DiskUsageRow {
 			vol.Reclaimable += size
 		}
 	}
+	return vol
+}
 
+func buildCacheUsage(du client.DiskUsageResult) DiskUsageRow {
 	bc := DiskUsageRow{Type: DiskBuildCache, Total: len(du.BuildCache.Items)}
 	for _, r := range du.BuildCache.Items {
 		if r.InUse {
@@ -151,6 +166,5 @@ func SummarizeDiskUsage(du client.DiskUsageResult) []DiskUsageRow {
 			bc.Reclaimable += r.Size
 		}
 	}
-
-	return []DiskUsageRow{img, ctr, vol, bc}
+	return bc
 }

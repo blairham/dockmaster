@@ -218,33 +218,28 @@ func (v *RuntimesView) HandleKey(key string) (string, string) {
 		return "", ""
 	}
 	k := MachineKey(m.Provider, m.Name)
-	switch key {
-	case KeyEnter, "u", "x", "R", "e", "K", KeyCtrlD:
-		if op := v.busy[k]; op != "" {
-			return "runtime_busy", k + "\x00" + op
-		}
+	action, ok := runtimeKeys[key]
+	if !ok {
+		return "", ""
 	}
-	switch key {
-	case KeyEnter:
-		return "runtime_connect", k
-	case "s":
-		return "runtime_shell", k
-	case "o":
-		return "runtime_inspect", k
-	case "u":
-		return "runtime_start", k
-	case "e":
-		return "runtime_edit", k
-	case "x":
-		return "confirm_runtime_stop", k
-	case "R":
-		return "confirm_runtime_restart", k
-	case KeyCtrlD:
-		return "confirm_runtime_delete", k
-	case "K":
-		return "confirm_runtime_k8s", k
+	if op := v.busy[k]; op != "" && key != "s" && key != "o" {
+		return "runtime_busy", k + "\x00" + op
 	}
-	return "", ""
+	return action, k
+}
+
+// runtimeKeys are the runtimes view's per-machine keys. Every one but s and
+// o is refused while the machine is busy.
+var runtimeKeys = map[string]string{
+	KeyEnter: "runtime_connect",
+	"s":      "runtime_shell",
+	"o":      "runtime_inspect",
+	"u":      "runtime_start",
+	"e":      "runtime_edit",
+	"x":      "confirm_runtime_stop",
+	"R":      "confirm_runtime_restart",
+	KeyCtrlD: "confirm_runtime_delete",
+	"K":      "confirm_runtime_k8s",
 }
 
 // View renders the table.

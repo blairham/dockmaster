@@ -159,7 +159,7 @@ func isK3dHelper(labels map[string]string) bool {
 }
 
 func trimSlash(name string) string {
-	if len(name) > 0 && name[0] == '/' {
+	if name != "" && name[0] == '/' {
 		return name[1:]
 	}
 	return name

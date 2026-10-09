@@ -269,51 +269,69 @@ func (a *App) activeFilter() string {
 // active view. A stale message from a view the user already left must not
 // clear the spinner on the one they are looking at.
 func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
-	switch msg.(type) {
-	case views.ContainersRefreshMsg, views.ContainerStatsMsg:
-		return a.view == style.ViewContainers
-	case views.ImagesRefreshMsg:
-		return a.view == style.ViewImages
-	case views.VolumesRefreshMsg:
-		return a.view == style.ViewVolumes
-	case views.NetworksRefreshMsg:
-		return a.view == style.ViewNetworks
-	case views.ProjectsRefreshMsg:
-		return a.view == style.ViewProjects
-	case views.InspectRefreshMsg:
-		return a.view == style.ViewInspect
-	case views.LayersRefreshMsg:
-		return a.view == style.ViewLayers
-	case views.VolumeBrowseMsg:
-		return a.view == style.ViewVolumeBrowse
-	case views.NodeRefreshMsg:
-		return a.view == style.ViewNode
-	case views.TopRefreshMsg:
-		return a.view == style.ViewTop
-	case views.ContextsRefreshMsg:
-		return a.view == style.ViewContexts
-	case views.DumpsRefreshMsg:
-		return a.view == style.ViewDumps
-	case views.LintRefreshMsg:
-		return a.view == style.ViewLint
-	case views.ScanResultMsg:
-		return a.view == style.ViewScan
-	case views.DirRefreshMsg:
-		return a.view == style.ViewDir
-	case views.XrayRefreshMsg:
-		return a.view == style.ViewXray
-	case views.PulsesListMsg, views.PulsesStatsMsg, views.PulsesDiskMsg, views.PulsesEventsMsg:
-		return a.view == style.ViewPulses
-	case views.DiskUsageRefreshMsg:
-		return a.view == style.ViewDiskUsage
-	case views.PortForwardsRefreshMsg:
-		return a.view == style.ViewPortForwards
-	case views.EventsBatchMsg, views.EventsClosedMsg:
-		return a.view == style.ViewEvents
-	case views.LogBatchMsg, views.LogClosedMsg:
-		return a.view == style.ViewLogs
+	if v, ok := listMsgView(msg); ok {
+		return a.view == v
+	}
+	if v, ok := detailMsgView(msg); ok {
+		return a.view == v
 	}
 	return true
+}
+
+// listMsgView is the resource list view a data message is for.
+func listMsgView(msg tea.Msg) (style.ViewType, bool) {
+	switch msg.(type) {
+	case views.ContainersRefreshMsg, views.ContainerStatsMsg:
+		return style.ViewContainers, true
+	case views.ImagesRefreshMsg:
+		return style.ViewImages, true
+	case views.VolumesRefreshMsg:
+		return style.ViewVolumes, true
+	case views.NetworksRefreshMsg:
+		return style.ViewNetworks, true
+	case views.ProjectsRefreshMsg:
+		return style.ViewProjects, true
+	case views.ContextsRefreshMsg:
+		return style.ViewContexts, true
+	case views.DumpsRefreshMsg:
+		return style.ViewDumps, true
+	case views.DiskUsageRefreshMsg:
+		return style.ViewDiskUsage, true
+	case views.PortForwardsRefreshMsg:
+		return style.ViewPortForwards, true
+	case views.PulsesListMsg, views.PulsesStatsMsg, views.PulsesDiskMsg, views.PulsesEventsMsg:
+		return style.ViewPulses, true
+	}
+	return 0, false
+}
+
+// detailMsgView is the drill-in or stream view a data message is for.
+func detailMsgView(msg tea.Msg) (style.ViewType, bool) {
+	switch msg.(type) {
+	case views.InspectRefreshMsg:
+		return style.ViewInspect, true
+	case views.LayersRefreshMsg:
+		return style.ViewLayers, true
+	case views.VolumeBrowseMsg:
+		return style.ViewVolumeBrowse, true
+	case views.NodeRefreshMsg:
+		return style.ViewNode, true
+	case views.TopRefreshMsg:
+		return style.ViewTop, true
+	case views.LintRefreshMsg:
+		return style.ViewLint, true
+	case views.ScanResultMsg:
+		return style.ViewScan, true
+	case views.DirRefreshMsg:
+		return style.ViewDir, true
+	case views.XrayRefreshMsg:
+		return style.ViewXray, true
+	case views.EventsBatchMsg, views.EventsClosedMsg:
+		return style.ViewEvents, true
+	case views.LogBatchMsg, views.LogClosedMsg:
+		return style.ViewLogs, true
+	}
+	return 0, false
 }
 
 // clearContainerScope lifts a "used by" narrowing when the containers view

@@ -58,8 +58,9 @@ checksum:
   name_template: 'checksums.txt'
 
 # Keyless cosign signatures, from the release workflow's own GitHub identity:
-# no key to store or leak, and the certificate names the exact workflow and tag
-# that produced the release. Signing checksums.txt covers every archive, since
+# no key to store or leak. The signing workflow is blairham/.github's
+# go-release.yml, which release.yml calls; the certificate names it, and this
+# repository and the tag. Signing checksums.txt covers every archive, since
 # it lists each one's digest. See SECURITY.md for how to verify.
 signs:
   - cmd: cosign

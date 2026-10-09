@@ -55,22 +55,36 @@ func SystemEnv(ping func(context.Context, string) bool, contextHost func(string)
 // is; a docker context left behind by an uninstalled app does not count.
 func Detect(ctx context.Context, env Env) []Provider {
 	var out []Provider
-	has := func(bin string) bool { _, err := env.LookPath(bin); return err == nil }
-
 	if env.Colima != nil {
 		out = append(out, Colima{C: env.Colima})
 	}
-	if has("podman") {
+	if env.has("podman") {
 		out = append(out, Podman{Run: env.Run})
 	}
+	for _, detect := range []func(context.Context, Env) (Provider, bool){
+		dockerDesktop, rancherDesktop, orbStack,
+	} {
+		if p, ok := detect(ctx, env); ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
-	// Docker Desktop: its `docker desktop` CLI plugin (4.37+) when present,
-	// else the app. The docker CLI only finds the plugin in its own plugin
-	// directories, and a Homebrew docker does not look inside Docker.app, so
-	// the plugin binary is also run directly — `docker-desktop desktop
-	// start` is what `docker desktop start` execs.
+// has reports whether bin is on PATH.
+func (env Env) has(bin string) bool {
+	_, err := env.LookPath(bin)
+	return err == nil
+}
+
+// dockerDesktop is Docker Desktop: its `docker desktop` CLI plugin (4.37+)
+// when present, else the app. The docker CLI only finds the plugin in its
+// own plugin directories, and a Homebrew docker does not look inside
+// Docker.app, so the plugin binary is also run directly — `docker-desktop
+// desktop start` is what `docker desktop start` execs.
+func dockerDesktop(ctx context.Context, env Env) (Provider, bool) {
 	var ddCmd []string
-	if has("docker") {
+	if env.has("docker") {
 		if _, err := env.Run(ctx, "docker", "desktop", "version"); err == nil {
 			ddCmd = []string{"docker", "desktop"}
 		}
@@ -80,52 +94,63 @@ func Detect(ctx context.Context, env Env) []Provider {
 			ddCmd = []string{path, "desktop"}
 		}
 	}
-	if ddCmd != nil || env.AppExists("Docker") {
-		s := single(env, DockerDesktopName, "desktop-linux", ".docker/run/docker.sock")
-		if ddCmd != nil {
-			s.StartC = append(append([]string(nil), ddCmd...), "start")
-			s.StopC = append(append([]string(nil), ddCmd...), "stop")
-			s.StatusC = append(append([]string(nil), ddCmd...), "status", "--format", "json")
-			s.ParseStatus = DockerDesktopStatus
-			kube := append(append([]string(nil), ddCmd...), "kubernetes", "status", "--format", "json")
-			s.K8sStatus = kubeStatus(env.Run, kube, DockerDesktopKubeStatus)
-		} else {
-			s.StartC, s.StopC = openApp("Docker"), quitApp("Docker")
-		}
-		out = append(out, s)
+	if ddCmd == nil && !env.AppExists("Docker") {
+		return nil, false
 	}
+	s := single(env, DockerDesktopName, "desktop-linux", ".docker/run/docker.sock")
+	if ddCmd == nil {
+		s.StartC, s.StopC = openApp("Docker"), quitApp("Docker")
+		return s, true
+	}
+	s.StartC = append(append([]string(nil), ddCmd...), "start")
+	s.StopC = append(append([]string(nil), ddCmd...), "stop")
+	s.StatusC = append(append([]string(nil), ddCmd...), "status", "--format", "json")
+	s.ParseStatus = DockerDesktopStatus
+	kube := append(append([]string(nil), ddCmd...), "kubernetes", "status", "--format", "json")
+	s.K8sStatus = kubeStatus(env.Run, kube, DockerDesktopKubeStatus)
+	return s, true
+}
 
-	// Rancher Desktop: rdctl when it can be found — on PATH only once the
-	// app's first-run setup has added ~/.rd/bin, but shipped inside the app
-	// from the start — else the app.
+// rancherDesktop is Rancher Desktop: rdctl when it can be found — on PATH
+// only once the app's first-run setup has added ~/.rd/bin, but shipped
+// inside the app from the start — else the app.
+func rancherDesktop(_ context.Context, env Env) (Provider, bool) {
 	rdctl := env.bundledRdctl()
-	if has("rdctl") {
+	if env.has("rdctl") {
 		rdctl = "rdctl"
 	}
-	if rdctl != "" || env.AppExists("Rancher Desktop") {
-		s := single(env, RancherDesktopName, "rancher-desktop", ".rd/docker.sock")
-		if rdctl != "" {
-			s.StartC, s.StopC = []string{rdctl, "start"}, []string{rdctl, "shutdown"}
-			s.K8sStatus = kubeStatus(env.Run, []string{rdctl, "list-settings"}, RancherKubeStatus)
-			s.Resources = resources(env.Run, []string{rdctl, "list-settings"}, RancherResources)
-		} else {
-			s.StartC, s.StopC = openApp("Rancher Desktop"), quitApp("Rancher Desktop")
-		}
-		out = append(out, s)
+	if rdctl == "" && !env.AppExists("Rancher Desktop") {
+		return nil, false
 	}
+	s := single(env, RancherDesktopName, "rancher-desktop", ".rd/docker.sock")
+	if rdctl != "" {
+		s.StartC, s.StopC = []string{rdctl, "start"}, []string{rdctl, "shutdown"}
+		s.K8sStatus = kubeStatus(env.Run, []string{rdctl, "list-settings"}, RancherKubeStatus)
+		s.Resources = resources(env.Run, []string{rdctl, "list-settings"}, RancherResources)
+	} else {
+		s.StartC, s.StopC = openApp("Rancher Desktop"), quitApp("Rancher Desktop")
+	}
+	return s, true
+}
 
-	if has("orb") || env.AppExists("OrbStack") {
-		s := single(env, OrbStackName, "orbstack", ".orbstack/run/docker.sock")
-		if has("orb") {
-			s.StartC, s.StopC = []string{"orb", "start"}, []string{"orb", "stop"}
-			s.StatusC, s.ParseStatus = []string{"orb", "status"}, OrbStackStatus
-			s.K8sStatus = kubeStatus(env.Run, []string{"orb", "config", "get", "k8s.enable"}, OrbStackKubeStatus)
-		} else {
-			s.StartC, s.StopC = openApp("OrbStack"), quitApp("OrbStack")
-		}
-		out = append(out, s)
+// orbCLI is OrbStack's command-line tool.
+const orbCLI = "orb"
+
+// orbStack is OrbStack: the orb CLI when it is on PATH, else the app.
+func orbStack(_ context.Context, env Env) (Provider, bool) {
+	hasOrb := env.has(orbCLI)
+	if !hasOrb && !env.AppExists("OrbStack") {
+		return nil, false
 	}
-	return out
+	s := single(env, OrbStackName, "orbstack", ".orbstack/run/docker.sock")
+	if hasOrb {
+		s.StartC, s.StopC = []string{orbCLI, "start"}, []string{orbCLI, "stop"}
+		s.StatusC, s.ParseStatus = []string{orbCLI, "status"}, OrbStackStatus
+		s.K8sStatus = kubeStatus(env.Run, []string{orbCLI, "config", "get", "k8s.enable"}, OrbStackKubeStatus)
+	} else {
+		s.StartC, s.StopC = openApp("OrbStack"), quitApp("OrbStack")
+	}
+	return s, true
 }
 
 // desktopPlugin finds Docker Desktop's CLI plugin binary where Docker
@@ -141,8 +166,8 @@ func (env Env) desktopPlugin() string {
 	}
 	if env.Home != "" {
 		candidates = append([]string{
-			filepath.Join(env.Home, ".docker/cli-plugins/docker-desktop"),
-			filepath.Join(env.Home, "Applications/Docker.app/Contents/Resources/cli-plugins/docker-desktop"),
+			filepath.Join(env.Home, ".docker", "cli-plugins", "docker-desktop"),
+			filepath.Join(env.Home, "Applications", "Docker.app", "Contents", "Resources", "cli-plugins", "docker-desktop"),
 		}, candidates...)
 	}
 	for _, p := range candidates {
@@ -161,10 +186,10 @@ func (env Env) bundledRdctl() string {
 		return ""
 	}
 	const inApp = "Rancher Desktop.app/Contents/Resources/resources/darwin/bin/rdctl"
-	candidates := []string{filepath.Join("/Applications", inApp)}
+	candidates := []string{"/Applications/" + inApp}
 	if env.Home != "" {
 		candidates = append([]string{
-			filepath.Join(env.Home, ".rd/bin/rdctl"),
+			filepath.Join(env.Home, ".rd", "bin", "rdctl"),
 			filepath.Join(env.Home, "Applications", inApp),
 		}, candidates...)
 	}

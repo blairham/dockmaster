@@ -6,4 +6,4 @@
 # declared in go.mod's `tool` block — invoke them via `go tool <name>`.
 
 # Go compiler — keep in sync with go.mod
-golang 1.26.6
+golang 1.26.9

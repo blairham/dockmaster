@@ -399,25 +399,17 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 	// enter drills into them, as enter on a node does in k9s, and n does
 	// too (c is copy, as in k9s — #3). l is logs on every row, a node's
 	// included.
-	if key == KeyEnter {
+	if key == KeyEnter || key == "n" {
 		if _, node := docker.NodeRole(c); node {
 			return "node_containers", NodeParam(c.ID, "", c.Name)
 		}
 	}
-	if key == "n" {
-		if _, node := docker.NodeRole(c); node {
-			return "node_containers", NodeParam(c.ID, "", c.Name)
-		}
+	switch key {
+	case "n":
 		if docker.IsClusterRegistry(c) {
 			return "registry_not_node", c.Name
 		}
 		return "not_a_node", c.Name
-	}
-	switch key {
-	case KeyEnter, "l":
-		return "logs", c.ID
-	case "o":
-		return "inspect_container", c.ID
 	case "J":
 		// k9s's shift-j jumps to a resource's owner; a container's is its
 		// compose project.
@@ -425,37 +417,50 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 			return "no_project", c.Name
 		}
 		return "jump_project", c.Project
-	case "H":
-		return "health", c.ID
-	case "T":
-		return "top", c.ID
-	case "D":
-		return "diff", c.ID
-	case "S":
-		return "stats", c.ID
-	case "C":
-		return "copy_form", c.ID
-	case "e":
-		return "edit_form", c.ID
-	case "a":
-		return "toggle_all", ""
-	case "ctrl+k":
-		return "toggle_kube", ""
-	case "ctrl+z":
-		return "toggle_faults", ""
-	case "ctrl+w":
-		return "toggle_wide", ""
-	case "t":
-		return "toggle_stats", ""
-	case "F":
-		return "portforward", c.ID
 	case "f":
 		// k9s's f: this container's forwards.
 		return "show_forwards", c.ID + "\x00" + c.Name
-	case "b":
-		return "open_published", c.ID
+	}
+	if action, ok := containerIDKeys[key]; ok {
+		return action, c.ID
+	}
+	if action, ok := containerToggleKeys[key]; ok {
+		return action, ""
 	}
 	return containerAction(key, c)
+}
+
+// Actions named by more than one view.
+const (
+	actLogs             = "logs"
+	actInspectContainer = "inspect_container"
+	actScanImage        = "scan_image"
+)
+
+// containerIDKeys are the containers view's keys whose action takes the
+// selected container's ID.
+var containerIDKeys = map[string]string{
+	KeyEnter: actLogs,
+	"l":      actLogs,
+	"o":      actInspectContainer,
+	"H":      "health",
+	"T":      "top",
+	"D":      "diff",
+	"S":      "stats",
+	"C":      "copy_form",
+	"e":      "edit_form",
+	"F":      "portforward",
+	"b":      "open_published",
+}
+
+// containerToggleKeys are the containers view's keys that toggle what the
+// view shows, whatever the row.
+var containerToggleKeys = map[string]string{
+	"a":      "toggle_all",
+	"ctrl+k": "toggle_kube",
+	"ctrl+z": "toggle_faults",
+	"ctrl+w": "toggle_wide",
+	"t":      "toggle_stats",
 }
 
 // containerAction is what a container key asks for on one container —
@@ -483,9 +488,9 @@ func containerAction(key string, c docker.Container) (string, string) {
 		// The container's image, by the ID it was created from: the tag
 		// may have moved to a newer image since.
 		if c.ImageID != "" {
-			return "scan_image", c.ImageID
+			return actScanImage, c.ImageID
 		}
-		return "scan_image", c.Image
+		return actScanImage, c.Image
 	case "A":
 		if !c.Running() {
 			return "not_running", c.Name
@@ -569,37 +574,10 @@ func (v *ContainersView) rebuildRows() {
 	v.visible = v.visible[:0]
 
 	for _, c := range v.all {
-		k, kube := c.Kube()
-		// A pod's pause container is never listed; the rest only on ctrl+k.
-		if kube && (k.Sandbox || !v.showKube) {
+		if !v.listed(c, f) {
 			continue
 		}
-		if v.showFaults && !c.Fault() {
-			continue
-		}
-		if v.scopeMatch != nil && !v.scopeMatch(c) {
-			continue
-		}
-		if !f.Empty() && !f.Match([]string{
-			c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),
-			k.Namespace, k.Pod, k.Container,
-		}, c.Labels) {
-			continue
-		}
-
-		cpu, mem := pending, pending
-		if !v.statsOn {
-			cpu, mem = "", ""
-		} else if s, ok := v.stats[c.ID]; ok && s.OK {
-			th := v.thresholds
-			cpu = thresholdText(fmt.Sprintf("%.2f", s.CPUPerc), s.CPUShare(), th.CPUWarn, th.CPUCritical)
-			mem = thresholdText(docker.HumanSize(s.MemUsage), s.MemPerc(), th.MemWarn, th.MemCritical)
-		} else if !c.Running() {
-			// A stopped container has no stats and never will — an
-			// eternal "…" there reads as a hung poll.
-			cpu, mem = "", ""
-		}
-
+		cpu, mem := v.statsCells(c)
 		health := c.Health
 		if health == "" {
 			health = "—"
@@ -626,6 +604,44 @@ func (v *ContainersView) rebuildRows() {
 	setTableRows(&v.table, rows)
 }
 
+// listed reports whether c is a row under the view's toggles, scope and
+// filter.
+func (v *ContainersView) listed(c docker.Container, f rowFilter) bool {
+	k, kube := c.Kube()
+	// A pod's pause container is never listed; the rest only on ctrl+k.
+	if kube && (k.Sandbox || !v.showKube) {
+		return false
+	}
+	if v.showFaults && !c.Fault() {
+		return false
+	}
+	if v.scopeMatch != nil && !v.scopeMatch(c) {
+		return false
+	}
+	return f.Empty() || f.Match([]string{
+		c.Name, c.Image, c.State, c.Status, c.Project, c.Service, c.Short(),
+		k.Namespace, k.Pod, k.Container,
+	}, c.Labels)
+}
+
+// statsCells are a row's CPU and MEM cells.
+func (v *ContainersView) statsCells(c docker.Container) (cpu, mem string) {
+	if !v.statsOn {
+		return "", ""
+	}
+	if s, ok := v.stats[c.ID]; ok && s.OK {
+		th := v.thresholds
+		return thresholdText(fmt.Sprintf("%.2f", s.CPUPerc), s.CPUShare(), th.CPUWarn, th.CPUCritical),
+			thresholdText(docker.HumanSize(s.MemUsage), s.MemPerc(), th.MemWarn, th.MemCritical)
+	}
+	if !c.Running() {
+		// A stopped container has no stats and never will — an eternal
+		// "…" there reads as a hung poll.
+		return "", ""
+	}
+	return pending, pending
+}
+
 // cellPadding is the horizontal padding tuikit's table styles apply per
 // column (Padding(0, 1) — one cell each side).
 const cellPadding = 2
@@ -638,82 +654,47 @@ func fitColumns(cols []table.Column, width int) []table.Column {
 	if width <= 0 {
 		return cols
 	}
-	total := 0
-	for _, c := range cols {
-		total += c.Width
-	}
+	out := make([]table.Column, len(cols))
+	copy(out, cols)
+
 	// tuikit's table styles set Padding(0, 1) on both header and cell, so
 	// every column costs its Width plus TWO cells, one each side. Counting
 	// one was the bug that wrapped the last column onto a second line on a
 	// terminal narrower than the sum of the declared widths.
-	total += cellPadding * len(cols)
-
-	out := make([]table.Column, len(cols))
-	copy(out, cols)
-
-	slack := width - total
+	slack := width - tableWidth(cols)
 	if slack == 0 {
 		return out
 	}
 
 	// Grow or shrink the wide text columns first; they are the ones whose
 	// content is unbounded.
-	flexible := []int{}
-	for i, c := range out {
-		switch strings.ToUpper(c.Title) {
-		case "NAME", "IMAGE", "REPOSITORY", "MOUNTPOINT", "SUBNET", "SERVICES", "CREATED BY", "COMMAND", "ENDPOINT":
-			flexible = append(flexible, i)
-		}
-	}
+	flexible := flexibleColumns(out)
 	if len(flexible) == 0 {
 		return out
 	}
-
-	per := slack / len(flexible)
-	rem := slack % len(flexible)
-	for n, i := range flexible {
-		w := out[i].Width + per
-		if n < rem {
-			w++
-		}
-		// Never shrink a text column below something readable — better a
-		// horizontally clipped table than a column of single letters.
-		if w < minFlexWidth {
-			w = minFlexWidth
-		}
-		out[i].Width = w
-	}
+	spreadSlack(out, flexible, slack)
 
 	// The floor above can push the total back over budget on a very narrow
 	// terminal. Shave the widest flexible column until it fits, so the
 	// table clips rather than wrapping every row onto two lines.
+	flexFloor := func(table.Column) int { return minFlexWidth }
 	for tableWidth(out) > width {
-		widest, at := 0, -1
-		for _, i := range flexible {
-			if out[i].Width > widest {
-				widest, at = out[i].Width, i
-			}
-		}
-		if at < 0 || widest <= minFlexWidth {
+		if !shaveWidest(out, flexible, flexFloor) {
 			break
 		}
-		out[at].Width--
 	}
 
 	// Still over: the fixed columns alone are wider than the terminal (the
 	// containers table needs 81 cells for them at 80 columns). Shave those
 	// next, widest first, down to their heading, so every column stays.
+	all := make([]int, len(out))
+	for i := range out {
+		all[i] = i
+	}
 	for tableWidth(out) > width {
-		widest, at := 0, -1
-		for i, c := range out {
-			if floor := fixedFloor(c); c.Width > floor && c.Width > widest {
-				widest, at = c.Width, i
-			}
-		}
-		if at < 0 {
+		if !shaveWidest(out, all, fixedFloor) {
 			break
 		}
-		out[at].Width--
 	}
 
 	// And past that, drop columns from the right. bubbles renders only the
@@ -724,6 +705,50 @@ func fitColumns(cols []table.Column, width int) []table.Column {
 		out = out[:len(out)-1]
 	}
 	return out
+}
+
+// flexibleColumns are the indexes of the free-text columns, whose content is
+// unbounded.
+func flexibleColumns(cols []table.Column) []int {
+	var flexible []int
+	for i, c := range cols {
+		switch strings.ToUpper(c.Title) {
+		case "NAME", "IMAGE", "REPOSITORY", "MOUNTPOINT", "SUBNET", "SERVICES", "CREATED BY", "COMMAND", "ENDPOINT":
+			flexible = append(flexible, i)
+		}
+	}
+	return flexible
+}
+
+// spreadSlack shares slack (negative to shrink) among the flexible columns,
+// never squeezing one below something readable — better a horizontally
+// clipped table than a column of single letters.
+func spreadSlack(out []table.Column, flexible []int, slack int) {
+	per := slack / len(flexible)
+	rem := slack % len(flexible)
+	for n, i := range flexible {
+		w := out[i].Width + per
+		if n < rem {
+			w++
+		}
+		out[i].Width = max(w, minFlexWidth)
+	}
+}
+
+// shaveWidest narrows by one the widest of the given columns that is still
+// above its floor, reporting false when none is.
+func shaveWidest(out []table.Column, among []int, floor func(table.Column) int) bool {
+	widest, at := 0, -1
+	for _, i := range among {
+		if c := out[i]; c.Width > floor(c) && c.Width > widest {
+			widest, at = c.Width, i
+		}
+	}
+	if at < 0 {
+		return false
+	}
+	out[at].Width--
+	return true
 }
 
 // fixedFloor is how narrow a column may be shaved: its heading, and never

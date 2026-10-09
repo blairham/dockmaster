@@ -29,11 +29,11 @@ type FlagValues struct {
 	Invert         bool
 }
 
-// SetFlags names the flags given on fs's command line — only those, so a
+// SetFlags names the flags given on set's command line — only those, so a
 // flag left at its default never overwrites the file.
-func SetFlags(fs *flag.FlagSet) map[string]bool {
+func SetFlags(flags *flag.FlagSet) map[string]bool {
 	set := map[string]bool{}
-	fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
 	return set
 }
 

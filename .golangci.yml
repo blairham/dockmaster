@@ -1,9 +1,13 @@
 # golangci-lint v2 configuration for dockmaster.
 # See: https://golangci-lint.run/usage/configuration/
 #
-# Version pins live in go.mod's `tool` block (golangci-lint, gofumpt); the
-# .pre-commit-config.yaml `rev` must match them. Pre-commit is the only place
-# this config is applied — see AGENTS.md; agents do not run the linter by hand.
+# Rendered from blairham/.github baseline/golangci.yml.tmpl by `make sync`.
+# Edit the baseline (or, with a reason, the override file
+# overrides/dockmaster.yml), not this file: the weekly drift check
+# reports any difference.
+#
+# golangci-lint is pinned twice and the two must move together: go.mod's `tool`
+# block (`go tool golangci-lint`) and the hook `rev` in .pre-commit-config.yaml.
 
 version: "2"
 
@@ -12,6 +16,8 @@ run:
   tests: true
   modules-download-mode: readonly
   allow-parallel-runners: true
+  # Bounds the footprint: golangci-lint defaults to NumCPU.
+  concurrency: 4
 
 output:
   formats:
@@ -21,30 +27,34 @@ output:
       colors: true
 
 linters:
+  # The hook reports only what a commit introduces, so an older finding surfaces
+  # when its lines are next touched: fix it then rather than adding a disable.
   enable:
     # Core linters (enabled by default)
     - errcheck # Check for unchecked errors
-    - govet # Go vet analysis
+    - govet # Suspicious constructs; the analyzers are in settings
     - ineffassign # Detect ineffectual assignments
-    - staticcheck # Static analysis (includes stylecheck, gosimple)
+    - staticcheck # The staticcheck rule set
     - unused # Check for unused constants, variables, functions and types
 
     # Code quality and style
-    - misspell # Finds commonly misspelled English words
     - whitespace # Detection of leading and trailing whitespace
     - unconvert # Remove unnecessary type conversions
     - unparam # Reports unused function parameters
-    - revive # Fast, configurable linter for Go
+    - gocritic # Diagnostic, performance and style checks
+    - goconst # Repeated strings that should be constants
+    - misspell # Commonly misspelled English words (US locale)
+    - revive # Configurable style linter (see settings for the rule set)
 
     # Bug detection
     - bodyclose # Check whether HTTP response body is closed
     - contextcheck # Check if function use a non-inherited context
-    - nilerr # Check for simultaneous return of nil error and invalid value
     - rowserrcheck # Check whether Err of rows is checked
     - sqlclosecheck # Check that sql.Rows and sql.Stmt are closed
     - errname # Checks sentinel errors are prefixed with Err
     - errorlint # Find code that will cause problems with error wrapping
     - forcetypeassert # Finds forced type assertions
+    - nilerr # Finds a nil return after a non-nil error check
     - nilnil # Checks for simultaneous return of nil error and nil value
     - noctx # Finds HTTP requests without context.Context
     - predeclared # Find code that shadows predeclared identifiers
@@ -58,6 +68,9 @@ linters:
 
     # Code complexity
     - nestif # Reports deeply nested if statements
+    - funlen # Reports overly long functions
+    - gocognit # Reports high cognitive complexity
+    - gocyclo # Reports high cyclomatic complexity
 
     # Testing
     - thelper # Detects test helpers not starting with t.Helper()
@@ -73,11 +86,6 @@ linters:
     # Memory
     - wastedassign # Finds wasted assignment statements
 
-  # Nothing is disabled for adoption. dockmaster started on the canonical
-  # thresholds rather than inheriting another repo's burn-down; the handful
-  # of genuinely flat dispatch functions (the key path, the action table)
-  # carry targeted //nolint directives naming the reason instead.
-
   exclusions:
     rules:
       # Exclude test files from strict checks
@@ -92,7 +100,6 @@ linters:
           - nestif
           - goconst # test fixtures legitimately repeat literals (JSON, expected values)
           - noctx # httptest.NewRequest et al. are test-only, not real HTTP calls
-
 
       # Allow init() in main packages
       - path: cmd/

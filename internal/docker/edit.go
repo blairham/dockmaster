@@ -99,22 +99,11 @@ func EditUpdate(cur EditState, s EditSpec) (container.UpdateConfig, bool, string
 	}
 
 	if t := strings.TrimSpace(s.Memory); t != "" && t != MemoryText(cur.Memory) {
-		mem, err := units.RAMInBytes(t)
-		if err != nil || mem <= 0 {
-			return u, false, "", fmt.Errorf("memory: %q is not a size, e.g. 512m or 2g", t)
+		mem, swap, err := editMemory(cur, t)
+		if err != nil {
+			return u, false, "", err
 		}
-		if mem < 6<<20 {
-			return u, false, "", fmt.Errorf("memory: docker's minimum is 6m")
-		}
-		u.Memory = mem
-		switch {
-		case cur.MemorySwap == -1:
-			u.MemorySwap = -1
-		case cur.MemorySwap > 0 && cur.Memory > 0:
-			u.MemorySwap = mem + (cur.MemorySwap - cur.Memory)
-		default:
-			u.MemorySwap = 2 * mem
-		}
+		u.Memory, u.MemorySwap = mem, swap
 		changed = true
 	}
 
@@ -128,6 +117,28 @@ func EditUpdate(cur EditState, s EditSpec) (container.UpdateConfig, bool, string
 		rename = n
 	}
 	return u, changed, rename, nil
+}
+
+// editMemory parses a new memory limit and the swap value that must go with
+// it: the swap headroom the container had, unlimited staying unlimited, and
+// docker run's default of twice the memory where it had no limit.
+func editMemory(cur EditState, t string) (mem, swap int64, err error) {
+	mem, err = units.RAMInBytes(t)
+	if err != nil || mem <= 0 {
+		return 0, 0, fmt.Errorf("memory: %q is not a size, e.g. 512m or 2g", t)
+	}
+	if mem < 6<<20 {
+		return 0, 0, fmt.Errorf("memory: docker's minimum is 6m")
+	}
+	switch {
+	case cur.MemorySwap == -1:
+		swap = -1
+	case cur.MemorySwap > 0 && cur.Memory > 0:
+		swap = mem + (cur.MemorySwap - cur.Memory)
+	default:
+		swap = 2 * mem
+	}
+	return mem, swap, nil
 }
 
 // Edit applies an edit: docker update for limits and restart policy, then

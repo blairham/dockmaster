@@ -10,6 +10,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,51 +39,17 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) > 1 && os.Args[1] == "config" {
-		return config.Command(os.Args[2:], os.Stdout)
-	}
-	if len(os.Args) > 1 && os.Args[1] == "info" {
-		return info.Command(os.Args[2:], os.Stdout)
+	if cmd := subcommand(os.Args); cmd != nil {
+		return cmd(os.Args[2:], os.Stdout)
 	}
 
-	var (
-		host        = flag.String("host", "", "docker daemon endpoint (overrides DOCKER_HOST and the active context)")
-		contextName = flag.String("context", "", "docker context to use (overrides the active one)")
-		readonly    = flag.Bool("readonly", false, "refuse every mutating action")
-		all         = flag.Bool("all", false, "start with stopped containers listed (docker ps -a)")
-		noStats     = flag.Bool("no-stats", false, "disable the CPU/MEM poll (one request per running container)")
-		logoless    = flag.Bool("logoless", false, "hide the header logo")
-		splashless  = flag.Bool("splashless", false, "skip the startup splash")
-		headless    = flag.Bool("headless", false, "hide the header (info, shortcuts, logo)")
-		crumbsless  = flag.Bool("crumbsless", false, "hide the breadcrumbs")
-		invert      = flag.Bool("invert", false, "invert the skin, dark to light or light to dark, keeping its colors")
-		command     string
-		refresh     int
-		reqTimeout  = flag.Duration("request-timeout", 0,
-			"how long one daemon request may take, as 30s or 2m (0 keeps each request's own: 20s for a list, 5m for images)")
-		showVersion = flag.Bool("version", false, "print version and exit")
-		logLevel    = flag.String("log-level", applog.DefaultLevel, "log level: "+strings.Join(applog.Levels, ", "))
-		logFile     = flag.String(
-			"log-file",
-			"",
-			"log file (default <state dir>/"+applog.FileName+"; dockmaster info shows it)",
-		)
-	)
-	commandUsage := "view or : command to open on (" + strings.Join(tui.ViewCommandNames(), ", ") + ", xray, an alias…)"
-	flag.StringVar(&command, "command", "", commandUsage)
-	flag.StringVar(&command, "c", "", commandUsage+" (shorthand)")
-	const refreshUsage = "auto-refresh interval in seconds (default 3)"
-	flag.IntVar(&refresh, "refresh", 0, refreshUsage)
-	flag.IntVar(&refresh, "r", 0, refreshUsage+" (shorthand)")
-	flag.Usage = usage
-	flag.Parse()
-
-	if *showVersion {
+	f := parseFlags()
+	if f.showVersion {
 		fmt.Printf("dockmaster %s (%s, built %s)\n", version.Version, version.Commit, version.Date)
 		return nil
 	}
 
-	logger, logCloser, err := applog.Open(*logFile, *logLevel)
+	logger, logCloser, err := applog.Open(f.logFile, f.logLevel)
 	if err != nil {
 		return err
 	}
@@ -95,11 +63,7 @@ func run() error {
 	// only those, so --readonly=false can switch off a readOnly: true. A
 	// live reload (ui.reactive) applies the same flags again.
 	flagSet := config.SetFlags(flag.CommandLine)
-	flagVals := config.FlagValues{
-		ReadOnly: *readonly, ShowAll: *all, NoStats: *noStats, Logoless: *logoless,
-		Splashless: *splashless, Headless: *headless, Crumbsless: *crumbsless, Invert: *invert, Command: command,
-		Refresh: refresh, RequestTimeout: *reqTimeout,
-	}
+	flagVals := f.values()
 	st, err := loadSettings(cfgPath, flagSet, flagVals)
 	if err != nil {
 		return err
@@ -110,44 +74,16 @@ func run() error {
 	// the base theme.
 	style.SetBase(st.theme)
 
-	if cfg.DefaultView != "" {
-		if verr := tui.ValidateCommand(cfg.DefaultView, st.aliases); verr != nil {
-			src := "-c"
-			if command == "" {
-				src = "defaultView in " + cfgPath
-			}
-			return fmt.Errorf("%s: %w", src, verr)
-		}
+	if verr := checkDefaultView(cfg, st.aliases, f.command, cfgPath); verr != nil {
+		return verr
 	}
 	// config.yaml's context is a default --context: the command line and
 	// the session's own DOCKER_HOST / DOCKER_CONTEXT are more specific.
-	if *host == "" && *contextName == "" && os.Getenv("DOCKER_HOST") == "" && os.Getenv("DOCKER_CONTEXT") == "" {
-		*contextName = cfg.Context
+	if f.host == "" && f.contextName == "" && !dockerEnvSet() {
+		f.contextName = cfg.Context
 	}
 
-	// A --context flag is resolved through the store the same way the
-	// docker CLI resolves its own, so `dockmaster --context colima` behaves
-	// like `docker --context colima`.
-	endpoint := *host
-	if endpoint == "" && *contextName != "" {
-		found := false
-		for _, c := range docker.Contexts() {
-			if c.Name == *contextName {
-				endpoint, found = c.Host, true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("no docker context named %q — `docker context ls` shows the available ones", *contextName)
-		}
-	}
-
-	newClient := docker.New
-	if *host == "" && *contextName != "" {
-		// The context's TLS material as well as its host (#33).
-		newClient = func(h string) (*docker.Client, error) { return docker.NewForContext(*contextName, h) }
-	}
-	client, err := newClient(endpoint)
+	client, err := newDockerClient(f.host, f.contextName)
 	if err != nil {
 		return err
 	}
@@ -161,59 +97,19 @@ func run() error {
 	// optional; with none, the view says what to install.
 	providers := engines.Detect(ctx, engines.SystemEnv(pingDaemon, contextHost))
 
-	// Connect before starting the TUI. A daemon that is not there is a
-	// plain one-line error on stderr, not an alt-screen full of empty
-	// tables that the user then has to quit out of to read — unless the
-	// endpoint belongs to a runtime's machine, in which case the TUI opens
-	// on the runtimes view, because starting it is the fix and dockmaster can
-	// do that.
-	startOnRuntimes, notice := false, ""
-	if err := client.Negotiate(ctx); err != nil {
-		m, ok := engines.Owner(ctx, providers, client.Host)
-		if !ok {
-			logger.Error("no daemon", "endpoint", client.Host, "error", err)
-			return daemonError(err, client)
-		}
-		startOnRuntimes = true
-		notice = fmt.Sprintf("no docker daemon at %s — %s %s is not running; <u> starts it",
-			client.Host, m.Provider, m.Name)
+	startOnRuntimes, notice, err := connect(ctx, client, providers, logger)
+	if err != nil {
+		return err
 	}
-	if *contextName != "" {
-		client.ContextName = *contextName
+	if f.contextName != "" {
+		client.ContextName = f.contextName
 	}
 	logger.Info("start", "version", version.Version, "context", client.ContextName, "endpoint", client.Host)
 
-	opts := settingsOptions(st)
-	opts.Version = version.Version
-	opts.ShowAll, opts.NoStats = cfg.ShowAll, cfg.NoStats
-	opts.Splashless = cfg.UI.Splashless
-	opts.Command = cfg.DefaultView
-	opts.RequestTimeout = cfg.RequestTimeout
-	opts.Engines = providers
-	opts.StartOnRuntimes = startOnRuntimes
-	opts.Notice = notice
-	opts.HistoryFile = historyFile()
-	opts.ContextStateFile = stateFile("contexts.json")
-	opts.ScanCacheDir = stateFile("scans")
-	opts.CommandFromFlag = flagSet["c"] || flagSet["command"]
-	opts.Logger = logger
-	if cfg.UI.Reactive {
-		opts.WatchDir = filepath.Dir(cfgPath)
-		opts.Reload = func() (tui.Reloaded, error) {
-			next, err := loadSettings(cfgPath, flagSet, flagVals)
-			if err != nil {
-				return tui.Reloaded{}, err
-			}
-			var restart []string
-			if next.cfg.Context != cfg.Context {
-				restart = append(restart, "context")
-			}
-			if next.cfg.RequestTimeout != cfg.RequestTimeout {
-				restart = append(restart, "requestTimeout")
-			}
-			return tui.Reloaded{Options: settingsOptions(next), Theme: next.theme, NeedsRestart: restart}, nil
-		}
-	}
+	opts := startupOptions(st, startup{
+		providers: providers, startOnRuntimes: startOnRuntimes, notice: notice, logger: logger,
+		cfgPath: cfgPath, flagSet: flagSet, flagVals: flagVals,
+	})
 	app := tui.NewApp(client, opts)
 
 	// Alt-screen and mouse mode are per-View in bubbletea v2 (set in
@@ -223,6 +119,195 @@ func run() error {
 		return fmt.Errorf("running dockmaster: %w", err)
 	}
 	return nil
+}
+
+// subcommand is the `config` or `info` subcommand args names, or nil for the
+// TUI.
+func subcommand(args []string) func([]string, io.Writer) error {
+	if len(args) < 2 {
+		return nil
+	}
+	switch args[1] {
+	case "config":
+		return config.Command
+	case "info":
+		return info.Command
+	}
+	return nil
+}
+
+// dockerEnvSet reports whether the session names its own daemon, which is
+// more specific than config.yaml's context.
+func dockerEnvSet() bool {
+	return os.Getenv("DOCKER_HOST") != "" || os.Getenv("DOCKER_CONTEXT") != ""
+}
+
+// startup is what run learned before building the app.
+type startup struct {
+	logger          *slog.Logger
+	flagSet         map[string]bool
+	cfgPath, notice string
+	providers       []engines.Provider
+	flagVals        config.FlagValues
+	startOnRuntimes bool
+}
+
+// startupOptions is the app's options at startup: the config directory's,
+// plus what only startup knows.
+func startupOptions(st settings, su startup) tui.Options {
+	cfg := st.cfg
+	opts := settingsOptions(st)
+	opts.Version = version.Version
+	opts.ShowAll, opts.NoStats = cfg.ShowAll, cfg.NoStats
+	opts.Splashless = cfg.UI.Splashless
+	opts.Command = cfg.DefaultView
+	opts.RequestTimeout = cfg.RequestTimeout
+	opts.Engines = su.providers
+	opts.StartOnRuntimes = su.startOnRuntimes
+	opts.Notice = su.notice
+	opts.HistoryFile = historyFile()
+	opts.ContextStateFile = stateFile("contexts.json")
+	opts.ScanCacheDir = stateFile("scans")
+	opts.CommandFromFlag = su.flagSet["c"] || su.flagSet["command"]
+	opts.Logger = su.logger
+	if cfg.UI.Reactive {
+		opts.WatchDir = filepath.Dir(su.cfgPath)
+		opts.Reload = reloader(su.cfgPath, su.flagSet, su.flagVals, cfg)
+	}
+	return opts
+}
+
+// cliFlags is the command line, parsed.
+type cliFlags struct {
+	host, contextName, command, logLevel, logFile string
+	reqTimeout                                    time.Duration
+	refresh                                       int
+	readonly, all, noStats, logoless, splashless  bool
+	headless, crumbsless, invert, showVersion     bool
+}
+
+// parseFlags defines the flags on flag.CommandLine and parses them.
+func parseFlags() *cliFlags {
+	var f cliFlags
+	flag.StringVar(&f.host, "host", "", "docker daemon endpoint (overrides DOCKER_HOST and the active context)")
+	flag.StringVar(&f.contextName, "context", "", "docker context to use (overrides the active one)")
+	flag.BoolVar(&f.readonly, "readonly", false, "refuse every mutating action")
+	flag.BoolVar(&f.all, "all", false, "start with stopped containers listed (docker ps -a)")
+	flag.BoolVar(&f.noStats, "no-stats", false, "disable the CPU/MEM poll (one request per running container)")
+	flag.BoolVar(&f.logoless, "logoless", false, "hide the header logo")
+	flag.BoolVar(&f.splashless, "splashless", false, "skip the startup splash")
+	flag.BoolVar(&f.headless, "headless", false, "hide the header (info, shortcuts, logo)")
+	flag.BoolVar(&f.crumbsless, "crumbsless", false, "hide the breadcrumbs")
+	flag.BoolVar(&f.invert, "invert", false, "invert the skin, dark to light or light to dark, keeping its colors")
+	flag.DurationVar(&f.reqTimeout, "request-timeout", 0,
+		"how long one daemon request may take, as 30s or 2m (0 keeps each request's own: 20s for a list, 5m for images)")
+	flag.BoolVar(&f.showVersion, "version", false, "print version and exit")
+	flag.StringVar(&f.logLevel, "log-level", applog.DefaultLevel, "log level: "+strings.Join(applog.Levels, ", "))
+	flag.StringVar(
+		&f.logFile,
+		"log-file",
+		"",
+		"log file (default <state dir>/"+applog.FileName+"; dockmaster info shows it)",
+	)
+	commandUsage := "view or : command to open on (" + strings.Join(tui.ViewCommandNames(), ", ") + ", xray, an alias…)"
+	flag.StringVar(&f.command, "command", "", commandUsage)
+	flag.StringVar(&f.command, "c", "", commandUsage+" (shorthand)")
+	const refreshUsage = "auto-refresh interval in seconds (default 3)"
+	flag.IntVar(&f.refresh, "refresh", 0, refreshUsage)
+	flag.IntVar(&f.refresh, "r", 0, refreshUsage+" (shorthand)")
+	flag.Usage = usage
+	flag.Parse()
+	return &f
+}
+
+// values is the part of the command line config.yaml can also set.
+func (f *cliFlags) values() config.FlagValues {
+	return config.FlagValues{
+		ReadOnly: f.readonly, ShowAll: f.all, NoStats: f.noStats, Logoless: f.logoless,
+		Splashless: f.splashless, Headless: f.headless, Crumbsless: f.crumbsless, Invert: f.invert,
+		Command: f.command, Refresh: f.refresh, RequestTimeout: f.reqTimeout,
+	}
+}
+
+// checkDefaultView refuses a -c (or config.yaml defaultView) that names no
+// view, naming where it came from.
+func checkDefaultView(cfg config.Config, aliases map[string]string, command, cfgPath string) error {
+	if cfg.DefaultView == "" {
+		return nil
+	}
+	verr := tui.ValidateCommand(cfg.DefaultView, aliases)
+	if verr == nil {
+		return nil
+	}
+	src := "-c"
+	if command == "" {
+		src = "defaultView in " + cfgPath
+	}
+	return fmt.Errorf("%s: %w", src, verr)
+}
+
+// newDockerClient connects to --host, or to a --context resolved through the
+// store the same way the docker CLI resolves its own, so `dockmaster
+// --context colima` behaves like `docker --context colima`.
+func newDockerClient(host, contextName string) (*docker.Client, error) {
+	if host != "" || contextName == "" {
+		return docker.New(host)
+	}
+	for _, c := range docker.Contexts() {
+		if c.Name == contextName {
+			// The context's TLS material as well as its host (#33).
+			return docker.NewForContext(contextName, c.Host)
+		}
+	}
+	return nil, fmt.Errorf("no docker context named %q — `docker context ls` shows the available ones", contextName)
+}
+
+// connect reaches the daemon before starting the TUI. A daemon that is not
+// there is a plain one-line error on stderr, not an alt-screen full of empty
+// tables that the user then has to quit out of to read — unless the endpoint
+// belongs to a runtime's machine, in which case the TUI opens on the runtimes
+// view, because starting it is the fix and dockmaster can do that.
+func connect(
+	ctx context.Context,
+	client *docker.Client,
+	providers []engines.Provider,
+	logger *slog.Logger,
+) (startOnRuntimes bool, notice string, err error) {
+	nerr := client.Negotiate(ctx)
+	if nerr == nil {
+		return false, "", nil
+	}
+	m, ok := engines.Owner(ctx, providers, client.Host)
+	if !ok {
+		logger.Error("no daemon", "endpoint", client.Host, "error", nerr)
+		return false, "", daemonError(nerr, client)
+	}
+	return true, fmt.Sprintf("no docker daemon at %s — %s %s is not running; <u> starts it",
+		client.Host, m.Provider, m.Name), nil
+}
+
+// reloader re-reads the config directory for a live reload (ui.reactive),
+// naming the settings that only take effect on a restart.
+func reloader(
+	cfgPath string,
+	flagSet map[string]bool,
+	flagVals config.FlagValues,
+	cfg config.Config,
+) func() (tui.Reloaded, error) {
+	return func() (tui.Reloaded, error) {
+		next, err := loadSettings(cfgPath, flagSet, flagVals)
+		if err != nil {
+			return tui.Reloaded{}, err
+		}
+		var restart []string
+		if next.cfg.Context != cfg.Context {
+			restart = append(restart, "context")
+		}
+		if next.cfg.RequestTimeout != cfg.RequestTimeout {
+			restart = append(restart, "requestTimeout")
+		}
+		return tui.Reloaded{Options: settingsOptions(next), Theme: next.theme, NeedsRestart: restart}, nil
+	}
 }
 
 // daemonError is the user-facing error for a daemon that did not answer.
@@ -371,67 +456,90 @@ func loadSettings(cfgPath string, flagSet map[string]bool, flagVals config.FlagV
 	if verr := cfg.Validate(); verr != nil {
 		return settings{}, verr
 	}
-	aliases, err := config.LoadAliases()
-	if err != nil {
+	st := settings{cfg: cfg, forceReadOnly: flagSet["readonly"] && flagVals.ReadOnly}
+	if err := st.loadBindings(); err != nil {
 		return settings{}, err
 	}
-	if aerr := tui.ValidateAliases(aliases); aerr != nil {
-		return settings{}, aerr
+	if err := st.loadThemes(); err != nil {
+		return settings{}, err
+	}
+	return st, nil
+}
+
+// loadBindings reads the aliases, hotkeys, plugins, jumps and view columns,
+// each validated against what it may refer to.
+func (st *settings) loadBindings() error {
+	aliases, err := config.LoadAliases()
+	if err != nil {
+		return err
+	}
+	if verr := tui.ValidateAliases(aliases); verr != nil {
+		return verr
 	}
 	hotKeyFile, err := config.LoadHotKeys()
 	if err != nil {
-		return settings{}, err
+		return err
 	}
 	hotKeys, err := tui.HotKeys(hotKeyFile, aliases)
 	if err != nil {
-		return settings{}, err
+		return err
 	}
 	pluginFile, err := config.LoadPlugins()
 	if err != nil {
-		return settings{}, err
+		return err
 	}
 	plugins, err := tui.Plugins(pluginFile, hotKeys)
 	if err != nil {
-		return settings{}, err
+		return err
 	}
+	st.aliases, st.hotKeys, st.plugins = aliases, hotKeys, plugins
+	return st.loadLayout()
+}
+
+// loadLayout reads the jumps and the view columns.
+func (st *settings) loadLayout() error {
 	jumpFile, err := config.LoadJumps()
 	if err != nil {
-		return settings{}, err
+		return err
 	}
 	jumps, err := tui.Jumps(jumpFile)
 	if err != nil {
-		return settings{}, err
+		return err
 	}
 	viewFile, err := config.LoadViews()
 	if err != nil {
-		return settings{}, err
+		return err
 	}
 	columns, err := tui.ColumnLayouts(viewFile)
 	if err != nil {
-		return settings{}, err
+		return err
 	}
-	th, err := cfg.Theme(style.DefaultBase())
+	st.jumps, st.columns = jumps, columns
+	return nil
+}
+
+// loadThemes loads the skin and each context's skin, as ui.skin does, and
+// checks each context's defaultView as -c is: a bad entry stops startup and a
+// reload.
+func (st *settings) loadThemes() error {
+	th, err := st.cfg.Theme(style.DefaultBase())
 	if err != nil {
-		return settings{}, err
+		return err
 	}
-	// Each context's skin loads now, as ui.skin does, and its defaultView
-	// is checked as -c is: a bad entry stops startup and a reload.
-	ctxThemes, err := cfg.ContextThemes(style.DefaultBase())
+	ctxThemes, err := st.cfg.ContextThemes(style.DefaultBase())
 	if err != nil {
-		return settings{}, err
+		return err
 	}
-	for name, cs := range cfg.Contexts {
+	for name, cs := range st.cfg.Contexts {
 		if cs.DefaultView == "" {
 			continue
 		}
-		if verr := tui.ValidateContextCommand(cs.DefaultView, aliases); verr != nil {
-			return settings{}, fmt.Errorf("contexts.%s.defaultView: %w", name, verr)
+		if verr := tui.ValidateContextCommand(cs.DefaultView, st.aliases); verr != nil {
+			return fmt.Errorf("contexts.%s.defaultView: %w", name, verr)
 		}
 	}
-	return settings{
-		cfg: cfg, aliases: aliases, hotKeys: hotKeys, plugins: plugins, jumps: jumps, columns: columns, theme: th,
-		ctxThemes: ctxThemes, forceReadOnly: flagSet["readonly"] && flagVals.ReadOnly,
-	}, nil
+	st.theme, st.ctxThemes = th, ctxThemes
+	return nil
 }
 
 // settingsOptions is the part of the app's options that comes from the

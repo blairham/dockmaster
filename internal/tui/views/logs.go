@@ -392,32 +392,42 @@ func (v *LogsView) drain() tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		batch := make([]docker.LogLine, 0, 64)
-		deadline := time.NewTimer(logBatchWindow)
-		defer deadline.Stop()
+		batch, closed, err := collectBatch(st.Lines, st.Err, 64)
+		switch {
+		case err != nil:
+			return LogClosedMsg{Gen: gen, Err: err}
+		case closed && len(batch) == 0:
+			return LogClosedMsg{Gen: gen}
+		}
+		return LogBatchMsg{Gen: gen, Lines: batch}
+	}
+}
 
-		for {
-			select {
-			case l, ok := <-st.Lines:
-				if !ok {
-					if len(batch) > 0 {
-						return LogBatchMsg{Gen: gen, Lines: batch}
-					}
-					return LogClosedMsg{Gen: gen}
-				}
-				batch = append(batch, l)
-				if len(batch) >= logBatchMax {
-					return LogBatchMsg{Gen: gen, Lines: batch}
-				}
-			case err := <-st.Err:
-				if err != nil {
-					return LogClosedMsg{Gen: gen, Err: err}
-				}
-			case <-deadline.C:
-				// An idle container produces an empty batch; returning it
-				// re-arms the drain without burning CPU on a busy loop.
-				return LogBatchMsg{Gen: gen, Lines: batch}
+// collectBatch reads what a stream produces within logBatchWindow, up to
+// logBatchMax items: one message per item would swamp the loop on a busy
+// stream. closed reports the stream ended; err, that it failed.
+func collectBatch[T any](items <-chan T, errs <-chan error, capHint int) (batch []T, closed bool, err error) {
+	batch = make([]T, 0, capHint)
+	deadline := time.NewTimer(logBatchWindow)
+	defer deadline.Stop()
+	for {
+		select {
+		case it, ok := <-items:
+			if !ok {
+				return batch, true, nil
 			}
+			batch = append(batch, it)
+			if len(batch) >= logBatchMax {
+				return batch, false, nil
+			}
+		case e := <-errs:
+			if e != nil {
+				return batch, false, e
+			}
+		case <-deadline.C:
+			// An idle stream produces an empty batch; returning it re-arms
+			// the drain without burning CPU on a busy loop.
+			return batch, false, nil
 		}
 	}
 }
@@ -477,7 +487,7 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 	}
 	switch key {
 	case "o":
-		return "inspect_container", v.containerID
+		return actInspectContainer, v.containerID
 	case "x":
 		return "stop", v.containerID
 	case "R":
@@ -522,8 +532,7 @@ func logKey(key string) (string, string) {
 // containerd ID it has never heard of, so they are not offered.
 func (v *LogsView) nodeKey(key string) (string, string) {
 	p := NodeParam(v.node, v.containerID, v.containerName)
-	switch key {
-	case "o":
+	if key == "o" {
 		return "node_inspect", p
 	}
 	return "", ""
@@ -581,9 +590,9 @@ func paintTailBackground(t *tail.Model) {
 // nonColorEscape matches every terminal escape but SGR (color and weight,
 // final byte `m`): cursor movement, erase-in-line, OSC titles and links.
 var nonColorEscape = regexp.MustCompile(
-	`\x1b\[[0-?]*[ -/]*[@-ln-~]` + // CSI other than SGR
+	`\x1b\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x6c\x6e-\x7e]` + // CSI other than SGR
 		`|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)` + // OSC, BEL- or ST-terminated
-		`|\x1b[@-Z\\-_]`, // two-byte escapes
+		`|\x1b[\x40-\x5a\x5c-\x5f]`, // two-byte escapes (not [, which opens a CSI)
 )
 
 // logTabWidth is how far a tab expands. Terminals disagree about tab stops

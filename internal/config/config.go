@@ -323,6 +323,16 @@ func Parse(r io.Reader) (Config, error) {
 
 // Validate rejects values dockmaster cannot run with.
 func (c Config) Validate() error {
+	errs := slices.Concat(c.validateCore(), c.validateContexts(), c.validateFeatures(), c.validateLogger())
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// validateCore checks the refresh, timeout, thresholds, skin and
+// port-forward address.
+func (c Config) validateCore() []string {
 	var errs []string
 	if c.RefreshRate < 1 {
 		errs = append(errs, fmt.Sprintf("refreshRate must be at least 1 second, got %d", c.RefreshRate))
@@ -345,7 +355,12 @@ func (c Config) Validate() error {
 	if _, err := ParseForwardAddress(c.PortForwardAddress); err != nil {
 		errs = append(errs, err.Error())
 	}
-	errs = append(errs, c.validateContexts()...)
+	return errs
+}
+
+// validateFeatures checks the image scans and the host shell.
+func (c Config) validateFeatures() []string {
+	var errs []string
 	if c.ImageScans.TTL < time.Minute {
 		errs = append(errs, fmt.Sprintf("imageScans.ttl must be at least 1m, got %v", c.ImageScans.TTL))
 	}
@@ -355,6 +370,12 @@ func (c Config) Validate() error {
 	if img := c.HostShell.Image; strings.TrimSpace(img) == "" || strings.HasPrefix(img, "-") {
 		errs = append(errs, fmt.Sprintf("hostShell.image is an image name, not empty or a flag, got %q", img))
 	}
+	return errs
+}
+
+// validateLogger checks the log view's buffer, since and tail.
+func (c Config) validateLogger() []string {
+	var errs []string
 	if c.Logger.Buffer < c.Logger.Tail || c.Logger.Buffer > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.buffer must be between logger.tail (%d) and %d, got %d",
 			c.Logger.Tail, MaxLogTail, c.Logger.Buffer))
@@ -368,10 +389,7 @@ func (c Config) Validate() error {
 	if c.Logger.Tail < 1 || c.Logger.Tail > MaxLogTail {
 		errs = append(errs, fmt.Sprintf("logger.tail must be between 1 and %d, got %d", MaxLogTail, c.Logger.Tail))
 	}
-	if len(errs) > 0 {
-		return errors.New(strings.Join(errs, "; "))
-	}
-	return nil
+	return errs
 }
 
 // validateContexts checks each contexts: entry the way the top-level keys

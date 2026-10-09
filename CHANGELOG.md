@@ -12,6 +12,15 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Changed
+
+- Releases are built and signed by the shared `go-release.yml` in
+  blairham/.github, which `release.yml` now calls. `checksums.txt`'s
+  signature and the provenance name that workflow, with this repository and
+  the tag; SECURITY.md has the new verify commands, and how to check v0.0.16
+  and earlier.
+- Built with Go 1.26.9.
+
 ## [0.0.16] - 2026-10-07
 
 ### Changed

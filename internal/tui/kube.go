@@ -131,72 +131,88 @@ func kubeDo(ctx context.Context, host string, op kubeOp) error {
 		return err
 	}
 	defer c.Close() //nolint:errcheck // per-operation client
-	find := func() (docker.Cluster, error) {
-		cs, err := c.Clusters(ctx)
-		if err != nil {
-			return docker.Cluster{}, err
-		}
-		for _, cl := range cs {
-			if cl.Name == op.cluster {
-				return cl, nil
-			}
-		}
-		return docker.Cluster{}, fmt.Errorf("no cluster %s on %s", op.cluster, host)
-	}
 	switch op.verb {
 	case "start":
-		cl, err := find()
-		if err != nil {
-			return err
-		}
-		// The registry first: a node coming up may pull from it.
-		if cl.Registry != "" && !cl.RegistryRunning {
-			if err := c.SetRegistryRunning(ctx, cl.Registry, true); err != nil {
-				return err
-			}
-		}
-		return c.SetClusterRunning(ctx, cl, true)
+		return kubeStart(ctx, c, host, op.cluster)
 	case "stop":
-		cl, err := find()
-		if err != nil {
-			return err
-		}
-		if serr := c.SetClusterRunning(ctx, cl, false); serr != nil {
-			return serr
-		}
-		if cl.Registry == "" || !cl.RegistryRunning {
-			return nil
-		}
-		// Kind clusters on a daemon share the registry: it stops with the
-		// last of them.
-		all, err := c.Clusters(ctx)
-		if err != nil {
-			return err
-		}
-		for _, other := range all {
-			if other.Tool == "kind" && other.Name != cl.Name && other.Running {
-				return nil
-			}
-		}
-		return c.SetRegistryRunning(ctx, cl.Registry, false)
+		return kubeStop(ctx, c, host, op.cluster)
 	case "create":
-		reg := docker.DefaultRegistry
-		if err := c.EnsureRegistry(ctx, reg); err != nil {
-			return err
-		}
-		if err := kind.Create(ctx, kindRun, host, op.cluster); err != nil {
-			return err
-		}
-		cl, err := find()
-		if err != nil {
-			return err
-		}
-		if err := c.WireRegistry(ctx, cl, reg); err != nil {
-			return err
-		}
-		return c.ConnectRegistry(ctx, reg, "kind")
+		return kubeCreate(ctx, c, host, op.cluster)
 	}
 	return fmt.Errorf("unknown kubernetes operation %q", op.verb)
+}
+
+// findCluster is the cluster named name on the daemon at host.
+func findCluster(ctx context.Context, c clusterOps, host, name string) (docker.Cluster, error) {
+	cs, err := c.Clusters(ctx)
+	if err != nil {
+		return docker.Cluster{}, err
+	}
+	for _, cl := range cs {
+		if cl.Name == name {
+			return cl, nil
+		}
+	}
+	return docker.Cluster{}, fmt.Errorf("no cluster %s on %s", name, host)
+}
+
+// kubeStart starts a cluster's nodes, the registry first: a node coming up
+// may pull from it.
+func kubeStart(ctx context.Context, c clusterOps, host, name string) error {
+	cl, err := findCluster(ctx, c, host, name)
+	if err != nil {
+		return err
+	}
+	if cl.Registry != "" && !cl.RegistryRunning {
+		if err := c.SetRegistryRunning(ctx, cl.Registry, true); err != nil {
+			return err
+		}
+	}
+	return c.SetClusterRunning(ctx, cl, true)
+}
+
+// kubeStop stops a cluster's nodes, and its registry with the last kind
+// cluster on the daemon, which they share.
+func kubeStop(ctx context.Context, c clusterOps, host, name string) error {
+	cl, err := findCluster(ctx, c, host, name)
+	if err != nil {
+		return err
+	}
+	if serr := c.SetClusterRunning(ctx, cl, false); serr != nil {
+		return serr
+	}
+	if cl.Registry == "" || !cl.RegistryRunning {
+		return nil
+	}
+	all, err := c.Clusters(ctx)
+	if err != nil {
+		return err
+	}
+	for _, other := range all {
+		if other.Tool == "kind" && other.Name != cl.Name && other.Running {
+			return nil
+		}
+	}
+	return c.SetRegistryRunning(ctx, cl.Registry, false)
+}
+
+// kubeCreate creates a kind cluster wired to the local registry.
+func kubeCreate(ctx context.Context, c clusterOps, host, name string) error {
+	reg := docker.DefaultRegistry
+	if err := c.EnsureRegistry(ctx, reg); err != nil {
+		return err
+	}
+	if err := kind.Create(ctx, kindRun, host, name); err != nil {
+		return err
+	}
+	cl, err := findCluster(ctx, c, host, name)
+	if err != nil {
+		return err
+	}
+	if err := c.WireRegistry(ctx, cl, reg); err != nil {
+		return err
+	}
+	return c.ConnectRegistry(ctx, reg, "kind")
 }
 
 // registryFate says what stopping c does to its registry: it goes with the

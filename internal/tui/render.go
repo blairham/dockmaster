@@ -224,252 +224,7 @@ func (a *App) renderShortcuts(info []string) []string {
 		}
 	}
 
-	var actions []chrome.Shortcut //nolint:prealloc // each case assigns a fresh literal
-	switch a.view {
-	case style.ViewContainers:
-		enter := "Logs"
-		if cv := typedView[*views.ContainersView](a, style.ViewContainers); cv != nil {
-			if c, ok := cv.Selected(); ok {
-				if _, node := docker.NodeRole(c); node {
-					enter = "Pods" // a kind/k3d node: enter drills into its pods
-				}
-			}
-		}
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: enter},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<H>", Desc: "Health"},
-			{Key: "<T>", Desc: "Top"},
-			{Key: "<D>", Desc: "Diff"},
-			{Key: "<S>", Desc: "Stats"},
-			{Key: "<s>", Desc: "Shell"},
-			{Key: "<u>", Desc: "Start"},
-			{Key: "<x>", Desc: "Stop"},
-			{Key: "<R>", Desc: "Restart"},
-			{Key: "<a>", Desc: "All"},
-			{Key: "<shift-f>", Desc: "Port-Forward"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-		}
-	case style.ViewImages:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Layers"},
-			{Key: "<u>", Desc: "Run"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<U>", Desc: "Used by"},
-			{Key: "<v>", Desc: "Scan"},
-			{Key: "<a>", Desc: "All"},
-			{Key: "<P>", Desc: "Prune"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-		}
-	case style.ViewVolumes:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Browse"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<U>", Desc: "Used by"},
-			{Key: "<z>", Desc: "Sizes"},
-			{Key: "<P>", Desc: "Prune"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-		}
-	case style.ViewNetworks:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Inspect"},
-			{Key: "<U>", Desc: "Used by"},
-			{Key: "<P>", Desc: "Prune"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-		}
-	case style.ViewProjects:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Containers"},
-			{Key: "<l>", Desc: "Logs"},
-			{Key: "<u>", Desc: "Up"},
-			{Key: "<e>", Desc: "Edit"},
-			{Key: "<x>", Desc: "Stop"},
-			{Key: "<R>", Desc: "Restart"},
-			{Key: "<p>", Desc: "Pull"},
-			{Key: "<s>", Desc: "Scale"},
-			{Key: "<ctrl-d>", Desc: "Down"},
-		}
-	case style.ViewRuntimes:
-		actions = []chrome.Shortcut{
-			{Key: "<n>", Desc: "New"},
-			{Key: "<e>", Desc: "Edit"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<enter>", Desc: "Connect"},
-			{Key: "<s>", Desc: "Shell"},
-			{Key: "<u>", Desc: "Start"},
-			{Key: "<x>", Desc: "Stop"},
-			{Key: "<R>", Desc: "Restart"},
-			{Key: "<K>", Desc: "Kubernetes"},
-			{Key: "<ctrl-d>", Desc: "Delete"},
-		}
-	case style.ViewEvents:
-		actions = []chrome.Shortcut{
-			{Key: "<f>", Desc: "Follow"},
-		}
-	case style.ViewPods:
-		actions = []chrome.Shortcut{
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<u>", Desc: "Start"},
-			{Key: "<x>", Desc: "Stop"},
-			{Key: "<R>", Desc: "Restart"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-		}
-	case style.ViewPortForwards:
-		actions = []chrome.Shortcut{
-			{Key: "<b>", Desc: "Open"},
-			{Key: "<ctrl-d>", Desc: "Stop"},
-		}
-	case style.ViewDiskUsage:
-		actions = []chrome.Shortcut{
-			{Key: "<P>", Desc: "Prune"},
-		}
-	case style.ViewRuntimeForm:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Save"},
-			{Key: "<tab>", Desc: "Next field"},
-			{Key: "<esc>", Desc: "Cancel"},
-		}
-	case style.ViewEditForm:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Apply"},
-			{Key: "<tab>", Desc: "Next field"},
-			{Key: "<esc>", Desc: "Cancel"},
-		}
-	case style.ViewCopyForm:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Copy"},
-			{Key: "<tab>", Desc: "Next field"},
-			{Key: "<esc>", Desc: "Cancel"},
-		}
-	case style.ViewRunForm:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Run"},
-			{Key: "<tab>", Desc: "Next field"},
-			{Key: "<esc>", Desc: "Cancel"},
-		}
-	case style.ViewScaleForm:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Scale"},
-			{Key: "<tab>", Desc: "Next field"},
-			{Key: "<←/→>", Desc: "Service"},
-			{Key: "<esc>", Desc: "Cancel"},
-		}
-	case style.ViewPluginForm:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Run"},
-			{Key: "<tab>", Desc: "Next field"},
-			{Key: "<space>", Desc: "Change choice"},
-			{Key: "<esc>", Desc: "Cancel"},
-		}
-	case style.ViewLogs:
-		actions = []chrome.Shortcut{
-			{Key: "<s>", Desc: "Autoscroll"},
-			{Key: "<t>", Desc: "Timestamps"},
-			{Key: "<w>", Desc: "Wrap"},
-			{Key: "<f>", Desc: "Fullscreen"},
-			{Key: "<c>", Desc: "Copy"},
-			{Key: "<ctrl-s>", Desc: "Save"},
-			{Key: "<shift-c>", Desc: "Clear"},
-			{Key: "<m>", Desc: "Mark"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewNode:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Logs"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<s>", Desc: "Shell"},
-			{Key: "<a>", Desc: "Toggle Exited"},
-			{Key: "<ctrl-d>", Desc: "Remove Exited"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewInspect:
-		actions = []chrome.Shortcut{
-			{Key: "</>", Desc: "Search"},
-			{Key: "<n>/<N>", Desc: "Next/Prev match"},
-			{Key: "<c>", Desc: "Copy"},
-			{Key: "<ctrl-s>", Desc: "Save"},
-			{Key: "<f>", Desc: "Fullscreen"},
-			{Key: "<a>", Desc: "Auto-refresh"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewLayers:
-		actions = []chrome.Shortcut{
-			{Key: "<ctrl-f>", Desc: "PgDn"},
-			{Key: "<ctrl-b>", Desc: "PgUp"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewVolumeBrowse:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Open"},
-			{Key: "<esc>", Desc: "Up/Back"},
-		}
-	case style.ViewContexts:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Switch"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewAliases:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Run"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewXray:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Open"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<space>", Desc: "Toggle"},
-			{Key: "<h>/<l>", Desc: "Collapse/Expand"},
-			{Key: "<s>", Desc: "Shell/Scale"},
-			{Key: "<A>", Desc: "Attach"},
-			{Key: "<u>", Desc: "Start"},
-			{Key: "<x>", Desc: "Stop"},
-			{Key: "<R>", Desc: "Restart"},
-			{Key: "<K>", Desc: "Kill"},
-			{Key: "<p>", Desc: "Pause"},
-			{Key: "<ctrl-d>", Desc: "Remove"},
-			{Key: "<c>/<i>", Desc: "Copy name/ID"},
-			{Key: "<v>", Desc: "Scan"},
-		}
-	case style.ViewDir:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Open"},
-			{Key: "<u>", Desc: "Compose up"},
-			{Key: "<e>", Desc: "Edit, then up"},
-			{Key: "<ctrl-d>", Desc: "Compose down"},
-			{Key: "<esc>", Desc: "Up/Back"},
-		}
-	case style.ViewScan:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Details"},
-			{Key: "<c>", Desc: "Copy ID"},
-			{Key: "<r>", Desc: "Rescan"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewLint:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Findings"},
-			{Key: "<o>", Desc: "Inspect"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	case style.ViewPulses:
-		// Nothing to act on: the dashboard reads, and r, the digits and :
-		// are the app's.
-		actions = []chrome.Shortcut{}
-	case style.ViewDumps:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "View"},
-			{Key: "<ctrl-d>", Desc: "Delete"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	default:
-		actions = []chrome.Shortcut{
-			{Key: "<enter>", Desc: "Select"},
-			{Key: "<esc>", Desc: "Back"},
-		}
-	}
-
+	actions := a.viewActions()
 	if j, ok := a.jumpFor(); ok {
 		// The jump has enter now; the view's own enter is out of reach.
 		actions = slices.DeleteFunc(actions, func(s chrome.Shortcut) bool { return s.Key == "<enter>" })
@@ -488,6 +243,254 @@ func (a *App) renderShortcuts(info []string) []string {
 	return a.shortcutGrid(info, viewKeys, actions)
 }
 
+// viewActions is a copy of the current view's own shortcuts.
+func (a *App) viewActions() []chrome.Shortcut {
+	own, ok := viewShortcuts[a.view]
+	if !ok {
+		own = defaultShortcuts
+	}
+	actions := slices.Clone(own)
+	if a.view == style.ViewContainers && a.selectedIsNode() {
+		actions[0].Desc = "Pods" // a kind/k3d node: enter drills into its pods
+	}
+	return actions
+}
+
+// selectedIsNode reports whether the containers view's selected row is a
+// Kubernetes node.
+func (a *App) selectedIsNode() bool {
+	cv := typedView[*views.ContainersView](a, style.ViewContainers)
+	if cv == nil {
+		return false
+	}
+	c, ok := cv.Selected()
+	if !ok {
+		return false
+	}
+	_, node := docker.NodeRole(c)
+	return node
+}
+
+// viewShortcuts are each view's own actions, for the shortcut grid. A view
+// not listed gets defaultShortcuts.
+var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
+	style.ViewContainers: keys(
+		"<enter>", "Logs",
+		"<o>", "Inspect",
+		"<H>", "Health",
+		"<T>", "Top",
+		"<D>", "Diff",
+		"<S>", "Stats",
+		"<s>", "Shell",
+		"<u>", "Start",
+		"<x>", "Stop",
+		"<R>", "Restart",
+		"<a>", "All",
+		"<shift-f>", "Port-Forward",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewImages: keys(
+		"<enter>", "Layers",
+		"<u>", "Run",
+		"<o>", "Inspect",
+		"<U>", "Used by",
+		"<v>", "Scan",
+		"<a>", "All",
+		"<P>", "Prune",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewVolumes: keys(
+		"<enter>", "Browse",
+		"<o>", "Inspect",
+		"<U>", "Used by",
+		"<z>", "Sizes",
+		"<P>", "Prune",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewNetworks: keys(
+		"<enter>", "Inspect",
+		"<U>", "Used by",
+		"<P>", "Prune",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewProjects: keys(
+		"<enter>", "Containers",
+		"<l>", "Logs",
+		"<u>", "Up",
+		"<e>", "Edit",
+		"<x>", "Stop",
+		"<R>", "Restart",
+		"<p>", "Pull",
+		"<s>", "Scale",
+		"<ctrl-d>", "Down",
+	),
+	style.ViewRuntimes: keys(
+		"<n>", "New",
+		"<e>", "Edit",
+		"<o>", "Inspect",
+		"<enter>", "Connect",
+		"<s>", "Shell",
+		"<u>", "Start",
+		"<x>", "Stop",
+		"<R>", "Restart",
+		"<K>", "Kubernetes",
+		"<ctrl-d>", "Delete",
+	),
+	style.ViewEvents: keys(
+		"<f>", "Follow",
+	),
+	style.ViewPods: keys(
+		"<o>", "Inspect",
+		"<u>", "Start",
+		"<x>", "Stop",
+		"<R>", "Restart",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewPortForwards: keys(
+		"<b>", "Open",
+		"<ctrl-d>", "Stop",
+	),
+	style.ViewDiskUsage: keys(
+		"<P>", "Prune",
+	),
+	style.ViewRuntimeForm: keys(
+		"<enter>", "Save",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewEditForm: keys(
+		"<enter>", "Apply",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewCopyForm: keys(
+		"<enter>", "Copy",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewRunForm: keys(
+		"<enter>", "Run",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewScaleForm: keys(
+		"<enter>", "Scale",
+		"<tab>", "Next field",
+		"<←/→>", "Service",
+		"<esc>", "Cancel",
+	),
+	style.ViewPluginForm: keys(
+		"<enter>", "Run",
+		"<tab>", "Next field",
+		"<space>", "Change choice",
+		"<esc>", "Cancel",
+	),
+	style.ViewLogs: keys(
+		"<s>", "Autoscroll",
+		"<t>", "Timestamps",
+		"<w>", "Wrap",
+		"<f>", "Fullscreen",
+		"<c>", "Copy",
+		"<ctrl-s>", "Save",
+		"<shift-c>", "Clear",
+		"<m>", "Mark",
+		"<o>", "Inspect",
+		"<esc>", "Back",
+	),
+	style.ViewNode: keys(
+		"<enter>", "Logs",
+		"<o>", "Inspect",
+		"<s>", "Shell",
+		"<a>", "Toggle Exited",
+		"<ctrl-d>", "Remove Exited",
+		"<esc>", "Back",
+	),
+	style.ViewInspect: keys(
+		"</>", "Search",
+		"<n>/<N>", "Next/Prev match",
+		"<c>", "Copy",
+		"<ctrl-s>", "Save",
+		"<f>", "Fullscreen",
+		"<a>", "Auto-refresh",
+		"<esc>", "Back",
+	),
+	style.ViewLayers: keys(
+		"<ctrl-f>", "PgDn",
+		"<ctrl-b>", "PgUp",
+		"<esc>", "Back",
+	),
+	style.ViewVolumeBrowse: keys(
+		"<enter>", "Open",
+		"<esc>", "Up/Back",
+	),
+	style.ViewContexts: keys(
+		"<enter>", "Switch",
+		"<ctrl-d>", "Remove",
+		"<esc>", "Back",
+	),
+	style.ViewAliases: keys(
+		"<enter>", "Run",
+		"<esc>", "Back",
+	),
+	style.ViewXray: keys(
+		"<enter>", "Open",
+		"<o>", "Inspect",
+		"<space>", "Toggle",
+		"<h>/<l>", "Collapse/Expand",
+		"<s>", "Shell/Scale",
+		"<A>", "Attach",
+		"<u>", "Start",
+		"<x>", "Stop",
+		"<R>", "Restart",
+		"<K>", "Kill",
+		"<p>", "Pause",
+		"<ctrl-d>", "Remove",
+		"<c>/<i>", "Copy name/ID",
+		"<v>", "Scan",
+	),
+	style.ViewDir: keys(
+		"<enter>", "Open",
+		"<u>", "Compose up",
+		"<e>", "Edit, then up",
+		"<ctrl-d>", "Compose down",
+		"<esc>", "Up/Back",
+	),
+	style.ViewScan: keys(
+		"<enter>", "Details",
+		"<c>", "Copy ID",
+		"<r>", "Rescan",
+		"<esc>", "Back",
+	),
+	style.ViewLint: keys(
+		"<enter>", "Findings",
+		"<o>", "Inspect",
+		"<esc>", "Back",
+	),
+	// Nothing to act on: the dashboard reads, and r, the digits and :
+	// are the app's.
+	style.ViewPulses: {},
+	style.ViewDumps: keys(
+		"<enter>", "View",
+		"<ctrl-d>", "Delete",
+		"<esc>", "Back",
+	),
+}
+
+// defaultShortcuts are the actions of a view viewShortcuts does not list.
+var defaultShortcuts = keys(
+	"<enter>", "Select",
+	"<esc>", "Back",
+)
+
+// keys builds a shortcut list from key, description pairs.
+func keys(pairs ...string) []chrome.Shortcut {
+	out := make([]chrome.Shortcut, 0, len(pairs)/2)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		out = append(out, chrome.Shortcut{Key: pairs[i], Desc: pairs[i+1]})
+	}
+	return out
+}
+
 // shortcutGrid lays out the view-switch keys and the actions k9s-style with
 // tuikit's grid: columns of ShortcutRows entries, the digits first, then the
 // actions down the columns after them.
@@ -499,26 +502,26 @@ func (a *App) renderShortcuts(info []string) []string {
 // letting tuikit cut every row short — the view digits first, since the
 // command palette and help both cover them, then trailing action columns.
 // Everything shed is still listed under <?>.
-func (a *App) shortcutGrid(info []string, views, actions []chrome.Shortcut) []string {
+func (a *App) shortcutGrid(info []string, viewKeys, actions []chrome.Shortcut) []string {
 	rows := min(a.chrome.ShortcutRows, a.chrome.TopSectionRows())
-	out := a.chrome.ShortcutGrid(views, actions)
+	out := a.chrome.ShortcutGrid(viewKeys, actions)
 
 	a.headerLogo = a.logoShown() && rowsWidth(out) <= a.shortcutBudget(info, true)
 	budget := a.shortcutBudget(info, a.headerLogo)
 
-	if len(views) > 0 && len(actions) > 0 && rowsWidth(out) > budget {
+	if len(viewKeys) > 0 && len(actions) > 0 && rowsWidth(out) > budget {
 		// tuikit keeps an empty views column in place so the actions do
 		// not move; passing the actions as the first list drops it. Key
 		// colors are per key, so the actions still render as actions.
-		views = nil
+		viewKeys = nil
 		out = a.chrome.ShortcutGrid(actions, nil)
 	}
 	for len(actions) > rows && rowsWidth(out) > budget {
 		actions = actions[:(len(actions)-1)/rows*rows]
-		if len(views) == 0 {
+		if len(viewKeys) == 0 {
 			out = a.chrome.ShortcutGrid(actions, nil)
 		} else {
-			out = a.chrome.ShortcutGrid(views, actions)
+			out = a.chrome.ShortcutGrid(viewKeys, actions)
 		}
 	}
 	return out

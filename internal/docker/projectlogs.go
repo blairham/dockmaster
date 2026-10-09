@@ -30,93 +30,115 @@ type LogOpener func(ctx context.Context, id string, since time.Time) (*LogStream
 // merged stream, which runs until ctx is canceled: a project whose
 // containers are all down is still worth watching for the next `up`.
 func MergeLogs(ctx context.Context, sources []LogSource, open LogOpener, starts <-chan LogSource) *LogStream {
-	out := make(chan LogLine, 512)
+	m := &logMerger{ctx: ctx, open: open, out: make(chan LogLine, 512), active: map[string]bool{}}
 	errc := make(chan error, 1)
-
-	var (
-		mu     sync.Mutex
-		active = map[string]bool{}
-		wg     sync.WaitGroup
-	)
-	emit := func(l LogLine) bool {
-		select {
-		case out <- l:
-			return true
-		case <-ctx.Done():
-			return false
-		}
-	}
-	follow := func(src LogSource, since time.Time) {
-		mu.Lock()
-		if active[src.ID] {
-			mu.Unlock()
-			return
-		}
-		active[src.ID] = true
-		mu.Unlock()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer func() {
-				mu.Lock()
-				delete(active, src.ID)
-				mu.Unlock()
-			}()
-			st, err := open(ctx, src.ID, since)
-			if err != nil {
-				if ctx.Err() == nil {
-					emit(LogLine{Time: time.Now(), Source: src.Label, Note: true, Text: "logs unavailable: " + err.Error()})
-				}
-				return
-			}
-			for done := false; !done; {
-				select {
-				case l, ok := <-st.Lines:
-					if !ok {
-						done = true
-						break
-					}
-					l.Source = src.Label
-					if !emit(l) {
-						return
-					}
-				case <-ctx.Done():
-					return
-				}
-			}
-			if ctx.Err() == nil {
-				emit(LogLine{Time: time.Now(), Source: src.Label, Note: true, Text: "— stopped —"})
-			}
-		}()
-	}
-
 	for _, src := range sources {
-		follow(src, time.Time{})
+		m.follow(src, time.Time{})
 	}
 	go func() {
-		for starts != nil {
-			select {
-			case src, ok := <-starts:
-				if !ok {
-					starts = nil
-					break
-				}
-				follow(src, time.Now())
-			case <-ctx.Done():
-				starts = nil
-			}
-		}
+		m.watchStarts(starts)
 		<-ctx.Done()
-		wg.Wait()
-		close(out)
+		m.wg.Wait()
+		close(m.out)
 		errc <- nil
 	}()
 	labels := make([]string, 0, len(sources))
 	for _, s := range sources {
 		labels = append(labels, s.Label)
 	}
-	return &LogStream{Lines: out, Err: errc, Sources: labels}
+	return &LogStream{Lines: m.out, Err: errc, Sources: labels}
+}
+
+// logMerger is the state of one MergeLogs: the merged channel and which
+// containers are being followed.
+type logMerger struct {
+	ctx    context.Context
+	open   LogOpener
+	out    chan LogLine
+	active map[string]bool
+	wg     sync.WaitGroup
+	mu     sync.Mutex
+}
+
+// emit sends a line, or reports false once ctx is canceled.
+func (m *logMerger) emit(l LogLine) bool {
+	select {
+	case m.out <- l:
+		return true
+	case <-m.ctx.Done():
+		return false
+	}
+}
+
+// note emits a note under a source's label, unless the stream is closing.
+func (m *logMerger) note(src LogSource, text string) {
+	if m.ctx.Err() == nil {
+		m.emit(LogLine{Time: time.Now(), Source: src.Label, Note: true, Text: text})
+	}
+}
+
+// follow starts following src from since, unless it is already followed.
+func (m *logMerger) follow(src LogSource, since time.Time) {
+	m.mu.Lock()
+	if m.active[src.ID] {
+		m.mu.Unlock()
+		return
+	}
+	m.active[src.ID] = true
+	m.mu.Unlock()
+
+	m.wg.Add(1)
+	go func() {
+		defer m.wg.Done()
+		defer func() {
+			m.mu.Lock()
+			delete(m.active, src.ID)
+			m.mu.Unlock()
+		}()
+		st, err := m.open(m.ctx, src.ID, since)
+		if err != nil {
+			m.note(src, "logs unavailable: "+err.Error())
+			return
+		}
+		if m.pump(src, st) {
+			m.note(src, "— stopped —")
+		}
+	}()
+}
+
+// pump copies one stream's lines, labeled, until it ends (true) or ctx is
+// canceled (false).
+func (m *logMerger) pump(src LogSource, st *LogStream) bool {
+	for {
+		select {
+		case l, ok := <-st.Lines:
+			if !ok {
+				return true
+			}
+			l.Source = src.Label
+			if !m.emit(l) {
+				return false
+			}
+		case <-m.ctx.Done():
+			return false
+		}
+	}
+}
+
+// watchStarts follows each container that starts, from the moment it
+// started, until starts closes or ctx is canceled.
+func (m *logMerger) watchStarts(starts <-chan LogSource) {
+	for starts != nil {
+		select {
+		case src, ok := <-starts:
+			if !ok {
+				return
+			}
+			m.follow(src, time.Now())
+		case <-m.ctx.Done():
+			return
+		}
+	}
 }
 
 // StreamProjectLogs follows every container of a compose project as one

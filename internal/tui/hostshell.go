@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -113,7 +114,7 @@ func (a *App) hostShell(param string) tea.Cmd {
 		a.errFlash = "a host shell needs the `docker` CLI on PATH"
 		return nil
 	}
-	args := append(parts[1:], argv...)
+	args := append(slices.Clone(parts[1:]), argv...)
 	// context.Background(): the session is the user's, not a timeout's.
 	cmd := exec.CommandContext(
 		context.Background(),

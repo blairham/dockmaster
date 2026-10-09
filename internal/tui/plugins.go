@@ -111,21 +111,9 @@ func Plugins(entries map[string]config.Plugin, hotKeys []HotKey) ([]Plugin, erro
 }
 
 func plugin(name string, e config.Plugin) (Plugin, error) {
-	key, err := ParseShortcut(e.ShortCut)
-	switch {
-	case err != nil:
+	key, err := checkPlugin(e)
+	if err != nil {
 		return Plugin{}, err
-	case reservedKeys[key] || (len(key) == 1 && key[0] >= '0' && key[0] <= '9'):
-		return Plugin{}, fmt.Errorf("%s is a dockmaster key", e.ShortCut)
-	case strings.TrimSpace(e.Command) == "":
-		return Plugin{}, errors.New("no command")
-	case len(e.Scopes) == 0:
-		return Plugin{}, errors.New("no scopes — name the views it is for, or all")
-	case e.Background && len(e.Pipes) > 0:
-		// k9s starts such a pipeline without suspending the screen, so its
-		// output lands on top of the UI; dockmaster refuses the pair.
-		return Plugin{}, errors.New("background and pipes together: a pipeline's output goes to the terminal, " +
-			"which a background plugin does not have")
 	}
 	inputs, err := pluginInputs(e.Inputs)
 	if err != nil {
@@ -151,24 +139,58 @@ func plugin(name string, e config.Plugin) (Plugin, error) {
 	if p.Desc == "" {
 		p.Desc = name
 	}
-	for _, s := range e.Scopes {
+	scoped, all, err := pluginViews(e.Scopes)
+	if err != nil {
+		return Plugin{}, err
+	}
+	if !all {
+		p.Views = scoped
+	}
+	return p, nil
+}
+
+// checkPlugin parses a plugin's shortcut and refuses an entry that cannot
+// run: a dockmaster key, no command, no scopes, or background with pipes.
+func checkPlugin(e config.Plugin) (string, error) {
+	key, err := ParseShortcut(e.ShortCut)
+	switch {
+	case err != nil:
+		return "", err
+	case reservedKeys[key] || (len(key) == 1 && key[0] >= '0' && key[0] <= '9'):
+		return "", fmt.Errorf("%s is a dockmaster key", e.ShortCut)
+	case strings.TrimSpace(e.Command) == "":
+		return "", errors.New("no command")
+	case len(e.Scopes) == 0:
+		return "", errors.New("no scopes — name the views it is for, or all")
+	case e.Background && len(e.Pipes) > 0:
+		// k9s starts such a pipeline without suspending the screen, so its
+		// output lands on top of the UI; dockmaster refuses the pair.
+		return "", errors.New("background and pipes together: a pipeline's output goes to the terminal, " +
+			"which a background plugin does not have")
+	}
+	return key, nil
+}
+
+// pluginViews are the views a plugin's scopes name, read up to an "all",
+// which makes it every view's.
+func pluginViews(scopes []string) (scoped map[style.ViewType]bool, all bool, err error) {
+	for _, s := range scopes {
 		if strings.EqualFold(s, "all") {
-			p.Views = nil
-			return p, nil
+			return nil, true, nil
 		}
 		vt, ok := scopeView(s)
 		if !ok {
-			return Plugin{}, fmt.Errorf(
+			return nil, false, fmt.Errorf(
 				"scope %q is not a view — containers, images, volumes, networks, projects, runtimes, logs, … or all",
 				s,
 			)
 		}
-		if p.Views == nil {
-			p.Views = map[style.ViewType]bool{}
+		if scoped == nil {
+			scoped = map[style.ViewType]bool{}
 		}
-		p.Views[vt] = true
+		scoped[vt] = true
 	}
-	return p, nil
+	return scoped, false, nil
 }
 
 // inputName is what an input may be called: it becomes $INPUT_<NAME>, so
@@ -196,27 +218,8 @@ func pluginInputs(in []config.PluginInput) ([]views.PluginInput, error) {
 		if typ == "" {
 			typ = views.InputString
 		}
-		switch typ {
-		case views.InputString:
-		case views.InputNumber:
-			if e.Default != "" {
-				if _, err := strconv.ParseFloat(e.Default, 64); err != nil {
-					return nil, fmt.Errorf("input %q: default %q is not a number", e.Name, e.Default)
-				}
-			}
-		case views.InputBool:
-			if e.Default != "" && e.Default != "true" && e.Default != "false" {
-				return nil, fmt.Errorf("input %q: a bool's default is true or false, not %q", e.Name, e.Default)
-			}
-		case views.InputDropdown:
-			if len(e.Options) == 0 {
-				return nil, fmt.Errorf("input %q: a dropdown needs options", e.Name)
-			}
-			if e.Default != "" && !slices.Contains(e.Options, e.Default) {
-				return nil, fmt.Errorf("input %q: default %q is not one of its options", e.Name, e.Default)
-			}
-		default:
-			return nil, fmt.Errorf("input %q: type %q is not string, number, bool or dropdown", e.Name, e.Type)
+		if err := checkInputDefault(e, typ); err != nil {
+			return nil, err
 		}
 		label := e.Label
 		if label == "" {
@@ -228,6 +231,34 @@ func pluginInputs(in []config.PluginInput) ([]views.PluginInput, error) {
 		})
 	}
 	return out, nil
+}
+
+// checkInputDefault refuses a type dockmaster does not know, a dropdown
+// without options, and a default not valid for its type.
+func checkInputDefault(e config.PluginInput, typ string) error {
+	switch typ {
+	case views.InputString:
+	case views.InputNumber:
+		if e.Default != "" {
+			if _, err := strconv.ParseFloat(e.Default, 64); err != nil {
+				return fmt.Errorf("input %q: default %q is not a number", e.Name, e.Default)
+			}
+		}
+	case views.InputBool:
+		if e.Default != "" && e.Default != "true" && e.Default != "false" {
+			return fmt.Errorf("input %q: a bool's default is true or false, not %q", e.Name, e.Default)
+		}
+	case views.InputDropdown:
+		if len(e.Options) == 0 {
+			return fmt.Errorf("input %q: a dropdown needs options", e.Name)
+		}
+		if e.Default != "" && !slices.Contains(e.Options, e.Default) {
+			return fmt.Errorf("input %q: default %q is not one of its options", e.Name, e.Default)
+		}
+	default:
+		return fmt.Errorf("input %q: type %q is not string, number, bool or dropdown", e.Name, e.Type)
+	}
+	return nil
 }
 
 // pluginPipes splits each pipe into words as k9s does (shlex), refusing
@@ -540,51 +571,8 @@ func (a *App) pluginVars() (map[string]string, bool) {
 			vars[kv[i]] = kv[i+1]
 		}
 	}
-	switch v := a.activeView().(type) {
-	case *views.ContainersView:
-		c, ok := v.Selected()
-		if !ok {
-			return nil, false
-		}
-		add("NAME", c.Name, "CONTAINER", c.Name, "ID", c.ID, "IMAGE", c.Image,
-			"PROJECT", c.Project, "SERVICE", c.Service, "STATE", c.State)
-	case *views.ImagesView:
-		im, ok := v.Selected()
-		if !ok {
-			return nil, false
-		}
-		ref := im.Ref()
-		if im.Dangling {
-			ref = im.ID
-		}
-		add("NAME", ref, "IMAGE", ref, "ID", im.ID)
-	case *views.VolumesView:
-		vol, ok := v.Selected()
-		if !ok {
-			return nil, false
-		}
-		add("NAME", vol.Name, "VOLUME", vol.Name, "DRIVER", vol.Driver, "MOUNTPOINT", vol.Mountpoint)
-	case *views.NetworksView:
-		n, ok := v.Selected()
-		if !ok {
-			return nil, false
-		}
-		add("NAME", n.Name, "NETWORK", n.Name, "ID", n.ID)
-	case *views.ProjectsView:
-		p, ok := v.Selected()
-		if !ok {
-			return nil, false
-		}
-		add("NAME", p.Name, "PROJECT", p.Name, "WORKING_DIR", p.WorkingDir,
-			"CONFIG_FILES", strings.Join(p.ConfigFiles, ","))
-	case *views.RuntimesView:
-		m, ok := v.Selected()
-		if !ok {
-			return nil, false
-		}
-		add("NAME", m.Name, "PROVIDER", m.Provider)
-	case *views.LogsView:
-		add("NAME", v.Title(), "CONTAINER", v.Title(), "ID", v.ContainerID())
+	if !selectionVars(a.activeView(), add) {
+		return nil, false
 	}
 	if t, ok := a.activeView().(views.Tabler); ok {
 		row := t.Table().SelectedRow()
@@ -601,6 +589,46 @@ func (a *App) pluginVars() (map[string]string, bool) {
 		}
 	}
 	return vars, true
+}
+
+// selectionVars adds the variables naming the selected row of a resource
+// view, as name, value pairs; false when such a view has no selection.
+func selectionVars(view views.View, add func(kv ...string)) bool {
+	switch v := view.(type) {
+	case *views.ContainersView:
+		c, ok := v.Selected()
+		add("NAME", c.Name, "CONTAINER", c.Name, "ID", c.ID, "IMAGE", c.Image,
+			"PROJECT", c.Project, "SERVICE", c.Service, "STATE", c.State)
+		return ok
+	case *views.ImagesView:
+		im, ok := v.Selected()
+		ref := im.Ref()
+		if im.Dangling {
+			ref = im.ID
+		}
+		add("NAME", ref, "IMAGE", ref, "ID", im.ID)
+		return ok
+	case *views.VolumesView:
+		vol, ok := v.Selected()
+		add("NAME", vol.Name, "VOLUME", vol.Name, "DRIVER", vol.Driver, "MOUNTPOINT", vol.Mountpoint)
+		return ok
+	case *views.NetworksView:
+		n, ok := v.Selected()
+		add("NAME", n.Name, "NETWORK", n.Name, "ID", n.ID)
+		return ok
+	case *views.ProjectsView:
+		p, ok := v.Selected()
+		add("NAME", p.Name, "PROJECT", p.Name, "WORKING_DIR", p.WorkingDir,
+			"CONFIG_FILES", strings.Join(p.ConfigFiles, ","))
+		return ok
+	case *views.RuntimesView:
+		m, ok := v.Selected()
+		add("NAME", m.Name, "PROVIDER", m.Provider)
+		return ok
+	case *views.LogsView:
+		add("NAME", v.Title(), "CONTAINER", v.Title(), "ID", v.ContainerID())
+	}
+	return true
 }
 
 // colName is a column title as a $COL- name: "CPU%↑" is CPU, "IMAGE ID" is

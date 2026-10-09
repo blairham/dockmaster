@@ -105,15 +105,7 @@ func sortRows[T any](s *tableSort, rows []table.Row, items []T) {
 		exprs := s.shownExprs(columnTitles(src))
 		for i, r := range rows {
 			if len(exprs) > 0 {
-				var item any
-				if i < len(items) {
-					item = items[i]
-				}
-				cells := make([]string, len(exprs))
-				for k, e := range exprs {
-					cells[k] = e.cell(s.layoutKey, item)
-				}
-				r = withExprCells(r, len(src), cells)
+				r = withExprCells(r, len(src), exprCells(s.layoutKey, exprs, items, i))
 			}
 			rows[i] = projectRow(r, idx, len(titles))
 		}
@@ -123,6 +115,25 @@ func sortRows[T any](s *tableSort, rows []table.Row, items []T) {
 	if s.sorter == nil || len(rows) < 2 {
 		return
 	}
+	sortWithItems(s, rows, items)
+}
+
+// exprCells are the expression columns' cells for row i, read from the item
+// it was built from.
+func exprCells[T any](layoutKey string, exprs []ExprColumn, items []T, i int) []string {
+	var item any
+	if i < len(items) {
+		item = items[i]
+	}
+	cells := make([]string, len(exprs))
+	for k, e := range exprs {
+		cells[k] = e.cell(layoutKey, item)
+	}
+	return cells
+}
+
+// sortWithItems sorts rows and reorders items to match.
+func sortWithItems[T any](s *tableSort, rows []table.Row, items []T) {
 	// Carry each row's original index through the sort in a cell past the
 	// last column, where the table never draws it.
 	from := make(map[string]int, len(rows))

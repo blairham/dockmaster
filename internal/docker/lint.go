@@ -65,10 +65,6 @@ func (r LintResult) Worst() (Severity, bool) {
 // or k3d node, which needs privilege to run its own containers — said, but
 // not raised as a risk.
 func LintContainer(insp container.InspectResponse, node bool) []Finding {
-	var out []Finding
-	add := func(sev Severity, rule, msg string) {
-		out = append(out, Finding{Rule: rule, Message: msg, Severity: sev})
-	}
 	cfg, hc := insp.Config, insp.HostConfig
 	if cfg == nil {
 		cfg = &container.Config{}
@@ -76,23 +72,30 @@ func LintContainer(insp container.InspectResponse, node bool) []Finding {
 	if hc == nil {
 		hc = &container.HostConfig{}
 	}
+	out := slices.Concat(isolationFindings(insp.Mounts, hc, node), resilienceFindings(cfg, hc, insp.State))
+	slices.SortStableFunc(out, func(a, b Finding) int { return int(b.Severity) - int(a.Severity) })
+	return out
+}
 
-	if hc.Privileged {
-		if node {
-			add(Info, "privileged", "privileged — expected for a Kubernetes node, which runs its own containers")
-		} else {
-			add(Risk, "privileged", "privileged: every device and capability of the host, little left between it and the host")
-		}
+// isolationFindings are the settings that weaken what stands between the
+// container and the host.
+func isolationFindings(mounts []container.MountPoint, hc *container.HostConfig, node bool) []Finding {
+	var out []Finding
+	add := func(sev Severity, rule, msg string) {
+		out = append(out, Finding{Rule: rule, Message: msg, Severity: sev})
 	}
-	for _, m := range insp.Mounts {
-		if strings.HasSuffix(m.Source, "/docker.sock") {
-			add(
-				Risk,
-				"docker-socket",
-				"mounts the docker socket "+m.Source+": control of every container on the host, and the host",
-			)
-			break
-		}
+	switch {
+	case hc.Privileged && node:
+		add(Info, "privileged", "privileged — expected for a Kubernetes node, which runs its own containers")
+	case hc.Privileged:
+		add(Risk, "privileged", "privileged: every device and capability of the host, little left between it and the host")
+	}
+	if src, ok := dockerSocketMount(mounts); ok {
+		add(
+			Risk,
+			"docker-socket",
+			"mounts the docker socket "+src+": control of every container on the host, and the host",
+		)
 	}
 	if hc.PidMode.IsHost() && !node {
 		add(Risk, "host-pid", "shares the host's process namespace: it sees and can signal the host's processes")
@@ -100,11 +103,20 @@ func LintContainer(insp container.InspectResponse, node bool) []Finding {
 	if hc.NetworkMode.IsHost() {
 		add(Warn, "host-network", "host networking: every port it opens is open on the host, with no isolation")
 	}
-	if user := cfg.User; user == "" || user == "root" || user == "0" || strings.HasPrefix(user, "0:") ||
-		strings.HasPrefix(user, "root:") {
+	return out
+}
+
+// resilienceFindings are the settings that make a service fragile, or let it
+// take more than its share of the host.
+func resilienceFindings(cfg *container.Config, hc *container.HostConfig, state *container.State) []Finding {
+	var out []Finding
+	add := func(sev Severity, rule, msg string) {
+		out = append(out, Finding{Rule: rule, Message: msg, Severity: sev})
+	}
+	if rootUser(cfg.User) {
 		add(Warn, "root", "runs as root: a breakout lands as root on the host unless user namespaces remap it")
 	}
-	if check := cfg.Healthcheck; check == nil || len(check.Test) == 0 || check.Test[0] == "NONE" {
+	if !hasHealthcheck(cfg.Healthcheck) {
 		add(
 			Warn,
 			"no-healthcheck",
@@ -120,13 +132,38 @@ func LintContainer(insp container.InspectResponse, node bool) []Finding {
 	if hc.NanoCPUs == 0 && hc.CPUQuota == 0 {
 		add(Info, "no-cpu-limit", "no CPU limit: a busy loop competes with everything else on the host")
 	}
-	if p := hc.RestartPolicy.Name; (p == "" || p == container.RestartPolicyDisabled) && insp.State != nil &&
-		insp.State.Running {
+	if noRestartPolicy(hc.RestartPolicy.Name) && state != nil && state.Running {
 		add(Info, "no-restart", "no restart policy: if it crashes, or the daemon restarts, it stays down")
 	}
-
-	slices.SortStableFunc(out, func(a, b Finding) int { return int(b.Severity) - int(a.Severity) })
 	return out
+}
+
+// dockerSocketMount is the source of the first mount of a docker socket.
+func dockerSocketMount(mounts []container.MountPoint) (string, bool) {
+	for _, m := range mounts {
+		if strings.HasSuffix(m.Source, "/docker.sock") {
+			return m.Source, true
+		}
+	}
+	return "", false
+}
+
+// rootUser reports whether a container's user is root, by name or uid, with
+// or without a group.
+func rootUser(user string) bool {
+	return user == "" || user == "root" || user == "0" ||
+		strings.HasPrefix(user, "0:") || strings.HasPrefix(user, "root:")
+}
+
+// hasHealthcheck reports whether a healthcheck is configured and not
+// switched off with NONE.
+func hasHealthcheck(check *container.HealthConfig) bool {
+	return check != nil && len(check.Test) > 0 && check.Test[0] != "NONE"
+}
+
+// noRestartPolicy reports whether a restart policy leaves a crash down.
+func noRestartPolicy(p container.RestartPolicyMode) bool {
+	return p == "" || p == container.RestartPolicyDisabled
 }
 
 // unpinnedTag reports whether an image reference floats: tagged latest, or
