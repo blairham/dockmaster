@@ -33,6 +33,12 @@ fails when the tag has none.
   on disconnects it after a confirm. With rows marked it acts on all of them.
   In a network's used-by list (`U`), `ctrl-d` disconnects the container from
   that network (confirms) instead of removing it. `--readonly` refuses both.
+- `:build [path]` builds an image (#104): a form for tag, Dockerfile, target
+  and build args, then `docker buildx build` — or `docker build` where buildx
+  is not installed — against the daemon on screen, its output streamed into a
+  log-style view (autoscroll, wrap, copy, `ctrl-s` save). A failure leaves the
+  output on screen; `esc` stops a build still running. `b` on a Dockerfile or
+  a directory in `:dir` opens the same form. Refused under `--readonly`.
 
 ### Changed
 

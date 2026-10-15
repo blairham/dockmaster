@@ -515,10 +515,10 @@ func logKey(key string) (string, string) {
 	case "w":
 		return "log_wrap", ""
 	case "f":
-		return "fullscreen", ""
+		return actFullscreen, ""
 	case "c":
 		return "log_copy", ""
-	case "ctrl+s":
+	case KeyCtrlS:
 		return "log_save", ""
 	case "C":
 		return "log_clear", ""

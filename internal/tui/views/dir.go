@@ -122,7 +122,7 @@ func ReadDir(dir string) ([]DirEntry, error) {
 		switch {
 		case e.Dir:
 			return 0
-		case IsComposeFile(e.Name):
+		case IsComposeFile(e.Name), docker.IsDockerfile(e.Name):
 			return 1
 		default:
 			return 2
@@ -162,6 +162,8 @@ func (v *DirView) rebuildRows() {
 			name, kind, size = style.Title.Render(e.Name+"/"), "dir", ""
 		case IsComposeFile(e.Name):
 			name, kind = style.Success.Render(e.Name), "compose"
+		case docker.IsDockerfile(e.Name):
+			name, kind = style.Success.Render(e.Name), "build"
 		}
 		rows = append(rows, table.Row{name, kind, size, since(e.Modified)})
 		v.visible = append(v.visible, e)
@@ -181,7 +183,8 @@ func (v *DirView) Selected() (DirEntry, bool) {
 
 // HandleKey maps a keystroke to an app action: enter opens a directory in
 // place or shows a file; u and e bring a compose file's project up, e after
-// editing it, and ctrl+d takes it down (the app confirms first).
+// editing it, and ctrl+d takes it down (the app confirms first); b opens
+// the build form on a Dockerfile, or on a directory (#104).
 func (v *DirView) HandleKey(key string) (string, string) {
 	e, ok := v.Selected()
 	if !ok {
@@ -194,6 +197,16 @@ func (v *DirView) HandleKey(key string) (string, string) {
 			return "dir_open", p
 		}
 		return "dir_file", p
+	case "b":
+		// A directory builds with its own Dockerfile; a Dockerfile, from
+		// the directory it is in.
+		switch {
+		case e.Dir:
+			return "build_form", p + "\x00"
+		case docker.IsDockerfile(e.Name):
+			return "build_form", v.dir + "\x00" + e.Name
+		}
+		return "not_dockerfile", e.Name
 	case "u", "e", "ctrl+d":
 		if e.Dir || !IsComposeFile(e.Name) {
 			return "not_compose", e.Name
@@ -280,3 +293,20 @@ func (v *DirView) CopyFields() (string, string, bool) {
 
 // Relayout lays the table out again after the column layouts changed.
 func (v *DirView) Relayout() { v.relayout(&v.table, v.rebuildRows) }
+
+// ResolvePath makes a typed path absolute: a leading ~ is the home
+// directory, and a relative path is relative to where dockmaster was
+// started, as in a shell. A path that cannot be resolved is returned as
+// typed, for the caller's check to report.
+func ResolvePath(p string) string {
+	if home, err := os.UserHomeDir(); err == nil && (p == "~" || strings.HasPrefix(p, "~/")) {
+		p = filepath.Join(home, strings.TrimPrefix(p, "~"))
+	}
+	if p == "" {
+		return p
+	}
+	if abs, err := filepath.Abs(p); err == nil {
+		return abs
+	}
+	return p
+}

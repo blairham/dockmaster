@@ -76,7 +76,7 @@ func (a *App) saveTable(tv views.Tabler) {
 	t := tv.Table()
 	rows := t.Rows()
 	if len(rows) == 0 {
-		a.errFlash = "nothing to save"
+		a.errFlash = flashNothingToSave
 		return
 	}
 	path, err := a.saveDump("dumps", a.viewName(), tktable.PlainText(t.Columns(), rows))

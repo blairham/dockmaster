@@ -193,6 +193,10 @@ type App struct {
 	headerLogo bool
 	// composeRunner replaces the docker CLI for compose verbs; tests only.
 	composeRunner docker.ComposeRunner
+	// streamFn replaces running a streamed CLI command — a build — and
+	// builderFn the buildx probe; tests only.
+	streamFn  docker.StreamFunc
+	builderFn func(ctx context.Context, bin string) docker.Builder
 	// execProcess replaces tea.ExecProcess, which hands a child the
 	// terminal; tests only.
 	execProcess func(*exec.Cmd, tea.ExecCallback) tea.Cmd
@@ -744,6 +748,13 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, ok := msg.(views.ImagesRefreshMsg); ok {
 			cmd = tea.Batch(cmd, a.scanNextImage())
 		}
+		return a, cmd
+
+	// A streamed command's messages go to its view whichever view is
+	// showing: one dropped would end its drain and leave the command
+	// blocked on a full pipe.
+	case views.OutputStartedMsg, views.OutputBatchMsg, views.OutputDoneMsg:
+		cmd := a.handleOutputMsg(msg)
 		return a, cmd
 
 	// A finished scan is cached whichever view is showing: a `v` scan

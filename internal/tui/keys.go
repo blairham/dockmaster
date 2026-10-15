@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -53,6 +52,7 @@ var knownCommands = []string{
 	"pulses",
 	"help",
 	"dir",
+	cmdBuild,
 	"screendump",
 	"logs",
 	"inspect",
@@ -459,18 +459,17 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	}
 	// :dir <path> keeps the path's case; ~ is the home directory.
 	if rest, ok := strings.CutPrefix(raw, "dir "); ok {
-		dir := strings.TrimSpace(rest)
-		if home, err := os.UserHomeDir(); err == nil && (dir == "~" || strings.HasPrefix(dir, "~/")) {
-			dir = filepath.Join(home, strings.TrimPrefix(dir, "~"))
-		}
-		if abs, err := filepath.Abs(dir); err == nil {
-			dir = abs
-		}
+		dir := views.ResolvePath(strings.TrimSpace(rest))
 		if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 			return "not a directory: " + dir, nil
 		}
 		_, cmd := a.handleAction("dir", dir)
 		return "", cmd
+	}
+	// :build <path> keeps the path's case too: a directory to build, or a
+	// Dockerfile, whose directory is then the context.
+	if rest, ok := strings.CutPrefix(raw, cmdBuild+" "); ok {
+		return a.buildCommand(strings.TrimSpace(rest))
 	}
 	if rest, ok := strings.CutPrefix(lower, "ctx "); ok {
 		return a.switchContextByName(strings.TrimSpace(rest))
@@ -537,6 +536,8 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		}
 		_, cmd := a.handleAction("dir", dir)
 		return "", cmd
+	case cmdBuild:
+		return a.buildCommand("")
 	case "sd", "screendump", "screendumps", "dumps":
 		_, cmd := a.handleAction("dumps", "")
 		return "", cmd
@@ -689,7 +690,7 @@ var noContextCommands = map[string]bool{
 // argCommands take an argument after their name. xray's must be a root it
 // can grow from (validateCommand).
 var argCommands = map[string]bool{
-	"pull": true, cmdLoad: true, "dir": true, "ctx": true, "context": true, "prune": true, "xray": true,
+	"pull": true, cmdLoad: true, "dir": true, cmdBuild: true, "ctx": true, "context": true, "prune": true, "xray": true,
 }
 
 // ValidateCommand checks a command line as -c and defaultView take it: an
