@@ -9,6 +9,7 @@
 Reference:
 
 - [`commands.md`](commands.md) — every `:` command and its spellings, what `-c` takes, and each view's keys. A test fails when a command is missing.
+- [`versioning.md`](versioning.md) — the declared public API, how each change records its semver bump, and how a release is cut.
 
 Current design notes:
 

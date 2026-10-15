@@ -1,0 +1,52 @@
+# changie: the changelog is built from one small file per change, and the
+# next version is worked out from what those files say.
+#
+#   make change        # record a change: pick its kind, write the entry
+#   make next-version  # the version the pending changes add up to
+#   make release-prep  # batch them into .changes/vX.Y.Z.md and rebuild CHANGELOG.md
+#
+# Each kind carries the Semantic Versioning bump it forces; a release takes the
+# largest bump among its changes. Judge "Breaking" against the public API
+# declared in docs/versioning.md. Keep a Changelog's plain "Changed" says
+# nothing about compatibility, so a separate Breaking kind carries that, and
+# Changed is a compatible change only.
+changesDir: .changes
+unreleasedDir: unreleased
+headerPath: header.tpl.md
+changelogPath: CHANGELOG.md
+versionExt: md
+# The link is inline, not a reference at the foot of the file, so a release
+# never has to edit two places. Older versions keep their reference links.
+versionFormat: '## [{{.VersionNoPrefix}}](https://github.com/blairham/dockmaster/compare/{{.PreviousVersion}}...{{.Version}}) - {{.Time.Format "2006-01-02"}}'
+kindFormat: '### {{.Kind}}'
+# Bodies may span lines; continuation lines are indented under the bullet.
+changeFormat: '- {{ indent 2 .Body | trim }}'
+# Nanoseconds in the name: the default stops at the second, and two changes of
+# one kind written in the same second silently overwrite each other.
+fragmentFileFormat: '{{.Kind}}-{{.Time.Format "20060102-150405.000000000"}}'
+kinds:
+  - label: Breaking
+    auto: major
+  - label: Removed
+    auto: major
+  - label: Added
+    auto: minor
+  - label: Changed
+    auto: minor
+  - label: Deprecated
+    auto: minor
+  - label: Fixed
+    auto: patch
+  - label: Security
+    auto: patch
+# Every file under .changes/ ends in exactly one newline (the pre-commit
+# end-of-file fixer insists), so the blank line between versions comes from
+# the merge, not from the files.
+newlines:
+  afterChangelogHeader: 0
+  beforeChangelogVersion: 1
+  afterVersion: 0
+  beforeKind: 1
+  afterKind: 1
+  endOfVersion: 1
+envPrefix: CHANGIE_

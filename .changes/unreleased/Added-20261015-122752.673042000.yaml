@@ -1,0 +1,12 @@
+kind: Added
+body: |-
+    `:builds` (also `:build-history`, `:bh`) is the build history, as Docker
+    Desktop's Builds tab (#118): every record the builder keeps (`docker
+    buildx history`, buildx v0.20.0 or later) — name, status, steps, cache
+    hits, duration, age and a failed build's error — newest first, with
+    dockmaster's own running builds on top. `enter` replays a build's log
+    (`enter` on a running one reopens its output), `o` inspects it, `R` opens
+    the build form on the same context, Dockerfile, target and args, `ctrl-d`
+    removes a record (confirms; works on marked rows), `ctrl-z` lists failed
+    builds only. config.yaml's `builder` picks the buildx builder.
+time: 2026-10-15T12:27:52.673042-04:00

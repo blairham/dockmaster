@@ -1,0 +1,11 @@
+kind: Changed
+body: |-
+    Builds run in the background (#121): `esc` in a build's output leaves it
+    running and only closes the view; `:builds` lists it on top, and `enter`
+    reopens it with everything it printed meanwhile. `x` stops a
+    build (confirms). A project shows `building…` while its compose build
+    runs, and "then up" runs when it finishes wherever you are. A build that
+    ends while its output is closed says so — `[app:dev] build finished`, or
+    `failed (exit N)` — and is written to the log. Quitting with a build
+    running asks first (`:q!` does not).
+time: 2026-10-15T12:27:53.991815-04:00

@@ -1,0 +1,16 @@
+kind: Added
+body: |-
+    A local registry (#120): `:registry up` (or `u` in `:registries`) runs
+    `registry:2` as `dockmaster-registry` on `127.0.0.1:5000`
+    (`localRegistry.name` / `.port`), its images in a named volume that
+    survives the container, deletes enabled — or starts the kind or k3d
+    registry already on the daemon instead of a second one. `:registries`
+    lists the registry containers first; `enter` on any registry, local or
+    one you are logged in to, lists its repositories (`:catalog [registry]`),
+    and `enter` on one its tags with digest, size, platforms and age. `ctrl-d`
+    on a tag deletes it by digest and `P` garbage-collects the registry
+    container, both after a confirm. `x` stops a registry container and
+    `ctrl-d` removes dockmaster's own (its volume stays). In `:registries`,
+    logging in again to a row moved from `enter` to `l`. Everything but
+    browsing is refused under `--readonly`.
+time: 2026-10-15T12:27:52.370977-04:00
