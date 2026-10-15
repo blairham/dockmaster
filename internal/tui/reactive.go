@@ -115,6 +115,7 @@ func (a *App) applyReload(m reloadedMsg) {
 	a.forwardAddr = n.ForwardAddress
 	a.hostShellImage = n.HostShellImage
 	a.localRegistryName, a.localRegistryPort = n.LocalRegistryName, n.LocalRegistryPort
+	a.builder = n.Builder
 	if n.RefreshRate > 0 {
 		a.refresh = n.RefreshRate
 		if pv := typedView[*views.PulsesView](a, style.ViewPulses); pv != nil {

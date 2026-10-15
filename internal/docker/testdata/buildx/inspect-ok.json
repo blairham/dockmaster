@@ -1,0 +1,29 @@
+{
+  "Name": "app/Dockerfile.dev (base)",
+  "Ref": "pzk1kndfayz6pb67ixyla74lz",
+  "Context": "/src/app",
+  "Dockerfile": "Dockerfile.dev",
+  "Target": "base",
+  "StartedAt": "2026-10-15T12:01:05.69476641-04:00",
+  "CompletedAt": "2026-10-15T12:01:05.757300894-04:00",
+  "Duration": 62534484,
+  "Status": "completed",
+  "NumCompletedSteps": 4,
+  "NumTotalSteps": 4,
+  "NumCachedSteps": 0,
+  "BuildArgs": [
+    {
+      "Name": "GREETING",
+      "Value": "hello"
+    }
+  ],
+  "Config": {
+    "ImageResolveMode": "local"
+  },
+  "Attachments": [
+    {
+      "Digest": "sha256:913b08779cbfc0dc8be9de5b99751997a09c2cd253ea6c265fae9b27ad7bf0c7",
+      "Type": "https://slsa.dev/provenance/v1"
+    }
+  ]
+}

@@ -215,6 +215,7 @@ const (
 	ViewBuilderForm
 	ViewRegistryCatalog
 	ViewRegistryTags
+	ViewBuilds
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -271,6 +272,7 @@ var viewNames = map[ViewType]string{
 	ViewComposeBuild:    "Build",
 	ViewBuilders:        "Builders",
 	ViewBuilderForm:     "Builder",
+	ViewBuilds:          "Builds",
 }
 
 // ViewResource returns the singular resource noun for the border title,
@@ -335,4 +337,5 @@ var viewResources = map[ViewType]string{
 	ViewComposeBuild:    resField,
 	ViewBuilders:        "builder",
 	ViewBuilderForm:     resField,
+	ViewBuilds:          "build",
 }

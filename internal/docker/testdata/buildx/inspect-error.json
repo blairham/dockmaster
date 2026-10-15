@@ -1,0 +1,26 @@
+{
+  "Name": "broken",
+  "Ref": "bp3jjedj9bki9bw5snjenx5vq",
+  "Context": "/src/broken",
+  "Dockerfile": "Dockerfile",
+  "StartedAt": "2026-10-15T12:00:20.394359292-04:00",
+  "CompletedAt": "2026-10-15T12:00:20.513250517-04:00",
+  "Duration": 118891225,
+  "Status": "failed",
+  "Error": {
+    "Code": 2,
+    "Message": "process \"/bin/sh -c false\" did not complete successfully: exit code: 1",
+    "Name": "[1/1] RUN false",
+    "Logs": [
+      "runc run failed: unable to start container process: error during container init: exec: \"/bin/sh\": stat /bin/sh: no such file or directory"
+    ],
+    "Sources": "RG9ja2VyZmlsZToyCi0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgIDEgfCAgICAgRlJPTSBzY3JhdGNoCiAgIDIgfCA+Pj4gUlVOIGZhbHNlCiAgIDMgfCAgICAgCi0tLS0tLS0tLS0tLS0tLS0tLS0tCgo=",
+    "Stack": ""
+  },
+  "NumCompletedSteps": 3,
+  "NumTotalSteps": 3,
+  "NumCachedSteps": 0,
+  "Config": {
+    "ImageResolveMode": "local"
+  }
+}

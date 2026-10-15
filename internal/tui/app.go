@@ -158,6 +158,8 @@ type App struct {
 	watchDir          string
 	watchFP           string
 	pendingFP         string
+	// builder is the buildx builder :builds reads; "" is buildx's choice.
+	builder string
 	// applied is the config last read, so a reload changes a runtime
 	// toggle only when its value in the file changed.
 	applied         Options
@@ -210,6 +212,8 @@ type App struct {
 	// streamFn replaces running a streamed CLI command — a build — and
 	// builderFn the buildx probe; tests only.
 	streamFn docker.StreamFunc
+	// historyRunner replaces running `docker buildx history`; tests only.
+	historyRunner docker.HistoryRunner
 	// builds are the builds started this session, running and recent
 	// (#121): the app owns them, so leaving their output never stops one.
 	builds []*views.Build
@@ -315,6 +319,9 @@ type Options struct {
 	// (#120); zero values are the defaults.
 	LocalRegistryName string
 	LocalRegistryPort int
+	// Builder is the buildx builder :builds reads (config's builder); ""
+	// is buildx's own choice for the daemon.
+	Builder string
 	// Reload re-reads the config directory, for ui.reactive; nil turns
 	// live reload off. WatchDir is the directory it watches.
 	Reload   func() (Reloaded, error)
@@ -484,6 +491,7 @@ func NewApp(client *docker.Client, opts Options) *App {
 		requestTimeout:    opts.RequestTimeout,
 		thresholds:        opts.Thresholds,
 		log:               opts.Logger,
+		builder:           opts.Builder,
 		// main has put the top-level skin in already.
 		globalTheme:      style.Base(),
 		lastViews:        lastViews,
@@ -762,6 +770,18 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if pv := typedView[*views.PodsView](a, style.ViewPods); pv != nil {
 			return a, pv.Update(msg)
 		}
+		return a, nil
+
+	// A history listing goes to the builds view that asked, whichever view
+	// is showing: dropped, it would leave the single-flight guard set.
+	case views.BuildsRefreshMsg:
+		if a.view == style.ViewBuilds && !a.splashActive {
+			a.loading = false
+		}
+		return a, msg.View.Update(msg)
+
+	case rebuildMsg:
+		a.handleRebuild(msg)
 		return a, nil
 
 	case views.RuntimesRefreshMsg:

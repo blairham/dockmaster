@@ -205,6 +205,9 @@ var polled = map[style.ViewType]bool{
 	// The dashboard samples on the tick: one docker ps -a and its stats,
 	// with disk usage only every minute (views.PulsesView.Poll).
 	style.ViewPulses: true,
+	// One `buildx history ls`, a local CLI call; failed records' reasons
+	// are read once each and kept.
+	style.ViewBuilds: true,
 }
 
 // refreshPolledView is the tick's refresh: a no-op unless the active view
@@ -297,6 +300,8 @@ func listMsgView(msg tea.Msg) (style.ViewType, bool) {
 		return style.ViewRegistries, true
 	case views.BuildersRefreshMsg:
 		return style.ViewBuilders, true
+	case views.BuildsRefreshMsg:
+		return style.ViewBuilds, true
 	case views.DumpsRefreshMsg:
 		return style.ViewDumps, true
 	case views.DiskUsageRefreshMsg:

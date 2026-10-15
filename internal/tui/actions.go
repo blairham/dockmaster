@@ -73,6 +73,9 @@ var mutating = map[string]bool{
 	"build_form": true, "build_run": true, "compose_build_form": true, "compose_build": true,
 	// Stopping a build changes what reaches the daemon too.
 	"confirm_stop_build": true,
+	// The build history (#118): removing a record, and R, which opens the
+	// build form.
+	actConfirmRemoveBuild: true, "rebuild": true,
 	// The context store, not the daemon — but a removal all the same.
 	"confirm_remove_context": true,
 	// A commit or a load makes an image; export and save only read the
@@ -214,6 +217,20 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "not_dockerfile":
 		a.errFlash = param + " is not a Dockerfile or a directory — Dockerfile, Containerfile and their variants are"
 		return a, nil
+	case "open_builds":
+		cmd := a.openBuilds()
+		return a, cmd
+	case "attach_build", "toggle_build_errors", "build_still_running", "build_logs", "build_inspect":
+		return a.buildsAction(action, param)
+	case actConfirmRemoveBuild:
+		_, name := splitRecord(param)
+		a.openConfirm(actRemoveBuild, param, fmt.Sprintf(
+			"remove the build record %s? its log and details go — the image, if any, stays", name,
+		))
+		return a, nil
+	case "rebuild":
+		cmd := a.rebuild(param)
+		return a, cmd
 	case "confirm_stop_build":
 		a.confirmStopBuild(param)
 		return a, nil
@@ -936,7 +953,7 @@ func confirmTitle(action string) string {
 		return "Delete"
 	case actPush:
 		return "Push"
-	case "pod_rm", "node_remove":
+	case "pod_rm", "node_remove", actRemoveBuild:
 		return "Remove"
 	case actDisconnect:
 		return "Disconnect"
@@ -965,6 +982,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 	case "stop_build":
 		a.stopBuild(pa.param)
 		return nil
+	case actRemoveBuild:
+		return a.removeBuild(pa.param)
 	case "kill":
 		return a.run("killed", a.containerName(pa.param), func(ctx context.Context) error {
 			return a.client.KillContainer(ctx, pa.param, "SIGKILL")

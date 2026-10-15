@@ -88,6 +88,7 @@ func TestDaemonRequestsHonorRequestTimeout(t *testing.T) {
 		"registries.go":      1, // credential helpers, not the daemon
 		"registrycatalog.go": 1, // a registry's HTTP API, not the daemon
 		"builders.go":        1, // buildx CLI, not the daemon
+		"buildhistory.go":    1, // the buildx CLI
 	}
 	files, err := filepath.Glob("views/*.go")
 	if err != nil || len(files) == 0 {

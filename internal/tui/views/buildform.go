@@ -61,6 +61,21 @@ func NewBuildForm(dir, dockerfile string) *BuildFormView {
 	return v
 }
 
+// NewBuildFormFrom is the form filled in from spec — a build again from
+// the history (#118) — on the tag, which a record does not keep.
+func NewBuildFormFrom(spec docker.BuildSpec) *BuildFormView {
+	v := NewBuildForm(spec.Context, spec.Dockerfile)
+	v.field(keyBuildTarget).input.SetValue(spec.Target)
+	v.field(keyBuildArgs).input.SetValue(strings.Join(spec.BuildArgs, " "))
+	for _, a := range spec.BuildArgs {
+		if strings.ContainsAny(a, " \t\n") {
+			v.err = "build arg " + strings.SplitN(a, "=", 2)[0] + " has a space in its value, which this form splits on — edit it"
+			break
+		}
+	}
+	return v
+}
+
 // CapturesInput reports that the form takes every typed key.
 func (v *BuildFormView) CapturesInput() bool { return true }
 
