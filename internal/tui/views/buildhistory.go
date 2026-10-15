@@ -42,6 +42,10 @@ const buildHistoryTimeout = 30 * time.Second
 // over a few polls rather than hold one up.
 const maxErrorReads = 5
 
+// colError is the column a failure's reason goes in, here and in the
+// builders view; it grows with the screen (flexibleColumns).
+const colError = "ERROR"
+
 // statusRunningLocal is a dockmaster build's status, above the history.
 const statusRunningLocal = "RUNNING"
 
@@ -95,7 +99,7 @@ func buildsColumns() []table.Column {
 		{Title: "CACHED", Width: 7},
 		{Title: "DURATION", Width: 9},
 		{Title: colAge, Width: 6},
-		{Title: "ERROR", Width: 40},
+		{Title: colError, Width: 40},
 	}
 }
 
