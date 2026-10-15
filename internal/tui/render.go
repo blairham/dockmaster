@@ -296,6 +296,8 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<U>", "Used by",
 		"<v>", "Scan",
 		"<E>", "Save",
+		"<t>", "Tag",
+		"<p>", "Push",
 		"<a>", "All",
 		"<P>", "Prune",
 		"<ctrl-d>", "Remove",
@@ -470,6 +472,10 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<enter>", "Log in again",
 		"<ctrl-d>", "Log out",
 		"<esc>", "Back",
+	),
+	style.ViewTagForm: keys(
+		"<enter>", "Tag",
+		"<esc>", "Cancel",
 	),
 	style.ViewLoginForm: keys(
 		"<enter>", "Log in",

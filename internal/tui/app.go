@@ -675,6 +675,10 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleEditDone(msg)
 	case registryLoginDoneMsg:
 		return a.handleRegistryLoginDone(msg)
+	case tagDoneMsg:
+		return a.handleTagDone(msg)
+	case pushProgressMsg:
+		return a.handlePushProgress(msg)
 
 	case createDoneMsg:
 		return a.handleCreateDone(msg)
