@@ -83,6 +83,12 @@ var mutating = map[string]bool{
 	"login_form": true, "registry_login": true, "confirm_registry_logout": true,
 	// A tag changes the daemon's images; a push publishes one.
 	views.ActTagForm: true, views.ActTagImage: true, views.ActPushImage: true,
+	// buildx builders: the CLI's builder store and the BuildKit nodes it
+	// runs (on the daemon, or a remote or kubernetes one). use changes
+	// which builder a plain docker build takes, so it is a change too.
+	views.ActStartBuilder: true, views.ActStopBuilder: true, views.ActUseBuilder: true,
+	views.ActRemoveBuilder: true, views.ActPruneBuilder: true,
+	views.ActBuilderForm: true, views.ActBuilderCreate: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -299,6 +305,28 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			"log out of %s? its stored credential is erased, as docker logout does", param,
 		))
 		return a, nil
+
+	case cmdBuilders:
+		return a.openBuilders()
+	case views.ActInspectBuilder:
+		return a.inspectBuilder(param)
+	case views.ActStartBuilder, views.ActStopBuilder, views.ActUseBuilder:
+		cmd := a.builderVerb(action, param)
+		return a, cmd
+	case views.ActRemoveBuilder:
+		a.confirmRemoveBuilder(param)
+		return a, nil
+	case views.ActPruneBuilder:
+		a.openConfirm("prune_builder", param, fmt.Sprintf(
+			"prune builder %s's build cache? cache it holds is removed, as buildx prune --builder does", param,
+		))
+		return a, nil
+	case views.ActBuilderForm:
+		a.openBuilderForm()
+		return a, nil
+	case views.ActBuilderCreate:
+		cmd := a.createBuilder(param)
+		return a, cmd
 
 	// ---- view toggles ---------------------------------------------------
 
@@ -981,6 +1009,10 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 		return a.composeDown(pa.param)
 	case "compose_down_file":
 		return a.composeFileDown(pa.param)
+	case "remove_builder":
+		return a.builderVerb(pa.action, pa.param)
+	case "prune_builder":
+		return a.pruneBuilder(pa.param)
 	case "remove_context":
 		return a.removeContext(pa.param)
 	case "registry_logout":

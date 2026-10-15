@@ -44,6 +44,7 @@ var knownCommands = []string{
 	"contexts",
 	cmdRegistries,
 	cmdLogin,
+	cmdBuilders,
 	cmdTag,
 	cmdPush,
 	"sd",
@@ -536,6 +537,9 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return "", cmd
 	case "lint":
 		_, cmd := a.handleAction("lint", "")
+		return "", cmd
+	case cmdBuilders, "builder", "buildx":
+		_, cmd := a.handleAction(cmdBuilders, "")
 		return "", cmd
 	case cmdRegistries, "registry", "reg":
 		_, cmd := a.handleAction("open_registries", "")

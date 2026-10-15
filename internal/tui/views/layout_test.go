@@ -95,6 +95,7 @@ func TestEveryLayoutViewNamesItself(t *testing.T) {
 		"diskusage":    NewDiskUsageView(nil).layoutKey,
 		"contexts":     NewContextsView("").layoutKey,
 		"registries":   NewRegistriesView().layoutKey,
+		"builders":     NewBuildersView(nil).layoutKey,
 		"lint":         NewLintView(nil).layoutKey,
 		"dir":          NewDirView(t.TempDir()).layoutKey,
 		"dumps":        NewDumpsView(t.TempDir()).layoutKey,

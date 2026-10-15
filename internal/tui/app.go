@@ -203,6 +203,9 @@ type App struct {
 	// answers it.
 	quitAsked bool
 	builderFn func(ctx context.Context, bin string) docker.Builder
+	// buildxRun replaces the docker CLI for the builders view's buildx
+	// verbs; tests only.
+	buildxRun docker.CLIRunner
 	// execProcess replaces tea.ExecProcess, which hands a child the
 	// terminal; tests only.
 	execProcess func(*exec.Cmd, tea.ExecCallback) tea.Cmd
@@ -681,6 +684,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleEditDone(msg)
 	case registryLoginDoneMsg:
 		return a.handleRegistryLoginDone(msg)
+	case builderCreateDoneMsg:
+		return a.handleBuilderCreateDone(msg)
 	case tagDoneMsg:
 		return a.handleTagDone(msg)
 	case pushProgressMsg:

@@ -86,6 +86,7 @@ func TestDaemonRequestsHonorRequestTimeout(t *testing.T) {
 		"pods.go":       1, // podman CLI
 		"inspect.go":    1, // the fetch-func branch: runtime CLIs
 		"registries.go": 1, // credential helpers, not the daemon
+		"builders.go":   1, // buildx CLI, not the daemon
 	}
 	files, err := filepath.Glob("views/*.go")
 	if err != nil || len(files) == 0 {
