@@ -92,6 +92,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 | in `:` or `/`: `↑` / `↓` | earlier commands / filters, kept across runs (`~/.local/state/dockmaster/history.json`) | `ctrl-n` / `ctrl-p` | cycle `:` suggestions (`tab` or `→` accepts) |
 | `U` | on an image, volume or network: the containers using it, stopped ones too (`esc` back) | `J` | on a container: jump to its compose project |
 | `shift-f` | port-forward to the container (a label can prefill or confirm it) | `f` | on a container: its port forwards (`esc` back) |
+| `M` | on a container: commit it to an image (`repo[:tag]`, message, pause) | `E` | on a container: export its filesystem to a tar; on an image, save it — or every marked one — to a tar (`:load <path>` reads one back) |
 | `space` / `ctrl-space` | mark a row / a range — lifecycle and remove keys then act on every marked row | `ctrl-\` | clear marks |
 | `ctrl-g` | toggle breadcrumbs | `ctrl-e` | toggle the header |
 | `j` `k` `h` `l` | move (arrows work too) | `g` / `G` | top / bottom |

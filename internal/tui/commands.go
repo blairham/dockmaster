@@ -44,6 +44,10 @@ var otherCommands = []views.Command{
 	{Name: "diff", Desc: "The files the selected container changed, as D"},
 	{Name: "health", Desc: "The selected container's healthcheck, as H"},
 	{Name: "pull", Desc: "Pull an image: :pull <ref>", NeedsArg: true},
+	{Name: cmdLoad, Desc: "Load images from a tar, as docker load: :load <path>", NeedsArg: true},
+	{Name: cmdCommit, Desc: "An image from the selected container, as M"},
+	{Name: cmdExport, Desc: "The selected container's filesystem to a tar, as E"},
+	{Name: cmdSave, Desc: "The selected (or marked) images to a tar, as E"},
 	{Name: "prune", Desc: "Remove stopped containers (confirms)"},
 	{Name: "prune all", Desc: "As docker system prune; volumes are kept (confirms)"},
 	{

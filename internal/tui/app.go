@@ -644,6 +644,15 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case copyDoneMsg:
 		return a.handleCopyDone(msg)
 
+	case commitDoneMsg:
+		return a.handleCommitDone(msg)
+
+	case tarDoneMsg:
+		return a.handleTarDone(msg)
+
+	case loadDoneMsg:
+		return a.handleLoadDone(msg)
+
 	case editStateMsg:
 		return a.handleEditState(msg)
 

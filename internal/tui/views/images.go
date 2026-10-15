@@ -5,6 +5,7 @@ package views
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/table"
@@ -142,6 +143,17 @@ func (v *ImagesView) SetFilter(f string) {
 
 // HandleKey maps a keystroke to an app action.
 func (v *ImagesView) HandleKey(key string) (string, string) {
+	// E saves every marked image into one tar, as docker save takes many;
+	// with none marked, the selected one.
+	if key == "E" {
+		if ms := marked(&v.tableMarks, v.visible, imageMarkKey); len(ms) > 0 {
+			refs := make([]string, 0, len(ms))
+			for _, im := range ms {
+				refs = append(refs, runRef(im))
+			}
+			return actSaveForm, strings.Join(refs, "\n")
+		}
+	}
 	im, ok := v.Selected()
 	if !ok {
 		switch key {
@@ -167,6 +179,8 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 	case "v":
 		// Scan by reference, or by ID for an untagged image (#11).
 		return actScanImage, runRef(im)
+	case "E":
+		return actSaveForm, runRef(im)
 	case "u":
 		// Run it: by reference, or by ID for a dangling image.
 		return "run_image", runRef(im)
@@ -186,6 +200,10 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 	}
 	return "", ""
 }
+
+// actSaveForm opens the save form; its param is the image references,
+// one per line.
+const actSaveForm = "save_form"
 
 // runRef names an image to scan or run: its reference, or its ID when it
 // has no repository.

@@ -451,6 +451,8 @@ var containerIDKeys = map[string]string{
 	"e":      "edit_form",
 	"F":      "portforward",
 	"b":      "open_published",
+	"M":      "commit_form",
+	"E":      "export_form",
 }
 
 // containerToggleKeys are the containers view's keys that toggle what the

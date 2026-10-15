@@ -71,6 +71,9 @@ var mutating = map[string]bool{
 	"compose_up_file":     true, "compose_edit_file": true, "confirm_compose_down_file": true,
 	// The context store, not the daemon — but a removal all the same.
 	"confirm_remove_context": true,
+	// A commit or a load makes an image; export and save only read the
+	// daemon (they write a local file, which confirms before replacing one).
+	actCommitForm: true, "commit_container": true, cmdLoad: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -377,6 +380,37 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		return a, a.runCopy(spec)
+
+	case actCommitForm:
+		return a.openCommitForm(param)
+	case "commit_container":
+		spec, err := views.DecodeCommitSpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		cmd := a.runCommit(spec)
+		return a, cmd
+	case actExportForm:
+		return a.openTarForm(views.TarExport, []string{param}, a.containerName(param))
+	case actSaveForm:
+		refs := strings.Split(param, "\n")
+		name := refs[0]
+		if len(refs) > 1 {
+			name = fmt.Sprintf("%d images", len(refs))
+		}
+		return a.openTarForm(views.TarSave, refs, name)
+	case "write_tar":
+		spec, err := views.DecodeTarSpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		cmd := a.writeTar(spec)
+		return a, cmd
+	case cmdLoad:
+		cmd := a.loadImages(param)
+		return a, cmd
 
 	case "run_image":
 		return a.openRunForm(param)
