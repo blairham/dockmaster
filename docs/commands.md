@@ -187,7 +187,10 @@ Keys every view shares:
 `enter` its containers, `l` every container's logs in one stream, `u`
 compose up, `x` stop, `R` restart, `p` pull, `e` edit the compose files then
 up, `s` scale a service (a form: the service and its container count; a
-scale down or to 0 confirms), `ctrl-d` compose down (confirms).
+scale down or to 0 confirms), `b` compose build (a form: every service or
+one, and whether to `up -d` after; the output streams as with `:build`),
+`y` `compose config` — the merged YAML, in the inspect view, allowed under
+`--readonly` — and `ctrl-d` compose down (confirms).
 
 ### Runtimes
 

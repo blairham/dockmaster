@@ -133,11 +133,48 @@ func (p Project) MissingFile() string {
 }
 
 func (c *Compose) do(ctx context.Context, p Project, verb ...string) error {
+	_, err := c.out(ctx, p, verb...)
+	return err
+}
+
+// out runs a compose verb against p and returns what it printed.
+func (c *Compose) out(ctx context.Context, p Project, verb ...string) ([]byte, error) {
 	args := append(append([]string{}, c.endpoint...), "compose")
 	args = append(args, p.ComposeArgs()...)
 	args = append(args, verb...)
-	_, err := c.run(ctx, args...)
-	return err
+	return c.run(ctx, args...)
+}
+
+// Config is `compose config`: the project as compose applies it, every -f
+// file merged, .env read and variables interpolated, as YAML. It changes
+// nothing.
+func (c *Compose) Config(ctx context.Context, p Project) ([]byte, error) {
+	return c.out(ctx, p, "config")
+}
+
+// BuildCommand is `docker compose … build [service]` for p against the
+// daemon endpoint names, streamed rather than waited on: a build prints its
+// progress as it goes. Progress is plain text, as an image build's is, set
+// through the environment — compose's own --progress flag has moved
+// between versions. service "" builds every service with a build section;
+// a service name starting with - is refused, since compose would read it
+// as a flag.
+func (p Project) BuildCommand(bin string, endpoint []string, service string) (CommandSpec, error) {
+	if strings.HasPrefix(service, "-") {
+		return CommandSpec{}, fmt.Errorf("service %q starts with -", service)
+	}
+	args := append(append([]string{bin}, endpoint...), "compose")
+	args = append(args, p.ComposeArgs()...)
+	args = append(args, "build")
+	if service != "" {
+		args = append(args, service)
+	}
+	return CommandSpec{
+		// No Dir: --project-directory already says where, and a working
+		// directory that has moved would fail the chdir before compose ran.
+		Args: args,
+		Env:  append([]string{"BUILDKIT_PROGRESS=plain", "COMPOSE_PROGRESS=plain"}, endpointEnv(endpoint)...),
+	}, nil
 }
 
 // Up creates or recreates the project's containers, detached.

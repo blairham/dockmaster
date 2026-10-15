@@ -114,7 +114,8 @@ func (a *App) streamCLI(argv func(ctx context.Context, bin string) docker.Comman
 // goes back to where the user was. then is the action to run once the
 // command succeeds, "" for none.
 func (a *App) openOutput(title string, start views.OutputStartFunc, then, thenParam string) tea.Cmd {
-	if a.view == style.ViewBuildForm || a.view == style.ViewScaleForm {
+	switch a.view {
+	case style.ViewBuildForm, style.ViewScaleForm, style.ViewComposeBuild:
 		a.popView()
 	}
 	if old := typedView[*views.OutputView](a, style.ViewOutput); old != nil {
