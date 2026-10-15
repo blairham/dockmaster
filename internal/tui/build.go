@@ -77,7 +77,8 @@ func (a *App) openBuildForm(param string) {
 
 // runBuild runs a submitted build into an output view. The spec is checked
 // again: the form checked it, but a directory can go away in between.
-func (a *App) runBuild(spec docker.BuildSpec) tea.Cmd {
+// pushLocal pushes the tag to the local registry once it has built (#120).
+func (a *App) runBuild(spec docker.BuildSpec, pushLocal bool) tea.Cmd {
 	if err := spec.Check(); err != nil {
 		if f := typedView[*views.BuildFormView](a, style.ViewBuildForm); f != nil && a.view == style.ViewBuildForm {
 			f.SetError(err.Error())
@@ -94,7 +95,16 @@ func (a *App) runBuild(spec docker.BuildSpec) tea.Cmd {
 	start := a.streamCLI(func(ctx context.Context, bin string) docker.CommandSpec {
 		return docker.BuildCommand(bin, endpoint, detect(ctx, bin), spec)
 	})
-	return a.startBuild(views.NewBuild("build "+spec.BuildTitle(), spec.BuildTitle(), start))
+	b := views.NewBuild("build "+spec.BuildTitle(), spec.BuildTitle(), start)
+	if pushLocal {
+		target, err := docker.RetargetRef(spec.Tag, a.localRegistryAddr())
+		if err != nil {
+			a.errFlash = "build: push local: " + err.Error()
+			return nil
+		}
+		b.ThenAction, b.ThenParam = actPushLocal, spec.Tag+"\x00"+target
+	}
+	return a.startBuild(b)
 }
 
 // streamCLI is the start of a streamed docker CLI command: argv builds the

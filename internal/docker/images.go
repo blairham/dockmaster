@@ -162,7 +162,30 @@ func (c *Client) RemoveImage(ctx context.Context, id string, force bool) error {
 // The stream is drained rather than reported: the TUI shows a spinner, and
 // abandoning the reader early cancels the pull server-side.
 func (c *Client) PullImage(ctx context.Context, ref string) error {
-	rc, err := c.api.ImagePull(ctx, ref, client.ImagePullOptions{})
+	return c.pullImage(ctx, ref, client.ImagePullOptions{})
+}
+
+// PullFromRegistry is PullImage with the docker config's credential for
+// ref's registry (ResolveCredential), as `docker pull` sends it —
+// anonymous when the config holds none. It is how a tag browsed in a
+// registry dockmaster is logged in to is pulled.
+func (c *Client) PullFromRegistry(ctx context.Context, ref string) error {
+	opts := client.ImagePullOptions{}
+	server := RegistryForRef(ref)
+	cred, ok, err := ResolveCredential(ctx, server)
+	if err != nil {
+		return fmt.Errorf("credential for %s: %w", server, err)
+	}
+	if ok {
+		if opts.RegistryAuth, err = cred.AuthHeader(); err != nil {
+			return err
+		}
+	}
+	return c.pullImage(ctx, ref, opts)
+}
+
+func (c *Client) pullImage(ctx context.Context, ref string, opts client.ImagePullOptions) error {
+	rc, err := c.api.ImagePull(ctx, ref, opts)
 	if err != nil {
 		return fmt.Errorf("pulling %s: %w", ref, err)
 	}

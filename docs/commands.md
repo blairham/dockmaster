@@ -52,7 +52,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:lint` | | Each container's risky or fragile settings, worst first |
 | `:alerts` | | What alerted this session — a container turning unhealthy, OOM-killed, exiting non-zero or restart-looping — newest first (`alerts:` in [`design/config.md`](design/config.md#alerts)) |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
-| `:build [path]` | | Build an image: a form for tag, Dockerfile, target and build args, then `docker buildx build` (or `docker build` without buildx) against the daemon on screen, its output streamed into a log-style view. The build runs in the background: `esc` leaves it running, and `:build` with no path while one runs reopens the newest. The path is a directory or a Dockerfile (default: the working directory; `~` works). Refused under `--readonly` |
+| `:build [path]` | | Build an image: a form for tag, Dockerfile, target and build args (and "push local": push the tag to the local registry once it has built), then `docker buildx build` (or `docker build` without buildx) against the daemon on screen, its output streamed into a log-style view. The build runs in the background: `esc` leaves it running, and `:build` with no path while one runs reopens the newest. The path is a directory or a Dockerfile (default: the working directory; `~` works). Refused under `--readonly` |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
 | `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
@@ -86,7 +86,7 @@ These act on the row selected in the current view, as their keys do.
 |---|---|---|
 | `:pull <ref>` | | Pull an image; the reference keeps its case |
 | `:tag [ref]` | | Tag the selected image as `repo[:tag]` (`:latest` when it has none); without a reference, the tag form, as `t` in the images view |
-| `:push [ref]` | | Push an image to its registry, with the docker config's credential for it (see `:registries`); without a reference, the selected image's tag, as `p` in the images view. Confirms; progress streams to the flash line |
+| `:push [ref]` | | Push an image to its registry, with the docker config's credential for it (see `:registries`); without a reference, the selected image's tag, as `p` in the images view. Confirms; progress streams to the flash line. In the confirm, `L` pushes to the local registry instead: the image is tagged `localhost:<port>/<path>:<tag>` (its own registry and Hub's `library/` dropped) and that is pushed |
 | `:load <path>` | | Load the images in a tar, as `docker load` (`~` and relative paths work); refused under `--readonly` |
 | `:prune` | | Remove stopped containers (confirms) |
 | `:prune all` | | As `docker system prune`: stopped containers, unused networks, dangling images, build cache; volumes are kept (confirms) |
@@ -255,7 +255,7 @@ a root keep every container key above.
 | Builders (`:builders`) | `enter` / `o` `buildx inspect`, `u` start (`inspect --bootstrap`), `x` stop, `U` use as the default, `P` prune its build cache (confirms), `ctrl-n` create (a form: name, driver, platforms, a remote driver's endpoint), `ctrl-d` `buildx rm` (confirms; a docker context's own builder is refused) |
 | Registries (`:registries`) | `enter` repositories, `u` start the local registry, `x` stop a registry container, `P` garbage-collect it (confirms), `ctrl-d` remove dockmaster's registry container or log out of a config row (confirms), `n` log in, `l` log in again |
 | A registry's repositories | `enter` tags, `P` garbage-collect (confirms), `c` copy `registry/repo` |
-| A repository's tags | `ctrl-d` delete by digest (confirms), `P` garbage-collect (confirms), `c` / `I` copy the reference / digest |
+| A repository's tags | `u` pull it (with the docker config's credential) and open the run form on it, `ctrl-d` delete by digest (confirms), `P` garbage-collect (confirms), `c` / `I` copy the reference / digest |
 | Contexts (`:ctx`) | `enter` switch, `ctrl-d` `docker context rm` (confirms; not `default`, the one dockmaster is on, or the CLI's current one) |
 | Aliases (`ctrl-a`) | `enter` run the command, `/` filter |
 | Pods | `enter` / `o` inspect, `u` / `x` / `R` start / stop / restart, `ctrl-d` remove |

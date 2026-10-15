@@ -42,6 +42,7 @@ func registryContext() (context.Context, context.CancelFunc) {
 const (
 	ActRegistryTags      = "registry_tags"
 	ActRegistryDeleteTag = "confirm_registry_delete_tag"
+	ActRegistryRun       = "registry_run"
 )
 
 // gcKey is P in a registry view: the registry container's garbage
@@ -338,9 +339,9 @@ func (v *RegistryTagsView) Selected() (registry.Image, bool) {
 	return v.visible[i], true
 }
 
-// HandleKey maps a keystroke to an app action: ctrl+d deletes the selected
-// tag's manifest by digest, P garbage-collects the registry — both
-// confirmed by the app.
+// HandleKey maps a keystroke to an app action: u pulls the selected tag and
+// opens the run form on it, ctrl+d deletes its manifest by digest, P
+// garbage-collects the registry — the last two confirmed by the app.
 func (v *RegistryTagsView) HandleKey(key string) (string, string) {
 	if key == "P" {
 		return gcKey(v.target)
@@ -351,6 +352,9 @@ func (v *RegistryTagsView) HandleKey(key string) (string, string) {
 	}
 	t := v.target
 	t.Tag, t.Digest = img.Tag, img.Digest
+	if key == "u" {
+		return ActRegistryRun, t.Ref()
+	}
 	if key == KeyCtrlD {
 		if img.Digest == "" {
 			return ActNotLocal, t.Ref() + " has no digest to delete by — its manifest did not read"

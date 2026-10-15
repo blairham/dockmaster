@@ -493,6 +493,7 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<esc>", "Back",
 	),
 	style.ViewRegistryTags: keys(
+		"<u>", "Pull & run",
 		"<ctrl-d>", "Delete",
 		"<P>", "Garbage collect",
 		"<c>/<I>", "Copy ref/digest",

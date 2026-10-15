@@ -27,6 +27,12 @@ fails when the tag has none.
   `ctrl-d` removes dockmaster's own (its volume stays). In `:registries`,
   logging in again to a row moved from `enter` to `l`. Everything but
   browsing is refused under `--readonly`.
+- Pushing to the local registry (#120): `p`'s confirm takes `L` to push to
+  the local registry instead — the image is tagged
+  `localhost:5000/<name>:<tag>` and that is pushed; the build form's "push
+  local" pushes the built tag there once the build succeeds; `u` on a tag
+  in a registry pulls it and opens the run form on it. A push or pull that
+  finds no registry listening says to `:registry up`.
 - `ctrl-n` in the volumes and networks views creates one, through a form
   (#106): a volume's name, driver, driver opts and labels; a network's name,
   driver (`overlay` offered only on a swarm manager), subnet, gateway,

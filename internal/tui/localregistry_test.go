@@ -6,11 +6,14 @@ package tui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
@@ -236,5 +239,114 @@ func TestCatalogCommand(t *testing.T) {
 	runCmd(a, cmd)
 	if a.view != style.ViewRegistryCatalog || !strings.Contains(render(a), "app") {
 		t.Errorf(":catalog opened %s:\n%s", style.ViewName(a.view), render(a))
+	}
+}
+
+// TestPushToLocal: p's confirm offers the local registry, and L there tags
+// the image into it and pushes that instead; a reference already in the
+// local registry is not offered it again.
+func TestPushToLocal(t *testing.T) {
+	tags, pushes := fakeTagPush(t, nil, nil)
+	a := newTestApp(t)
+	loadImages(a)
+	step(a, key("p"))
+	if !strings.Contains(a.confirm.Prompt(), "L: push to the local registry as localhost:5000/nginx:1.27") {
+		t.Fatalf("p asked %q", a.confirm.Prompt())
+	}
+	drainPush(a, step(a, key("L")))
+	if a.confirm.Active() {
+		t.Error("the confirm stayed up after L")
+	}
+	if strings.Join(*tags, ",") != "nginx:1.27 -> localhost:5000/nginx:1.27" ||
+		strings.Join(*pushes, ",") != "localhost:5000/nginx:1.27" {
+		t.Errorf("tags %v pushes %v", *tags, *pushes)
+	}
+	if a.flash != "pushed localhost:5000/nginx:1.27 to localhost:5000" {
+		t.Errorf("flash %q err %q", a.flash, a.errFlash)
+	}
+	_, cmd := a.dispatchCommand("push localhost:5000/app:v1")
+	runCmd(a, cmd)
+	if p := a.confirm.Prompt(); !a.confirm.Active() || strings.Contains(p, "L:") {
+		t.Errorf("a local push offered itself: %q", p)
+	}
+	step(a, key("L"))
+	if len(*pushes) != 1 {
+		t.Errorf("L without the offer pushed: %v", *pushes)
+	}
+}
+
+// TestPushToLocalRefusedHint: a push to a local registry that is not
+// running says how to start one.
+func TestPushToLocalRefusedHint(t *testing.T) {
+	fakeTagPush(t, nil, errors.New("dial tcp 127.0.0.1:5000: connect: connection refused"))
+	a := newTestApp(t)
+	loadImages(a)
+	step(a, key("p"))
+	drainPush(a, step(a, key("L")))
+	if !strings.Contains(a.errFlash, ":registry up") {
+		t.Errorf("err %q", a.errFlash)
+	}
+}
+
+// TestBuildPushLocal: the build form's push-local toggle pushes the built
+// tag to the local registry once the build succeeds, and needs a tag.
+func TestBuildPushLocal(t *testing.T) {
+	tags, pushes := fakeTagPush(t, nil, nil)
+	dir := buildTree(t)
+	f := &fakeStream{lines: []string{"#1 DONE"}}
+	a := newBuildApp(t, f)
+	_, cmd := a.dispatchCommand("build " + dir)
+	runCmd(a, cmd)
+	for range 3 {
+		step(a, tab)
+	}
+	step(a, key("space"))
+	step(a, key("enter"))
+	if a.view != style.ViewBuildForm || !strings.Contains(render(a), "a tag is required") {
+		t.Fatalf("push local without a tag was not refused in the form:\n%s", render(a))
+	}
+	for range 3 {
+		step(a, tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	}
+	typeText(a, "app:dev")
+	runCmd(a, step(a, key("enter")))
+	if strings.Join(*tags, ",") != "app:dev -> localhost:5000/app:dev" ||
+		strings.Join(*pushes, ",") != "localhost:5000/app:dev" {
+		t.Errorf("tags %v pushes %v (flash %q err %q)", *tags, *pushes, a.flash, a.errFlash)
+	}
+}
+
+// TestRegistryRunPullsThenRuns: u on a tag pulls it, then opens the run
+// form on it; --readonly refuses it.
+func TestRegistryRunPullsThenRuns(t *testing.T) {
+	port, _ := fakeRegistryAPI(t)
+	fakeLocalRegistries(t, []docker.LocalRegistry{
+		{Name: "dockmaster-registry", Kind: docker.RegistryKindDockmaster, Port: port, Running: true},
+	})
+	var pulls []string
+	old := registryPullFn
+	registryPullFn = func(_ context.Context, _ *docker.Client, ref string) error {
+		pulls = append(pulls, ref)
+		return nil
+	}
+	t.Cleanup(func() { registryPullFn = old })
+	a := newTestApp(t)
+	_, cmd := a.dispatchCommand("registries")
+	runCmd(a, cmd)
+	runCmd(a, step(a, key("enter")))
+	runCmd(a, step(a, key("enter")))
+	ref := "localhost:" + port + "/app:v1"
+	runCmd(a, step(a, key("u")))
+	if len(pulls) != 1 || pulls[0] != ref {
+		t.Fatalf("pulls %v", pulls)
+	}
+	if a.view != style.ViewRunForm || !strings.Contains(render(a), ref) {
+		t.Errorf("after the pull: view %s\n%s", style.ViewName(a.view), render(a))
+	}
+	step(a, key("esc"))
+	a.readonly = true
+	runCmd(a, step(a, key("u")))
+	if len(pulls) != 1 || !strings.Contains(a.errFlash, "readonly mode") {
+		t.Errorf("readonly: pulls %v err %q", pulls, a.errFlash)
 	}
 }

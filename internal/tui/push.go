@@ -121,8 +121,16 @@ func (a *App) confirmPush(ref string) {
 		a.errFlash = err.Error()
 		return
 	}
-	a.openConfirm(actPush, ref, "push "+ref+" to "+docker.RegistryForRef(ref)+
-		"? the registry's "+tagOf(ref)+" is replaced, with the docker config's credential for it")
+	question := "push " + ref + " to " + docker.RegistryForRef(ref) +
+		"? the registry's " + tagOf(ref) + " is replaced, with the docker config's credential for it"
+	local := a.localRegistryAddr()
+	target, err := docker.RetargetRef(ref, local)
+	if err != nil || docker.RegistryHost(docker.RegistryForRef(ref)) == docker.RegistryHost(local) {
+		a.openConfirm(actPush, ref, question)
+		return
+	}
+	a.openConfirm(actPush, ref, question+" — or L: push to the local registry as "+target)
+	a.confirmAlt = &confirmAlt{key: "L", action: actPushLocal, param: ref + "\x00" + target}
 }
 
 // tagOf names ref's tag for the confirm: "tag v1", or "latest".
@@ -141,7 +149,11 @@ func tagOf(ref string) string {
 // the flash: each event is a message, and handling one waits for the next.
 // Progress lines are dropped, never queued, when the UI is behind — only
 // the latest matters — but the end always arrives.
-func (a *App) startPush(ref string) tea.Cmd {
+func (a *App) startPush(ref string) tea.Cmd { return a.startPushAfter(ref, nil) }
+
+// startPushAfter is startPush with a step run first in the push's
+// goroutine — push to local's tag — whose failure is the push's.
+func (a *App) startPushAfter(ref string, before func(ctx context.Context, c *docker.Client) error) tea.Cmd {
 	ch := make(chan pushEvent, 16)
 	client := a.client
 	push := pushImageFn
@@ -150,6 +162,12 @@ func (a *App) startPush(ref string) tea.Cmd {
 		defer close(ch)
 		ctx, cancel := client.RequestContext(pushTimeout)
 		defer cancel()
+		if before != nil {
+			if err := before(ctx, client); err != nil {
+				ch <- pushEvent{done: true, err: err, registry: docker.RegistryForRef(ref)}
+				return
+			}
+		}
 		registry, err := push(ctx, client, ref, func(line string) {
 			select {
 			case ch <- pushEvent{line: line}:
@@ -178,7 +196,8 @@ func (a *App) handlePushProgress(msg pushProgressMsg) (tea.Model, tea.Cmd) {
 	}
 	if msg.ev.err != nil {
 		a.flash = ""
-		a.errFlash = "push " + msg.ref + " failed — " + docker.FormatUserError(msg.ev.err).Error()
+		a.errFlash = "push " + msg.ref + " failed — " + docker.FormatUserError(msg.ev.err).Error() +
+			localRegistryHint(msg.ev.registry, msg.ev.err)
 		return a, nil
 	}
 	a.flash = "pushed " + msg.ref + " to " + msg.ev.registry

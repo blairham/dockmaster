@@ -106,6 +106,29 @@ other registry is HTTPS.
   the daemon pushes to its own `localhost` — but the browser needs a tunnel:
   `ssh -L 5000:127.0.0.1:5000 <host>`, then `:catalog localhost:5000`.
 
+## Wired into push, build and run
+
+- **`p` → `L`.** The push confirm says "or L: push to the local registry as
+  localhost:5000/app:v1". `L` closes it and runs `push_local`: `docker tag`
+  into the local registry (`docker.RetargetRef`: the repository path without
+  its own registry or Hub's `library/`, the same tag), then the push, its
+  progress in the flash like any other. `l` would have been the obvious key,
+  but the dialog already uses `h`/`l` to move between its buttons. A
+  reference already in the local registry is not offered it again. Which
+  local registry: the one `:registries` last listed (so a reused kind
+  registry on 5001 is the target), else `localhost:<localRegistry.port>`.
+- **Build form "push local".** A choice under the build args; with it on the
+  form refuses an empty tag, and the build's then-action is the same
+  `push_local`, run only when the build succeeds and only on the context it
+  was built on — the background-build machinery's existing rule. It does not
+  confirm again: the toggle is the request.
+- **`u` on a tag** pulls it through the daemon with the config's credential
+  (`Client.PullFromRegistry`, what `docker pull` sends) and opens the run form
+  on the reference.
+
+A push or pull to a loopback registry refused with "connection refused"
+adds "(is the local registry running? :registry up)".
+
 ## Tests
 
 `internal/registry` runs against `httptest` fakes of the v2 API (pages, an

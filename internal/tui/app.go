@@ -107,6 +107,14 @@ type pendingAction struct {
 	param  string
 }
 
+// confirmAlt is a third answer to the confirm on screen: key runs action
+// with param instead of the question's own — p's push to local (#120).
+type confirmAlt struct {
+	key    string
+	action string
+	param  string
+}
+
 // App is the root bubbletea model.
 type App struct {
 	client  *docker.Client
@@ -139,6 +147,8 @@ type App struct {
 	shell         string
 	// hostShellImage is :hostshell's helper image; "" is the default.
 	hostShellImage string
+	// confirmAlt is the open confirm's other answer, nil for none.
+	confirmAlt *confirmAlt
 	// localRegistryName and localRegistryPort are config's localRegistry,
 	// the container :registry up creates; zero values are the defaults.
 	localRegistryName string
@@ -698,6 +708,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleBuilderCreateDone(msg)
 	case localCatalogMsg:
 		return a.handleLocalCatalog(msg)
+	case registryPulledMsg:
+		return a.handleRegistryPulled(msg)
 	case tagDoneMsg:
 		return a.handleTagDone(msg)
 	case pushProgressMsg:

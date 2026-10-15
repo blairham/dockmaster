@@ -211,6 +211,14 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// is on screen, no other key may reach a view. Ordering this
 		// after the command bar would let `:` open a palette on top of a
 		// pending "remove this container?" and lose the question.
+		if alt := a.confirmAlt; alt != nil && key == alt.key {
+			// The question's other answer — push to local instead.
+			a.confirm.Close()
+			a.confirmAlt = nil
+			a.resizeActiveView()
+			_, cmd := a.handleAction(alt.action, alt.param)
+			return a, cmd
+		}
 		if handled, cmd := a.confirm.Update(msg, a.confirmDispatch); handled {
 			a.resizeActiveView()
 			return a, cmd

@@ -117,3 +117,23 @@ func TestCountCollected(t *testing.T) {
 		t.Errorf("counted %d", n)
 	}
 }
+
+// TestRetargetRef: a reference renamed into another registry keeps its
+// path and tag and drops its own registry and Hub's library/.
+func TestRetargetRef(t *testing.T) {
+	for _, tc := range []struct{ ref, want string }{
+		{ref: "nginx", want: "localhost:5000/nginx:latest"},
+		{ref: "app:dev", want: "localhost:5000/app:dev"},
+		{ref: "ghcr.io/octo/app:v1", want: "localhost:5000/octo/app:v1"},
+		{ref: "localhost:5001/x/y:2", want: "localhost:5000/x/y:2"},
+		{ref: "docker.io/library/redis:7", want: "localhost:5000/redis:7"},
+	} {
+		got, err := RetargetRef(tc.ref, "localhost:5000")
+		if err != nil || got != tc.want {
+			t.Errorf("RetargetRef(%q) = %q, %v; want %q", tc.ref, got, err, tc.want)
+		}
+	}
+	if _, err := RetargetRef("Bad Ref", "localhost:5000"); err == nil {
+		t.Error("a bad reference was retargeted")
+	}
+}
