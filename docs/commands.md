@@ -68,12 +68,16 @@ These act on the row selected in the current view, as their keys do.
 | `:top` | | `T` | A container's processes |
 | `:diff` | | `D` | The files a container has changed |
 | `:health` | | `H` | A container's healthcheck: the check, its streak, the last probes |
+| `:commit` | | `M` | An image from a container's current filesystem, as `docker commit`: a form for `repo[:tag]` (empty leaves it untagged), a message, and whether to pause it while it is read (yes by default, as docker does). Refused under `--readonly` |
+| `:export` | | `E` | A container's filesystem to a tar, as `docker export`: a form for the file, default `~/.local/state/dockmaster/exports/<name>-<time>.tar`. An existing file is replaced only after a confirm |
+| `:save` | | `E` | In images: the selected image — or every marked one, into one tar — as `docker save`; the same form and confirm as `:export` |
 
 ### Images and cleanup
 
 | Command | Also | What it does |
 |---|---|---|
 | `:pull <ref>` | | Pull an image; the reference keeps its case |
+| `:load <path>` | | Load the images in a tar, as `docker load` (`~` and relative paths work); refused under `--readonly` |
 | `:prune` | | Remove stopped containers (confirms) |
 | `:prune all` | | As `docker system prune`: stopped containers, unused networks, dangling images, build cache; volumes are kept (confirms) |
 | `:prune all volumes` | `:prune all -v`, `:prune all --volumes` | The same, and every unused volume (confirms) |
@@ -158,6 +162,7 @@ Keys every view shares:
 | `e` | Edit limits, restart policy, name | `v` | Scan its image for vulnerabilities |
 | `shift-f` | Port-forward: `local:container`, comma-separated for more; labels can prefill or confirm it | `b` | Open a published port in the browser |
 | `f` | Its port forwards (`:pf` narrowed to it; `esc` back) | | |
+| `M` | Commit it to an image (a form) | `E` | Export its filesystem to a tar (a form; confirms before replacing a file) |
 | `J` | Jump to its compose project | `enter`, `n` | On a ⎈ kind/k3d node: the pods' containers inside it (`l` is still its logs) |
 | `a` | Show stopped | `t` | CPU/MEM poll on or off |
 | `ctrl-w` | Wide columns | `ctrl-z` | Faults only |
@@ -167,7 +172,7 @@ Keys every view shares:
 
 | View | Keys |
 |---|---|
-| Images | `enter` layers, `u` run (a form), `v` scan, `U` the containers using it, `ctrl-d` remove, `a` all, `P` prune |
+| Images | `enter` layers, `u` run (a form), `v` scan, `U` the containers using it, `E` save it (or the marked ones) to a tar, `ctrl-d` remove, `a` all, `P` prune |
 | Volumes | `enter` browse its files, `o` inspect, `U` the containers using it, `z` sizes (slow), `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
 | Networks | `enter` / `o` inspect, `U` the containers on it, `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
 

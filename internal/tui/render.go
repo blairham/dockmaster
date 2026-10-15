@@ -295,6 +295,7 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<o>", "Inspect",
 		"<U>", "Used by",
 		"<v>", "Scan",
+		"<E>", "Save",
 		"<a>", "All",
 		"<P>", "Prune",
 		"<ctrl-d>", "Remove",
@@ -368,6 +369,16 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 	style.ViewCopyForm: keys(
 		"<enter>", "Copy",
 		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewCommitForm: keys(
+		"<enter>", "Commit",
+		"<tab>", "Next field",
+		"<←/→>", "Pause",
+		"<esc>", "Cancel",
+	),
+	style.ViewTarForm: keys(
+		"<enter>", "Write",
 		"<esc>", "Cancel",
 	),
 	style.ViewRunForm: keys(
@@ -718,6 +729,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<u>", Desc: "Run image"},
 					{Key: "<K>", Desc: "Kubernetes on/off"},
 					{Key: "<v>", Desc: "Scan image"},
+					{Key: "<E>", Desc: "Export / save tar"},
 				},
 			},
 			{
@@ -733,6 +745,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<D>", Desc: "Diff (files)"},
 					{Key: "<S>", Desc: "Stats"},
 					{Key: "<C>", Desc: "Copy files"},
+					{Key: "<M>", Desc: "Commit to image"},
 					{Key: "<e>", Desc: "Edit limits, name"},
 					{Key: "<b>", Desc: "Browse port"},
 					{Key: "<p>", Desc: "Pause/unpause"},

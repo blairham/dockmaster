@@ -20,6 +20,13 @@ fails when the tag has none.
   internal, attachable and labels. `:create volume` and `:create network`
   open the same forms from any view, `:create` the one for the view on
   screen. Refused under `--readonly`.
+- Snapshot and move images and containers (#108): `M` on a container (or
+  `:commit`) commits it to an image — `repo[:tag]`, a message, paused while
+  it is read unless you say otherwise; `E` exports a container's filesystem
+  (`:export`) or saves an image, or every marked one, to a tar (`:save`),
+  by default under `~/.local/state/dockmaster/exports/`, confirming before
+  it replaces a file; `:load <path>` loads images from a tar. Commit and load
+  are refused under `--readonly`.
 
 ### Changed
 

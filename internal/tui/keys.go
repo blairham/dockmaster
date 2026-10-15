@@ -71,6 +71,10 @@ var knownCommands = []string{
 	cmdCreateVolume,
 	cmdCreateNetwork,
 	"pull",
+	cmdLoad,
+	cmdCommit,
+	cmdExport,
+	cmdSave,
 	"readonly",
 	"logo",
 	"logoless",
@@ -448,6 +452,11 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		_, cmd := a.handleAction("pull", strings.TrimSpace(rest))
 		return "", cmd
 	}
+	// :load <path> keeps the path's case; ~ is the home directory.
+	if rest, ok := cutPrefixFold(raw, "load "); ok {
+		_, cmd := a.handleAction("load", strings.TrimSpace(rest))
+		return "", cmd
+	}
 	// :dir <path> keeps the path's case; ~ is the home directory.
 	if rest, ok := strings.CutPrefix(raw, "dir "); ok {
 		dir := strings.TrimSpace(rest)
@@ -498,6 +507,14 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	case "top", "diff", "health":
 		key := map[string]string{"top": "T", "diff": "D", "health": "H"}[lower]
 		return a.rowCommand(lower, func(act string) bool { return act == lower }, key)
+	case cmdCommit:
+		return a.rowCommand(lower, func(act string) bool { return act == actCommitForm }, "M")
+	case cmdExport:
+		return a.rowCommand(lower, func(act string) bool { return act == actExportForm }, "E")
+	case cmdSave:
+		return a.rowCommand(lower, func(act string) bool { return act == actSaveForm }, "E")
+	case cmdLoad:
+		return ":load needs a file: :load <path>", nil
 	case "context", "ctx", "contexts":
 		_, cmd := a.handleAction("contexts", "")
 		return "", cmd
@@ -672,7 +689,7 @@ var noContextCommands = map[string]bool{
 // argCommands take an argument after their name. xray's must be a root it
 // can grow from (validateCommand).
 var argCommands = map[string]bool{
-	"pull": true, "dir": true, "ctx": true, "context": true, "prune": true, "xray": true,
+	"pull": true, cmdLoad: true, "dir": true, "ctx": true, "context": true, "prune": true, "xray": true,
 }
 
 // ValidateCommand checks a command line as -c and defaultView take it: an
