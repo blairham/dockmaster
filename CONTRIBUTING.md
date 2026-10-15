@@ -79,10 +79,16 @@ including that no employer holds rights to it.
 
 ## Releasing
 
-Maintainers only. Every user-visible change adds a line under
-`[Unreleased]` in [CHANGELOG.md](CHANGELOG.md). To release, move that
-section to `## [X.Y.Z] - date` (and its compare link) in a pull request,
-then tag a signed `vX.Y.Z` on its merge commit. The release workflow
+Every user-visible change records itself with `make change`: one file under
+`.changes/unreleased/` whose kind is the version bump it forces (see
+[docs/versioning.md](docs/versioning.md)). A pull request with nothing a user
+can see takes the `no-changelog` label instead. [CHANGELOG.md](CHANGELOG.md)
+is generated from `.changes/` — do not edit it by hand.
+
+Maintainers release: `make release-prep` batches the pending changes into the
+next version and rebuilds the changelog in a pull request, then tag the signed
+`vX.Y.Z` it names on its merge commit; the release workflow refuses any other
+tag. The release workflow
 publishes the tag's section as the release notes — and fails if there is
 none — builds the binaries, signs `checksums.txt` with cosign, publishes the GitHub
 release with SLSA build provenance attached, and updates the formula in

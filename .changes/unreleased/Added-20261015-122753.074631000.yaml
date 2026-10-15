@@ -1,0 +1,9 @@
+kind: Added
+body: |-
+    `N` on a container connects it to a network or disconnects it (#107): a
+    picker lists every network with the ones it is on marked; choosing another
+    connects it, with optional aliases and a fixed IP, and choosing one it is
+    on disconnects it after a confirm. With rows marked it acts on all of them.
+    In a network's used-by list (`U`), `ctrl-d` disconnects the container from
+    that network (confirms) instead of removing it. `--readonly` refuses both.
+time: 2026-10-15T12:27:53.074631-04:00

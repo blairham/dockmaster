@@ -28,8 +28,42 @@ permissions:
   contents: read
 
 jobs:
+  # The version is changie's answer, not a number someone typed: the tag must
+  # be the latest version `make release-prep` batched into .changes/, so a
+  # release can only be the bump its recorded changes call for
+  # (docs/versioning.md). A dry run builds whatever it is given and skips this.
+  version:
+    name: Version is changie's
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.dry-run != true
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: inputs.dry-run != true
+        with:
+          go-version-file: tools/changie/go.mod
+          check-latest: true
+          cache-dependency-path: tools/changie/go.sum
+      - name: The tag is the version changie batched
+        if: inputs.dry-run != true
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          latest="$(go tool -modfile=tools/changie/go.mod changie latest)"
+          if [ "$TAG" != "$latest" ]; then
+            echo "::error::the tag is $TAG but changie's latest batched version is $latest; run 'make release-prep', merge that pull request, and tag what it batched"
+            exit 1
+          fi
+          if [ -n "$(ls .changes/unreleased/*.yaml 2>/dev/null)" ]; then
+            echo "::warning::changes are pending in .changes/unreleased/ at $TAG; they go out in the next release, not this one"
+          fi
+
   release:
     name: Release
+    needs: version
     permissions:
       contents: write # the GitHub release and its assets
       # Keyless cosign and the provenance attestation both sign with the
