@@ -44,7 +44,7 @@ func (a *App) logAction(action, param string) tea.Cmd {
 	case "log_copy":
 		text, n := lv.PlainText()
 		if n == 0 {
-			a.errFlash = "nothing to copy"
+			a.errFlash = flashNothingToCopy
 			return nil
 		}
 		a.flash = fmt.Sprintf("copied %d lines", n)
@@ -65,7 +65,7 @@ func (a *App) logAction(action, param string) tea.Cmd {
 func (a *App) saveLog(lv *views.LogsView) (string, int, error) {
 	text, n := lv.PlainText()
 	if n == 0 {
-		return "", 0, errors.New("nothing to save")
+		return "", 0, errors.New(flashNothingToSave)
 	}
 	path, err := a.saveDump("logs", lv.Title(), text)
 	return path, n, err
@@ -88,6 +88,9 @@ func (a *App) setFullscreen(on bool) {
 	if lv := typedView[*views.LogsView](a, style.ViewLogs); lv != nil {
 		lv.SetFullscreen(on)
 	}
+	if ov := typedView[*views.OutputView](a, style.ViewOutput); ov != nil {
+		ov.SetFullscreen(on)
+	}
 	a.resizeActiveView()
 }
 
@@ -102,7 +105,7 @@ func (a *App) inspectAction(action string) tea.Cmd {
 	case "inspect_copy":
 		text, n := iv.PlainText()
 		if n == 0 {
-			a.errFlash = "nothing to copy"
+			a.errFlash = flashNothingToCopy
 			return nil
 		}
 		a.flash = fmt.Sprintf("copied %d lines", n)
@@ -110,7 +113,7 @@ func (a *App) inspectAction(action string) tea.Cmd {
 	case "inspect_save":
 		text, n := iv.PlainText()
 		if n == 0 {
-			a.errFlash = "nothing to save"
+			a.errFlash = flashNothingToSave
 			return nil
 		}
 		path, err := a.saveDump("dumps", iv.Title(), text)

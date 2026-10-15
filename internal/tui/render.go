@@ -397,6 +397,19 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<←/→>", "Network",
 		"<esc>", "Cancel",
 	),
+	style.ViewBuildForm: keys(
+		"<enter>", "Build",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewOutput: keys(
+		"<s>", "Autoscroll",
+		"<w>", "Wrap",
+		"<f>", "Fullscreen",
+		"<c>", "Copy",
+		"<ctrl-s>", "Save",
+		"<esc>", "Stop/Back",
+	),
 	style.ViewScaleForm: keys(
 		"<enter>", "Scale",
 		"<tab>", "Next field",
@@ -476,6 +489,7 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<enter>", "Open",
 		"<u>", "Compose up",
 		"<e>", "Edit, then up",
+		"<b>", "Build",
 		"<ctrl-d>", "Compose down",
 		"<esc>", "Up/Back",
 	),
@@ -775,6 +789,8 @@ func (a *App) helpPanel() chrome.HelpPanel {
 	switch a.view {
 	case style.ViewLogs:
 		panel.Sections[1] = logsHelp()
+	case style.ViewOutput:
+		panel.Sections[1] = outputHelp()
 	case style.ViewProjects:
 		panel.Sections[1] = projectHelp()
 	}
@@ -832,6 +848,19 @@ func logsHelp() chrome.HelpSection {
 		chrome.HelpEntry{Key: "<o>", Desc: "Inspect"},
 	)
 	return s
+}
+
+// outputHelp is the OUTPUT column over a build's output: the log keys it
+// shares, and that leaving it stops a command still running.
+func outputHelp() chrome.HelpSection {
+	return chrome.HelpSection{Title: "OUTPUT", Entries: []chrome.HelpEntry{
+		{Key: "<s>", Desc: "Autoscroll"},
+		{Key: "<w>", Desc: "Wrap"},
+		{Key: "<f>", Desc: "Fullscreen"},
+		{Key: "<c>", Desc: "Copy"},
+		{Key: "<ctrl-s>", Desc: "Save to file"},
+		{Key: "<esc>", Desc: "Stop and back"},
+	}}
 }
 
 // generalHelp is tuikit's shared GENERAL column — every key in it is bound

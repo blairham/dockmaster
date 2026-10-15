@@ -35,6 +35,7 @@ var otherCommands = []views.Command{
 	{Name: "lint", Desc: "Each container's risky or fragile settings"},
 	{Name: "hostshell", Desc: "A root shell on the daemon's host (confirms)"},
 	{Name: "dir", Desc: "Browse for compose files; :dir <path> starts there"},
+	{Name: cmdBuild, Desc: "Build an image: :build <dir or Dockerfile>, else here (a form first)"},
 	{Name: "sd", Also: []string{"screendump", "screendumps", "dumps"}, Desc: "What ctrl-s has saved"},
 	{Name: "aliases", Also: []string{"alias"}, Desc: "This list (ctrl-a)"},
 	{Name: "help", Also: []string{"h", "?"}, Desc: "The key reference, as ?"},

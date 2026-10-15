@@ -69,6 +69,8 @@ var mutating = map[string]bool{
 	// Not daemon state, but a delete all the same: readonly means hands off.
 	"confirm_remove_dump": true,
 	"compose_up_file":     true, "compose_edit_file": true, "confirm_compose_down_file": true,
+	// A build writes an image into the daemon; the form is the way in.
+	"build_form": true, "build_run": true,
 	// The context store, not the daemon — but a removal all the same.
 	"confirm_remove_context": true,
 	// A commit or a load makes an image; export and save only read the
@@ -180,6 +182,23 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			"compose down %s? its containers and networks are removed — volumes are kept", param,
 		))
 		return a, nil
+	case "build_form":
+		a.openBuildForm(param)
+		return a, nil
+	case "build_run":
+		spec, err := views.DecodeBuildSpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		cmd := a.runBuild(spec)
+		return a, cmd
+	case "not_dockerfile":
+		a.errFlash = param + " is not a Dockerfile or a directory — Dockerfile, Containerfile and their variants are"
+		return a, nil
+	case "output_follow", "output_wrap", "output_copy", "output_save":
+		cmd := a.outputAction(action)
+		return a, cmd
 	case "scan_image":
 		sv := views.NewScanView(param, a.dockerHostArg())
 		sv.SetImageID(a.scanImageID(param))

@@ -44,7 +44,11 @@ const (
 	KeyCtrlD  = "ctrl+d"
 	KeyCtrlN  = "ctrl+n"
 	KeyDelete = "delete"
+	KeyCtrlS  = "ctrl+s"
 )
+
+// actFullscreen is the action every log-style view's f returns.
+const actFullscreen = "fullscreen"
 
 // rowFilter is a regex row filter with leading-`!` negation and an
 // invalid-regex literal fallback. Re-exported from tuikit/table.

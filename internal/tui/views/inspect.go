@@ -208,10 +208,10 @@ func (v *InspectView) HandleKey(key string) (string, string) {
 	switch key {
 	case "c":
 		return "inspect_copy", ""
-	case "ctrl+s":
+	case KeyCtrlS:
 		return "inspect_save", ""
 	case "f":
-		return "fullscreen", ""
+		return actFullscreen, ""
 	case "a":
 		return "inspect_auto", ""
 	case "n":

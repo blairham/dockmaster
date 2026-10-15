@@ -51,6 +51,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:xray img` | `:xray image`, `:xray images` | xray grown from the images: each image → the containers created from it |
 | `:lint` | | Each container's risky or fragile settings, worst first |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
+| `:build [path]` | | Build an image: a form for tag, Dockerfile, target and build args, then `docker buildx build` (or `docker build` without buildx) against the daemon on screen, its output streamed into a log-style view. The path is a directory or a Dockerfile (default: the working directory; `~` works). Refused under `--readonly` |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
 | `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
@@ -232,7 +233,8 @@ a root keep every container key above.
 | Port forwards (`:pf`) | `enter` / `b` open in the browser, `ctrl-d` stop |
 | Disk usage (`:df`) | `P` prune the selected kind |
 | Saved dumps (`:sd`) | `enter` read, `ctrl-d` delete |
-| `:dir` | `enter` walk in or open, `u` up from the file, `e` edit then up, `ctrl-d` `compose -f <file> down` (confirms), `esc` back up |
+| `:dir` | `enter` walk in or open, `u` up from the file, `e` edit then up, `ctrl-d` `compose -f <file> down` (confirms), `b` build a Dockerfile (or a directory's own), `esc` back up |
+| A build's output | `s` autoscroll, `w` wrap, `f` fullscreen, `c` / `ctrl-s` copy / save (to the saved logs), `/` filter; `esc` stops a build still running and goes back |
 | `:lint` | `enter` explain, `o` inspect the container |
 | Image scan | `enter` the fix and the advisory link |
 | Contexts (`:ctx`) | `enter` switch, `ctrl-d` `docker context rm` (confirms; not `default`, the one dockmaster is on, or the CLI's current one) |
