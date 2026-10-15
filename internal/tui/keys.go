@@ -42,6 +42,8 @@ var knownCommands = []string{
 	"context",
 	"ctx",
 	"contexts",
+	cmdRegistries,
+	cmdLogin,
 	"sd",
 	"lint",
 	"xray",
@@ -471,6 +473,11 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	if rest, ok := strings.CutPrefix(raw, cmdBuild+" "); ok {
 		return a.buildCommand(strings.TrimSpace(rest))
 	}
+	// :login <registry>; the address is folded the way docker login folds it.
+	if rest, ok := strings.CutPrefix(lower, "login "); ok {
+		_, cmd := a.handleAction("login_form", strings.TrimSpace(rest))
+		return "", cmd
+	}
 	if rest, ok := strings.CutPrefix(lower, "ctx "); ok {
 		return a.switchContextByName(strings.TrimSpace(rest))
 	}
@@ -519,6 +526,12 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return "", cmd
 	case "lint":
 		_, cmd := a.handleAction("lint", "")
+		return "", cmd
+	case cmdRegistries, "registry", "reg":
+		_, cmd := a.handleAction("open_registries", "")
+		return "", cmd
+	case cmdLogin:
+		_, cmd := a.handleAction("login_form", "")
 		return "", cmd
 	case "xray", "x":
 		_, cmd := a.handleAction("xray", "")
@@ -690,7 +703,8 @@ var noContextCommands = map[string]bool{
 // argCommands take an argument after their name. xray's must be a root it
 // can grow from (validateCommand).
 var argCommands = map[string]bool{
-	"pull": true, cmdLoad: true, "dir": true, cmdBuild: true, "ctx": true, "context": true, "prune": true, "xray": true,
+	"pull": true, cmdLoad: true, cmdLogin: true, "dir": true, cmdBuild: true,
+	"ctx": true, "context": true, "prune": true, "xray": true,
 }
 
 // ValidateCommand checks a command line as -c and defaultView take it: an

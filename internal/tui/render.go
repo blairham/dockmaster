@@ -465,6 +465,17 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<ctrl-d>", "Remove",
 		"<esc>", "Back",
 	),
+	style.ViewRegistries: keys(
+		"<n>", "Log in",
+		"<enter>", "Log in again",
+		"<ctrl-d>", "Log out",
+		"<esc>", "Back",
+	),
+	style.ViewLoginForm: keys(
+		"<enter>", "Log in",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
 	style.ViewAliases: keys(
 		"<enter>", "Run",
 		"<esc>", "Back",

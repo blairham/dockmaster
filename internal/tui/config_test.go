@@ -82,9 +82,10 @@ func TestRequestTimeoutSurvivesAContextSwitch(t *testing.T) {
 // files time CLI calls (colima, podman), not daemon requests.
 func TestDaemonRequestsHonorRequestTimeout(t *testing.T) {
 	allowed := map[string]int{
-		"runtimes.go": 1, // runtime CLIs
-		"pods.go":     1, // podman CLI
-		"inspect.go":  1, // the fetch-func branch: runtime CLIs
+		"runtimes.go":   1, // runtime CLIs
+		"pods.go":       1, // podman CLI
+		"inspect.go":    1, // the fetch-func branch: runtime CLIs
+		"registries.go": 1, // credential helpers, not the daemon
 	}
 	files, err := filepath.Glob("views/*.go")
 	if err != nil || len(files) == 0 {

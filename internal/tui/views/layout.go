@@ -57,6 +57,7 @@ var columnSets = map[string][]func() []table.Column{
 	"portforwards": {portForwardColumns},
 	"diskusage":    {diskUsageColumns},
 	"contexts":     {contextColumns},
+	"registries":   {registryColumns},
 	"lint":         {lintColumns},
 	"dir":          {dirColumns},
 	"dumps":        {dumpColumns},
@@ -351,6 +352,7 @@ var (
 	_ Relayouter = (*PortForwardsView)(nil)
 	_ Relayouter = (*DiskUsageView)(nil)
 	_ Relayouter = (*ContextsView)(nil)
+	_ Relayouter = (*RegistriesView)(nil)
 	_ Relayouter = (*LintView)(nil)
 	_ Relayouter = (*DirView)(nil)
 	_ Relayouter = (*DumpsView)(nil)
