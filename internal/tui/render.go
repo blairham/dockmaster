@@ -482,6 +482,21 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<ctrl-d>", "Log out",
 		"<esc>", "Back",
 	),
+	style.ViewBuilders: keys(
+		"<enter>", "Inspect",
+		"<u>", "Start",
+		"<x>", "Stop",
+		"<U>", "Use",
+		"<P>", "Prune cache",
+		"<ctrl-n>", "Create",
+		"<ctrl-d>", "Remove",
+		"<esc>", "Back",
+	),
+	style.ViewBuilderForm: keys(
+		"<enter>", "Create",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
 	style.ViewTagForm: keys(
 		"<enter>", "Tag",
 		"<esc>", "Cancel",

@@ -721,6 +721,7 @@ regardless of case. The view keys, and the columns each can show:
 | `diskusage` | `:df` | TYPE, TOTAL, ACTIVE, SIZE, RECLAIMABLE |
 | `contexts` | `:ctx` | NAME, ENDPOINT, DESCRIPTION |
 | `registries` | `:registries` | REGISTRY, USER, STORE, LOGIN |
+| `builders` | `:builders` | NAME, DRIVER, ENDPOINT, STATUS, BUILDKIT, PLATFORMS, ERROR |
 | `lint` | `:lint` | WORST, NAME, FINDINGS, FIRST FINDING |
 | `dir` | `:dir` | NAME, KIND, SIZE, AGE |
 | `dumps` | `:sd` | NAME, KIND, SIZE, AGE |

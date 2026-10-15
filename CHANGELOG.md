@@ -63,6 +63,14 @@ fails when the tag has none.
   interpolation, in the inspect view. A build is refused under `--readonly`
   and when the compose files are not on this machine; the config is allowed
   under `--readonly`.
+- `:builders` (`:buildx`) lists the buildx builders (#119): driver, endpoint,
+  status, BuildKit version and platforms, the current one marked, and why a
+  broken one is broken. `u` / `x` start and stop one, `U` makes it the
+  default (`buildx use`), `P` prunes its build cache, `ctrl-n` creates one
+  (name, driver, platforms, a remote driver's endpoint) and `ctrl-d` removes
+  one (both prune and remove confirm; a docker context's own builder is
+  refused); `enter` / `o` show `buildx inspect`. Changes are refused under
+  `--readonly`.
 
 ### Changed
 

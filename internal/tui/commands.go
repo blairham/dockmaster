@@ -40,6 +40,10 @@ var otherCommands = []views.Command{
 	},
 	{Name: cmdTag, Desc: "Tag the selected image: :tag <repo[:tag]>, or the form, as t"},
 	{Name: cmdPush, Desc: "Push an image: :push <ref>, or the selected image's tag, as p (confirms)"},
+	{
+		Name: cmdBuilders, Also: []string{"builder", "buildx"},
+		Desc: "The buildx builders: start, stop, use, create, prune, remove",
+	},
 	{Name: cmdLogin, Desc: "Log in to a registry: :login [registry] (default Docker Hub)"},
 	{Name: cmdAlerts, Desc: "What alerted this session, newest first; enter jumps to the container"},
 	{Name: "hostshell", Desc: "A root shell on the daemon's host (confirms)"},

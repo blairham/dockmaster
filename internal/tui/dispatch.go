@@ -295,6 +295,8 @@ func listMsgView(msg tea.Msg) (style.ViewType, bool) {
 		return style.ViewContexts, true
 	case views.RegistriesRefreshMsg:
 		return style.ViewRegistries, true
+	case views.BuildersRefreshMsg:
+		return style.ViewBuilders, true
 	case views.DumpsRefreshMsg:
 		return style.ViewDumps, true
 	case views.DiskUsageRefreshMsg:

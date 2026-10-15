@@ -57,6 +57,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
 | `:registries` | `:registry`, `:reg` | The registries the docker config knows (`auths` and `credHelpers`), where each credential is stored and whether it resolves — never the secret. `n` logs in to one, `enter` logs in again, `ctrl-d` logs out (confirms) |
+| `:builders` | `:builder`, `:buildx` | The buildx builders, from `docker buildx ls`: driver, endpoint, status, BuildKit version, platforms and any error, the current one marked. Loads on open and `r`, never on the poll (buildx asks each builder) |
 | `:login [registry]` | | Log in: a registry, username and password form (default Docker Hub). The daemon checks the credentials first, then they are stored as `docker login` stores them — in the registry's credential helper, the config's `credsStore`, or the platform's native store; in `config.json` only when there is none. Refused under `--readonly` |
 | `:aliases` | `:alias` | Every `:` command and its spellings, and your own aliases from `aliases.yaml`, as a table; `enter` runs one. `ctrl-a` opens it too |
 | `:help` | `:h`, `:?` | The key reference, as `?` |
@@ -248,6 +249,7 @@ a root keep every container key above.
 | `:lint` | `enter` explain, `o` inspect the container |
 | `:alerts` | `enter` the container, in the containers view with stopped ones listed (refused for an alert from another context), `c` / `I` copy its name / ID |
 | Image scan | `enter` the fix and the advisory link |
+| Builders (`:builders`) | `enter` / `o` `buildx inspect`, `u` start (`inspect --bootstrap`), `x` stop, `U` use as the default, `P` prune its build cache (confirms), `ctrl-n` create (a form: name, driver, platforms, a remote driver's endpoint), `ctrl-d` `buildx rm` (confirms; a docker context's own builder is refused) |
 | Contexts (`:ctx`) | `enter` switch, `ctrl-d` `docker context rm` (confirms; not `default`, the one dockmaster is on, or the CLI's current one) |
 | Aliases (`ctrl-a`) | `enter` run the command, `/` filter |
 | Pods | `enter` / `o` inspect, `u` / `x` / `R` start / stop / restart, `ctrl-d` remove |
