@@ -40,6 +40,12 @@ jobs:
       - name: Pending changes are valid
         run: |
           set -euo pipefail
+          # Right after a release nothing is pending, and changie's auto bump
+          # refuses an empty set rather than answering "no release".
+          if ! compgen -G '.changes/unreleased/*.yaml' >/dev/null; then
+            echo "::notice::no changes pending since $(go tool -modfile=tools/changie/go.mod changie latest)"
+            exit 0
+          fi
           next="$(go tool -modfile=tools/changie/go.mod changie next auto)"
           go tool -modfile=tools/changie/go.mod changie batch auto --dry-run >/dev/null
           echo "::notice::the pending changes make the next release $next"
