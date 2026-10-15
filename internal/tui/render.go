@@ -476,6 +476,14 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<ctrl-d>", "Remove",
 		"<esc>", "Back",
 	),
+	style.ViewBuilds: keys(
+		"<enter>", "Logs",
+		"<o>", "Inspect",
+		"<R>", "Rebuild",
+		"<x>", "Stop",
+		"<ctrl-d>", "Remove",
+		"<ctrl-z>", "Errors",
+	),
 	style.ViewRegistries: keys(
 		"<enter>", "Repositories",
 		"<u>", "Start local",
@@ -854,6 +862,8 @@ func (a *App) helpPanel() chrome.HelpPanel {
 		panel.Sections[1] = logsHelp()
 	case style.ViewOutput:
 		panel.Sections[1] = outputHelp()
+	case style.ViewBuilds:
+		panel.Sections[1] = buildsHelp()
 	case style.ViewProjects:
 		panel.Sections[1] = projectHelp()
 	}
@@ -926,6 +936,18 @@ func outputHelp() chrome.HelpSection {
 		{Key: "<ctrl-s>", Desc: "Save to file"},
 		{Key: "<x>", Desc: "Stop the build"},
 		{Key: "<esc>", Desc: "Back (it keeps running)"},
+	}}
+}
+
+// buildsHelp is the build history's own keys (#118).
+func buildsHelp() chrome.HelpSection {
+	return chrome.HelpSection{Title: "BUILDS", Entries: []chrome.HelpEntry{
+		{Key: "<enter>", Desc: "Logs (running: output)"},
+		{Key: "<o>", Desc: "Inspect"},
+		{Key: "<R>", Desc: "Build again"},
+		{Key: "<x>", Desc: "Stop a running build"},
+		{Key: "<ctrl-d>", Desc: "Remove record"},
+		{Key: "<ctrl-z>", Desc: "Failed only"},
 	}}
 }
 

@@ -293,18 +293,20 @@ func TestBuildEscDetaches(t *testing.T) {
 		t.Fatal("esc stopped the build")
 	default:
 	}
-	b := a.latestRunningBuild()
-	if b == nil {
+	running := a.runningBuilds()
+	if len(running) != 1 {
 		t.Fatal("no build is running after esc")
 	}
+	b := running[0]
 
 	f.out <- "#2 while you were away"
 	next = step(a, next())
-	if _, cmd := a.dispatchCommand("build"); cmd != nil {
-		runCmd(a, cmd)
-	}
+	a.historyRunner = emptyHistory
+	_, cmd := a.dispatchCommand("builds")
+	runCmd(a, cmd)
+	step(a, key("enter")) // the running build is the top row
 	if a.view != style.ViewOutput {
-		t.Fatalf(":build with a build running opened %v", a.view)
+		t.Fatalf("enter on a running build in :builds opened %v", a.view)
 	}
 	out := render(a)
 	for _, w := range []string{"#1 building", "#2 while you were away"} {
@@ -375,7 +377,7 @@ func TestBuildEndsElsewhere(t *testing.T) {
 			if got != tc.want {
 				t.Errorf("flash %q / %q, want %q", a.flash, a.errFlash, tc.want)
 			}
-			if a.latestRunningBuild() != nil {
+			if len(a.runningBuilds()) != 0 {
 				t.Error("the build still counts as running")
 			}
 		})

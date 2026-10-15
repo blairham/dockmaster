@@ -44,6 +44,11 @@ var otherCommands = []views.Command{
 	},
 	{Name: cmdRegistryStop, Also: []string{"registry down", "reg stop"}, Desc: "Stop the local registry"},
 	{Name: cmdCatalog, Desc: "A registry's repositories: :catalog [registry], default the local one"},
+	{
+		Name: cmdBuilds,
+		Also: []string{"build-history", "bh"},
+		Desc: "Build history: the builder's records, newest first, with dockmaster's running builds on top",
+	},
 	{Name: cmdTag, Desc: "Tag the selected image: :tag <repo[:tag]>, or the form, as t"},
 	{Name: cmdPush, Desc: "Push an image: :push <ref>, or the selected image's tag, as p (confirms)"},
 	{
@@ -56,7 +61,7 @@ var otherCommands = []views.Command{
 	{Name: "dir", Desc: "Browse for compose files; :dir <path> starts there"},
 	{
 		Name: cmdBuild,
-		Desc: "Build an image: :build <dir or Dockerfile>, else here (a form first); no path reopens a running build",
+		Desc: "Build an image: :build <dir or Dockerfile>, else here (a form first)",
 	},
 	{Name: "sd", Also: []string{"screendump", "screendumps", "dumps"}, Desc: "What ctrl-s has saved"},
 	{Name: "aliases", Also: []string{"alias"}, Desc: "This list (ctrl-a)"},

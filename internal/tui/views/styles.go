@@ -45,6 +45,7 @@ const (
 	KeyCtrlN  = "ctrl+n"
 	KeyDelete = "delete"
 	KeyCtrlS  = "ctrl+s"
+	KeyCtrlZ  = "ctrl+z"
 )
 
 // actFullscreen is the action every log-style view's f returns.

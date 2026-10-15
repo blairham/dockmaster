@@ -97,6 +97,9 @@ func (v *OutputView) PlainText() (string, int) {
 func (v *OutputView) HandleKey(key string) (string, string) {
 	switch key {
 	case "x":
+		if v.build.Replay {
+			return "", ""
+		}
 		if v.build.Running() {
 			return "confirm_stop_build", strconv.FormatInt(v.build.ID(), 10)
 		}

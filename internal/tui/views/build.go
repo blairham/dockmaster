@@ -77,6 +77,10 @@ type Build struct {
 	id         int64
 	running    bool
 	stopped    bool
+	// Replay marks a command that only reads — a past build's log from
+	// the history (#118) — rather than a build: it never counts as a
+	// running build, and its end is not announced.
+	Replay bool
 }
 
 // NewBuild numbers a build; it starts on Start.

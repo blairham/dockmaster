@@ -46,6 +46,7 @@ func (a *App) startBuild(b *views.Build) tea.Cmd {
 		}
 	}
 	a.log.Info("build started", "build", b.Title, "context", b.Context)
+	a.syncBuildsView()
 	cmd := b.Start()
 	a.attachBuild(b)
 	a.flash = b.Title + "…"
@@ -86,6 +87,16 @@ func (a *App) pruneBuilds() {
 	a.builds = kept
 }
 
+// dropBuild forgets b; a view attached to it keeps what it showed.
+func (a *App) dropBuild(b *views.Build) {
+	for i, x := range a.builds {
+		if x == b {
+			a.builds = append(a.builds[:i], a.builds[i+1:]...)
+			return
+		}
+	}
+}
+
 // buildByID finds a build by its ID, nil once it has been dropped.
 func (a *App) buildByID(id int64) *views.Build {
 	for _, b := range a.builds {
@@ -100,21 +111,11 @@ func (a *App) buildByID(id int64) *views.Build {
 func (a *App) runningBuilds() []*views.Build {
 	var out []*views.Build
 	for _, b := range a.builds {
-		if b.Running() {
+		if b.Running() && !b.Replay {
 			out = append(out, b)
 		}
 	}
 	return out
-}
-
-// latestRunningBuild is the newest running build, nil when none is.
-func (a *App) latestRunningBuild() *views.Build {
-	for i := len(a.builds) - 1; i >= 0; i-- {
-		if a.builds[i].Running() {
-			return a.builds[i]
-		}
-	}
-	return nil
 }
 
 // projectBuild is the compose build running for a project on the context
@@ -177,6 +178,11 @@ func (a *App) handleOutputMsg(msg tea.Msg) tea.Cmd {
 // it — through handleAction like any other action, and only on the context
 // it was built on.
 func (a *App) finishBuild(b *views.Build) tea.Cmd {
+	if b.Replay {
+		a.dropBuild(b)
+		return nil
+	}
+	defer a.syncBuildsView()
 	if b.Project != "" && b.Context == a.contextName() {
 		if pv := typedView[*views.ProjectsView](a, style.ViewProjects); pv != nil {
 			pv.SetBusy(b.Project, "")
@@ -214,6 +220,15 @@ func (a *App) finishBuild(b *views.Build) tea.Cmd {
 	return next
 }
 
+// buildByParam is the build an action's param names by ID.
+func (a *App) buildByParam(param string) *views.Build {
+	id, err := strconv.ParseInt(param, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return a.buildByID(id)
+}
+
 // confirmStopBuild asks before stopping a running build: what it has
 // done so far is lost.
 func (a *App) confirmStopBuild(param string) {
@@ -235,9 +250,10 @@ func (a *App) stopBuild(param string) {
 	}
 }
 
-// stopAllBuilds cancels every running build, at shutdown.
+// stopAllBuilds cancels every running build, and any log replay, at
+// shutdown.
 func (a *App) stopAllBuilds() {
-	for _, b := range a.runningBuilds() {
+	for _, b := range a.builds {
 		b.Stop()
 	}
 }

@@ -62,6 +62,7 @@ var knownCommands = []string{
 	"help",
 	"dir",
 	cmdBuild,
+	cmdBuilds,
 	"screendump",
 	"logs",
 	"inspect",
@@ -555,6 +556,9 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		return "", cmd
 	case cmdBuilders, "builder", "buildx":
 		_, cmd := a.handleAction(cmdBuilders, "")
+		return "", cmd
+	case cmdBuilds, "build-history", "bh":
+		_, cmd := a.handleAction("open_builds", "")
 		return "", cmd
 	case cmdRegistries, "registry", "reg":
 		_, cmd := a.handleAction("open_registries", "")

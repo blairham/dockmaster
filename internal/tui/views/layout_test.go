@@ -107,6 +107,7 @@ func TestEveryLayoutViewNamesItself(t *testing.T) {
 		"scan":         NewScanView("", "").layoutKey,
 		"aliases":      NewAliasesView(nil).layoutKey,
 		"alerts":       NewAlertsView(nil).layoutKey,
+		"builds":       NewBuildsView(nil, nil).layoutKey,
 	}
 	if !slices.Equal(LayoutViews(), slices.Sorted(maps.Keys(got))) {
 		t.Errorf("layout views %q, constructors checked %q", LayoutViews(), slices.Sorted(maps.Keys(got)))

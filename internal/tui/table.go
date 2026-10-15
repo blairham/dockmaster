@@ -116,6 +116,8 @@ var bulkConfirmed = map[string]struct{ run, noun string }{
 	"confirm_remove_network":   {run: "remove_network", noun: "network"},
 	// A used-by list of a network (#107): ctrl-d disconnects from it.
 	actConfirmDisconnect: {run: actDisconnect, noun: "container"},
+	// The build history (#118): marked records.
+	actConfirmRemoveBuild: {run: actRemoveBuild, noun: "build"},
 }
 
 // bulkDirect are the bulk actions that run without asking, as they do on

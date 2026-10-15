@@ -33,6 +33,16 @@ fails when the tag has none.
   local" pushes the built tag there once the build succeeds; `u` on a tag
   in a registry pulls it and opens the run form on it. A push or pull that
   finds no registry listening says to `:registry up`.
+- `:builds` (also `:build-history`, `:bh`) is the build history, as Docker
+  Desktop's Builds tab (#118): every record the builder keeps (`docker
+  buildx history`, buildx v0.20.0 or later) — name, status, steps, cache
+  hits, duration, age and a failed build's error — newest first, with
+  dockmaster's own running builds on top. `enter` replays a build's log
+  (`enter` on a running one reopens its output), `o` inspects it, `R` opens
+  the build form on the same context, Dockerfile, target and args, `ctrl-d`
+  removes a record (confirms; works on marked rows), `ctrl-z` lists failed
+  builds only. config.yaml's `builder` picks the buildx builder.
+
 - `ctrl-n` in the volumes and networks views creates one, through a form
   (#106): a volume's name, driver, driver opts and labels; a network's name,
   driver (`overlay` offered only on a swarm manager), subnet, gateway,
@@ -94,8 +104,8 @@ fails when the tag has none.
 ### Changed
 
 - Builds run in the background (#121): `esc` in a build's output leaves it
-  running and only closes the view, and `:build` with no path reopens the
-  newest running build with everything it printed meanwhile. `x` stops a
+  running and only closes the view; `:builds` lists it on top, and `enter`
+  reopens it with everything it printed meanwhile. `x` stops a
   build (confirms). A project shows `building…` while its compose build
   runs, and "then up" runs when it finishes wherever you are. A build that
   ends while its output is closed says so — `[app:dev] build finished`, or

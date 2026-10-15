@@ -385,6 +385,10 @@ These behave as k9s's do (#17):
   port outside 1–65535 are refused at load. An existing kind or k3d registry
   is reused instead of creating this one. macOS's AirPlay Receiver also
   listens on 5000. See [`local-registry.md`](local-registry.md).
+- `builder` — the buildx builder `:builds` reads build history from
+  (`docker buildx history --builder`, #118). Empty, the default, is the one
+  buildx picks for the daemon on screen. A name starting with `-` or holding
+  a space is refused at load.
 - `ui.enableMouse` — on by default, unlike k9s, because dockmaster has
   always had wheel scrolling; `false` turns mouse reporting off, so a
   plain drag selects text as in any other program.
@@ -731,6 +735,7 @@ regardless of case. The view keys, and the columns each can show:
 | `repositories` | `enter` on a registry, `:catalog` | REPOSITORY |
 | `tags` | `enter` on a repository | TAG, DIGEST, SIZE, PLATFORMS, AGE |
 | `builders` | `:builders` | NAME, DRIVER, ENDPOINT, STATUS, BUILDKIT, PLATFORMS, ERROR |
+| `builds` | `:builds` | NAME, STATUS, STEPS, CACHED, DURATION, AGE, ERROR |
 | `lint` | `:lint` | WORST, NAME, FINDINGS, FIRST FINDING |
 | `dir` | `:dir` | NAME, KIND, SIZE, AGE |
 | `dumps` | `:sd` | NAME, KIND, SIZE, AGE |

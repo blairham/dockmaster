@@ -424,6 +424,7 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.ForwardAddress = cfg.ForwardAddress()
 	o.HostShellImage = cfg.HostShell.Image
 	o.LocalRegistryName, o.LocalRegistryPort = cfg.LocalRegistry.Name, cfg.LocalRegistry.Port
+	o.Builder = cfg.Builder
 }
 
 // settings is everything read from the config directory: config.yaml with

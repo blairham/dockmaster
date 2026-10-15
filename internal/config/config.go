@@ -112,6 +112,9 @@ type Config struct {
 	// Alerts flash a container turning unhealthy, OOM-killed, dying or
 	// restart-looping, in any view (#109).
 	Alerts Alerts `yaml:"alerts"`
+	// Builder is the buildx builder :builds reads history from (#118);
+	// empty is the one buildx picks for the daemon on screen.
+	Builder string `yaml:"builder"`
 }
 
 // DefaultPortForwardAddress is where a forward publishes unless
@@ -406,6 +409,9 @@ func (c Config) validateFeatures() []string {
 	if p := c.LocalRegistry.Port; p < 1 || p > 65535 {
 		errs = append(errs, fmt.Sprintf("localRegistry.port must be between 1 and 65535, got %d", p))
 	}
+	if strings.HasPrefix(c.Builder, "-") || strings.ContainsAny(c.Builder, " \t\n") {
+		errs = append(errs, fmt.Sprintf("builder is a buildx builder's name, not a flag or words, got %q", c.Builder))
+	}
 	errs = append(errs, validateRestartLoop("alerts.restartLoop", c.Alerts.RestartLoop, false)...)
 	return errs
 }
@@ -495,6 +501,9 @@ dockmaster:
   localRegistry:
     name: dockmaster-registry
     port: 5000
+  # The buildx builder :builds reads build history from; empty is the one
+  # buildx picks for the daemon on screen.
+  builder: ""
   ui:
     # A skin in skins/ beside this file, by name — a k9s skin works as is
     # (DOCKMASTER_SKIN overrides).

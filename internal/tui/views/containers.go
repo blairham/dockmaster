@@ -730,7 +730,7 @@ func flexibleColumns(cols []table.Column) []int {
 	var flexible []int
 	for i, c := range cols {
 		switch strings.ToUpper(c.Title) {
-		case "NAME", "IMAGE", "REPOSITORY", "MOUNTPOINT", "SUBNET", "SERVICES", "CREATED BY", "COMMAND", "ENDPOINT":
+		case "NAME", "IMAGE", "REPOSITORY", "MOUNTPOINT", "SUBNET", "SERVICES", "CREATED BY", "COMMAND", "ENDPOINT", colError:
 			flexible = append(flexible, i)
 		}
 	}

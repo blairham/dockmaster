@@ -1,0 +1,2 @@
+{"cached_steps":0,"completed_at":"2026-10-15T16:01:05.757300894Z","completed_steps":4,"created_at":"2026-10-15T16:01:05.69476641Z","name":"app/Dockerfile.dev (base)","ref":"colima/colima/pzk1kndfayz6pb67ixyla74lz","status":"Completed","total_steps":4}
+{"cached_steps":0,"completed_at":"2026-10-15T16:00:20.513250517Z","completed_steps":3,"created_at":"2026-10-15T16:00:20.394359292Z","name":"broken","ref":"colima/colima/bp3jjedj9bki9bw5snjenx5vq","status":"Error","total_steps":3}

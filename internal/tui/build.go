@@ -36,16 +36,9 @@ var errNoDockerForStream = errors.New("this needs the `docker` CLI on PATH")
 // on a Dockerfile, whose directory is then the context. No path is the
 // directory dockmaster was started in; ~ is the home directory, as in :dir.
 //
-// With no path while a build is running, it reattaches to the newest
-// running build instead (#121): leaving a build's output leaves it running,
-// and this is the way back to it.
+// A build left running is found again in :builds (#118), which lists
+// dockmaster's running builds on top.
 func (a *App) buildCommand(arg string) (string, tea.Cmd) {
-	if arg == "" {
-		if b := a.latestRunningBuild(); b != nil {
-			a.attachBuild(b)
-			return "", nil
-		}
-	}
 	path := arg
 	if path == "" {
 		wd, err := os.Getwd()

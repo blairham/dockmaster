@@ -61,6 +61,7 @@ var columnSets = map[string][]func() []table.Column{
 	"builders":     {builderColumns},
 	"repositories": {registryCatalogColumns},
 	"tags":         {registryTagColumns},
+	"builds":       {buildsColumns},
 	"lint":         {lintColumns},
 	"dir":          {dirColumns},
 	"dumps":        {dumpColumns},
@@ -358,6 +359,7 @@ var (
 	_ Relayouter = (*ContextsView)(nil)
 	_ Relayouter = (*RegistriesView)(nil)
 	_ Relayouter = (*BuildersView)(nil)
+	_ Relayouter = (*BuildsView)(nil)
 	_ Relayouter = (*LintView)(nil)
 	_ Relayouter = (*DirView)(nil)
 	_ Relayouter = (*DumpsView)(nil)
