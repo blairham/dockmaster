@@ -44,6 +44,8 @@ var knownCommands = []string{
 	"contexts",
 	cmdRegistries,
 	cmdLogin,
+	cmdTag,
+	cmdPush,
 	"sd",
 	"lint",
 	cmdAlerts,
@@ -474,6 +476,14 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	if rest, ok := strings.CutPrefix(raw, cmdBuild+" "); ok {
 		return a.buildCommand(strings.TrimSpace(rest))
 	}
+	// :tag <ref> and :push <ref> keep the reference's case, as :pull does,
+	// so the daemon client refuses capitals in a repository with its reason.
+	if rest, ok := cutPrefixFold(raw, cmdTag+" "); ok {
+		return a.tagCommand(strings.TrimSpace(rest))
+	}
+	if rest, ok := cutPrefixFold(raw, cmdPush+" "); ok {
+		return a.pushCommand(strings.TrimSpace(rest))
+	}
 	// :login <registry>; the address is folded the way docker login folds it.
 	if rest, ok := strings.CutPrefix(lower, "login "); ok {
 		_, cmd := a.handleAction("login_form", strings.TrimSpace(rest))
@@ -531,6 +541,10 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	case cmdRegistries, "registry", "reg":
 		_, cmd := a.handleAction("open_registries", "")
 		return "", cmd
+	case cmdTag:
+		return a.tagCommand("")
+	case cmdPush:
+		return a.pushCommand("")
 	case cmdLogin:
 		_, cmd := a.handleAction("login_form", "")
 		return "", cmd
@@ -707,7 +721,8 @@ var noContextCommands = map[string]bool{
 // argCommands take an argument after their name. xray's must be a root it
 // can grow from (validateCommand).
 var argCommands = map[string]bool{
-	"pull": true, cmdLoad: true, cmdLogin: true, "dir": true, cmdBuild: true,
+	"pull": true, cmdLoad: true, cmdLogin: true, cmdTag: true, cmdPush: true,
+	"dir": true, cmdBuild: true,
 	"ctx": true, "context": true, "prune": true, "xray": true,
 }
 

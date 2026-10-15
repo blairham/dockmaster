@@ -52,6 +52,10 @@ fails when the tag has none.
   restart you asked for is not a crash, and each transition is reported
   once. `alerts.enabled` (on), `alerts.bell` and `alerts.restartLoop`
   (`count` 3 in `window` 5m), overridable per context. (#109)
+- Tag and push images (#102): `t` on an image (or `:tag <ref>`) tags it
+  `repo[:tag]`; `p` (or `:push [ref]`) pushes its tag after a confirm, with
+  the credential the docker config holds for the registry (`:registries`),
+  progress streaming to the flash line. Both are refused under `--readonly`.
 
 ### Changed
 

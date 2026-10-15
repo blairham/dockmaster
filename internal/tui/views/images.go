@@ -181,6 +181,15 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 		return actScanImage, runRef(im)
 	case "E":
 		return actSaveForm, runRef(im)
+	case "t":
+		// Tag it (#102): by reference, or by ID for an untagged image.
+		return ActTagForm, runRef(im)
+	case "p":
+		// Push the row's own tag; an untagged image has none to push.
+		if runRef(im) == im.ID || im.Tag == noneRef {
+			return ActNoPushTag, im.Short()
+		}
+		return ActPushImage, im.Ref()
 	case "u":
 		// Run it: by reference, or by ID for a dangling image.
 		return "run_image", runRef(im)
@@ -201,6 +210,16 @@ func (v *ImagesView) keyFor(key string, im docker.Image) (string, string) {
 	return "", ""
 }
 
+// noneRef is the daemon's name for a missing repository or tag.
+const noneRef = "<none>"
+
+// ActTagForm opens the tag form on an image; ActNoPushTag answers a push
+// of an image with no tag.
+const (
+	ActTagForm   = "tag_form"
+	ActNoPushTag = "no_push_tag"
+)
+
 // actSaveForm opens the save form; its param is the image references,
 // one per line.
 const actSaveForm = "save_form"
@@ -208,7 +227,7 @@ const actSaveForm = "save_form"
 // runRef names an image to scan or run: its reference, or its ID when it
 // has no repository.
 func runRef(im docker.Image) string {
-	if im.Dangling || im.Repo == "" || im.Repo == "<none>" {
+	if im.Dangling || im.Repo == "" || im.Repo == noneRef {
 		return im.ID
 	}
 	return im.Ref()
@@ -260,8 +279,8 @@ func (v *ImagesView) rebuildRows() {
 
 		repo, tag := im.Repo, im.Tag
 		if im.Dangling {
-			repo = style.Muted.Render("<none>")
-			tag = style.Muted.Render("<none>")
+			repo = style.Muted.Render(noneRef)
+			tag = style.Muted.Render(noneRef)
 		}
 
 		used := "—"

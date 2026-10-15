@@ -81,6 +81,8 @@ These act on the row selected in the current view, as their keys do.
 | Command | Also | What it does |
 |---|---|---|
 | `:pull <ref>` | | Pull an image; the reference keeps its case |
+| `:tag [ref]` | | Tag the selected image as `repo[:tag]` (`:latest` when it has none); without a reference, the tag form, as `t` in the images view |
+| `:push [ref]` | | Push an image to its registry, with the docker config's credential for it (see `:registries`); without a reference, the selected image's tag, as `p` in the images view. Confirms; progress streams to the flash line |
 | `:load <path>` | | Load the images in a tar, as `docker load` (`~` and relative paths work); refused under `--readonly` |
 | `:prune` | | Remove stopped containers (confirms) |
 | `:prune all` | | As `docker system prune`: stopped containers, unused networks, dangling images, build cache; volumes are kept (confirms) |

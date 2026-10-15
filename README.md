@@ -75,6 +75,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 | `a` | toggle stopped containers / all images | `P` | prune (confirms) |
 | `ctrl-k` | show the containers a runtime's built-in Kubernetes runs pods in (hidden by default) | `ctrl-z` | faults only: unhealthy, restarting, dead, or exited non-zero (stopped ones included) |
 | `ctrl-w` | wide columns: ID, command, networks and IP | | |
+| on an image: `t` | tag it (`repo[:tag]`) | `p` | push its tag to the registry, with the docker config's credential (confirms) |
 | in `:registries`: `n` | log in to a registry (`enter` logs in again to the selected one) | `ctrl-d` | log out (confirms) |
 | `t` | toggle the CPU/MEM poll | `z` | volume sizes (slow) |
 | on a volume: `enter` | browse its files (`enter` opens, `esc` goes up) | `o` | inspect |

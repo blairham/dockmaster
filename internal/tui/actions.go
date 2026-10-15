@@ -79,6 +79,8 @@ var mutating = map[string]bool{
 	"network_picker": true, "connect_network": true, actConfirmDisconnect: true,
 	// The docker config and its credential helper, not the daemon.
 	"login_form": true, "registry_login": true, "confirm_registry_logout": true,
+	// A tag changes the daemon's images; a push publishes one.
+	views.ActTagForm: true, views.ActTagImage: true, views.ActPushImage: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -432,6 +434,19 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		return a, a.runCopy(spec)
+
+	case views.ActTagForm:
+		a.openTagForm(param)
+		return a, nil
+	case views.ActTagImage:
+		cmd := a.tagImage(param)
+		return a, cmd
+	case views.ActPushImage:
+		a.confirmPush(param)
+		return a, nil
+	case views.ActNoPushTag:
+		a.errFlash = "image " + param + " has no tag to push — t tags it first"
+		return a, nil
 
 	case actCommitForm:
 		return a.openCommitForm(param)
@@ -824,6 +839,8 @@ func confirmTitle(action string) string {
 		return "Delete"
 	case "registry_logout":
 		return "Log Out"
+	case actPush:
+		return "Push"
 	case "pod_rm", "node_remove":
 		return "Remove"
 	case actDisconnect:
@@ -937,6 +954,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 		return a.removeContext(pa.param)
 	case "registry_logout":
 		return a.registryLogout(pa.param)
+	case actPush:
+		return a.startPush(pa.param)
 	case "compose_scale":
 		sp, err := views.DecodeScaleSpec(pa.param)
 		if err != nil {
