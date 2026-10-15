@@ -12,6 +12,7 @@ import (
 
 	"github.com/blairham/tuikit/theme"
 
+	"github.com/blairham/dockmaster/internal/config"
 	"github.com/blairham/dockmaster/internal/tui/style"
 )
 
@@ -19,10 +20,11 @@ import (
 // `contexts:` (#55), resolved by main: Theme is the context's skin over the
 // default theme (nil when it names none, or DOCKMASTER_SKIN overrides it),
 // ReadOnly its readOnly (nil when unset), DefaultView the command a switch
-// to it opens.
+// to it opens, Alerts its alerts keys over the top-level ones (#109).
 type ContextSettings struct {
 	Theme       *theme.Theme
 	ReadOnly    *bool
+	Alerts      *config.ContextAlerts
 	DefaultView string
 }
 

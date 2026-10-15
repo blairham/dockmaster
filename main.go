@@ -566,6 +566,7 @@ func settingsOptions(st settings) tui.Options {
 		ImageScans: tui.ImageScans{
 			Enable: cfg.ImageScans.Enable, Background: cfg.ImageScans.Background, TTL: cfg.ImageScans.TTL,
 		},
+		Alerts: cfg.Alerts,
 	}
 	behaviorOptions(cfg, &o)
 	o.ForceReadOnly = st.forceReadOnly
@@ -581,7 +582,7 @@ func contextOptions(
 ) map[string]tui.ContextSettings {
 	out := make(map[string]tui.ContextSettings, len(in))
 	for name, cs := range in {
-		o := tui.ContextSettings{ReadOnly: cs.ReadOnly, DefaultView: cs.DefaultView}
+		o := tui.ContextSettings{ReadOnly: cs.ReadOnly, DefaultView: cs.DefaultView, Alerts: cs.Alerts}
 		if th, ok := themes[name]; ok {
 			o.Theme = &th
 		}

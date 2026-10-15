@@ -229,6 +229,8 @@ type App struct {
 	// (#63); imageScans is config.yaml's imageScans as last applied.
 	scans      *scan.Cache
 	imageScans ImageScans
+	// alerts is the alert watcher and what it raised this session (#109).
+	alerts alertWatch
 }
 
 // Options configures a new App.
@@ -331,6 +333,9 @@ type Options struct {
 	// CommandFromFlag says Command came from -c, which beats a context's
 	// defaultView; from config.yaml's defaultView, the context's wins.
 	CommandFromFlag bool
+	// Alerts is config.yaml's alerts block (#109); a context's entry in
+	// Contexts lays its own keys over it.
+	Alerts config.Alerts
 }
 
 // ThresholdsFrom converts config.yaml's thresholds block for the views.
@@ -562,12 +567,13 @@ func (a *App) init() tea.Cmd {
 	if !a.splashActive {
 		// Splashless: straight to the first frame, so the poll starts now
 		// rather than when a splash that never showed would have ended.
-		return tea.Batch(a.activeView().Init(), a.loader.Tick(), a.tick())
+		return tea.Batch(a.activeView().Init(), a.loader.Tick(), a.tick(), a.ensureAlerts())
 	}
 	return tea.Batch(
 		a.activeView().Init(),
 		a.loader.Tick(),
 		a.splashTimer(),
+		a.ensureAlerts(),
 	)
 }
 
@@ -610,11 +616,16 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// `docker ps` is outstanding is a no-op, not a second request.
 		// A background image scan, when one is due, is a command of its
 		// own: it never holds up the poll.
-		return a, tea.Batch(a.refreshPolledView(), a.scanNextImage(), a.checkReload(), a.tick())
+		return a, tea.Batch(a.refreshPolledView(), a.scanNextImage(), a.checkReload(), a.tick(), a.ensureAlerts())
 
 	case reloadedMsg:
 		a.applyReload(msg)
-		return a, nil
+		cmd := a.ensureAlerts()
+		return a, cmd
+
+	case alertEventsMsg:
+		cmd := a.handleAlertEvents(msg)
+		return a, cmd
 
 	case loading.TickMsg:
 		return a, a.loader.Update(msg)
@@ -777,6 +788,7 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *App) shutdown() {
 	_ = a.saveHistory(a.historyFile) //nolint:errcheck // a convenience; the process is exiting
 	a.stopStoppableViews()
+	a.stopAlerts()
 	a.stopSessionForwards()
 	if a.client != nil {
 		_ = a.client.Close() //nolint:errcheck // process is exiting
@@ -849,10 +861,12 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 	if a.applied.readOnlyFromContext(msg.name) {
 		a.flash += " — readonly (its contexts: setting)"
 	}
+	// The alert watcher follows the client, with the new context's settings.
+	alertCmd := a.restartAlerts()
 	if msg.keepView && a.view == style.ViewRuntimes {
 		a.viewStack = nil
 		a.resizeActiveView()
-		return a, cv.Refresh()
+		return a, tea.Batch(cv.Refresh(), alertCmd)
 	}
 	if msg.land == nil {
 		// :ctx, the picker: the context's own defaultView, else the view
@@ -860,7 +874,7 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		msg.land = a.contextLanding(msg.name)
 	}
 	cmd := a.landAfterSwitch(msg.land)
-	return a, cmd
+	return a, tea.Batch(cmd, alertCmd)
 }
 
 // landAfterSwitch opens the view a context switch lands on, with its filter,

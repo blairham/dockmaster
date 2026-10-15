@@ -39,6 +39,7 @@ var otherCommands = []views.Command{
 		Desc: "The registries the docker config knows, and whether each is logged in",
 	},
 	{Name: cmdLogin, Desc: "Log in to a registry: :login [registry] (default Docker Hub)"},
+	{Name: cmdAlerts, Desc: "What alerted this session, newest first; enter jumps to the container"},
 	{Name: "hostshell", Desc: "A root shell on the daemon's host (confirms)"},
 	{Name: "dir", Desc: "Browse for compose files; :dir <path> starts there"},
 	{Name: cmdBuild, Desc: "Build an image: :build <dir or Dockerfile>, else here (a form first)"},

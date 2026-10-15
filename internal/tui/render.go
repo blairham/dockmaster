@@ -515,6 +515,11 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<o>", "Inspect",
 		"<esc>", "Back",
 	),
+	style.ViewAlerts: keys(
+		"<enter>", "Container",
+		"<c>/<I>", "Copy name/ID",
+		"<esc>", "Back",
+	),
 	// Nothing to act on: the dashboard reads, and r, the digits and :
 	// are the app's.
 	style.ViewPulses: {},

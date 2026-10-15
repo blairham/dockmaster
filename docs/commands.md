@@ -50,6 +50,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:xray vol` | `:xray volume`, `:xray volumes` | xray grown from the volumes: each volume → the containers mounting it |
 | `:xray img` | `:xray image`, `:xray images` | xray grown from the images: each image → the containers created from it |
 | `:lint` | | Each container's risky or fragile settings, worst first |
+| `:alerts` | | What alerted this session — a container turning unhealthy, OOM-killed, exiting non-zero or restart-looping — newest first (`alerts:` in [`design/config.md`](design/config.md#alerts)) |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
 | `:build [path]` | | Build an image: a form for tag, Dockerfile, target and build args, then `docker buildx build` (or `docker build` without buildx) against the daemon on screen, its output streamed into a log-style view. The path is a directory or a Dockerfile (default: the working directory; `~` works). Refused under `--readonly` |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
@@ -238,6 +239,7 @@ a root keep every container key above.
 | `:dir` | `enter` walk in or open, `u` up from the file, `e` edit then up, `ctrl-d` `compose -f <file> down` (confirms), `b` build a Dockerfile (or a directory's own), `esc` back up |
 | A build's output | `s` autoscroll, `w` wrap, `f` fullscreen, `c` / `ctrl-s` copy / save (to the saved logs), `/` filter; `esc` stops a build still running and goes back |
 | `:lint` | `enter` explain, `o` inspect the container |
+| `:alerts` | `enter` the container, in the containers view with stopped ones listed (refused for an alert from another context), `c` / `I` copy its name / ID |
 | Image scan | `enter` the fix and the advisory link |
 | Contexts (`:ctx`) | `enter` switch, `ctrl-d` `docker context rm` (confirms; not `default`, the one dockmaster is on, or the CLI's current one) |
 | Aliases (`ctrl-a`) | `enter` run the command, `/` filter |

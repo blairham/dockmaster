@@ -107,6 +107,9 @@ type Config struct {
 	PortForwardAddress string `yaml:"portForwardAddress"`
 	// HostShell is :hostshell's helper, a root shell on the daemon's host.
 	HostShell HostShell `yaml:"hostShell"`
+	// Alerts flash a container turning unhealthy, OOM-killed, dying or
+	// restart-looping, in any view (#109).
+	Alerts Alerts `yaml:"alerts"`
 }
 
 // DefaultPortForwardAddress is where a forward publishes unless
@@ -236,10 +239,12 @@ type Logger struct {
 //     unset (nil) follows it. --readonly beats both.
 //   - DefaultView: the command a switch to this context, or a start on it,
 //     opens, as the top-level defaultView; -c beats it at startup.
+//   - Alerts: the alerts: keys it sets, over the top-level ones (#109).
 type ContextSettings struct {
-	ReadOnly    *bool  `yaml:"readOnly"`
-	Skin        string `yaml:"skin"`
-	DefaultView string `yaml:"defaultView"`
+	ReadOnly    *bool          `yaml:"readOnly"`
+	Alerts      *ContextAlerts `yaml:"alerts"`
+	Skin        string         `yaml:"skin"`
+	DefaultView string         `yaml:"defaultView"`
 }
 
 // Default is the configuration with no file.
@@ -252,6 +257,10 @@ func Default() Config {
 		UI:                 UI{EnableMouse: true},
 		ImageScans:         ImageScans{TTL: DefaultScanTTL},
 		HostShell:          HostShell{Image: DefaultHostShellImage},
+		Alerts: Alerts{
+			Enabled:     true,
+			RestartLoop: RestartLoop{Count: DefaultRestartLoopCount, Window: DefaultRestartLoopWindow},
+		},
 		Thresholds: Thresholds{
 			CPU:    Threshold{Warn: 70, Critical: 90},
 			Memory: Threshold{Warn: 70, Critical: 90},
@@ -370,6 +379,7 @@ func (c Config) validateFeatures() []string {
 	if img := c.HostShell.Image; strings.TrimSpace(img) == "" || strings.HasPrefix(img, "-") {
 		errs = append(errs, fmt.Sprintf("hostShell.image is an image name, not empty or a flag, got %q", img))
 	}
+	errs = append(errs, validateRestartLoop("alerts.restartLoop", c.Alerts.RestartLoop, false)...)
 	return errs
 }
 
@@ -404,6 +414,9 @@ func (c Config) validateContexts() []string {
 		if s := c.Contexts[name].Skin; strings.ContainsAny(s, `/\`) {
 			errs = append(errs, fmt.Sprintf("contexts.%s.skin is a skin's name in %s, not a path, got %q",
 				name, SkinsDirName, s))
+		}
+		if a := c.Contexts[name].Alerts; a != nil && a.RestartLoop != nil {
+			errs = append(errs, validateRestartLoop("contexts."+name+".alerts.restartLoop", *a.RestartLoop, true)...)
 		}
 	}
 	return errs
@@ -487,7 +500,21 @@ dockmaster:
   #       skin: red
   #       readOnly: true
   #       defaultView: containers
+  #       alerts:
+  #         bell: true
   contexts: {}
+  # Flash, in whatever view is on screen, when a container turns unhealthy,
+  # is OOM-killed, exits non-zero or restart-loops; :alerts lists them, and
+  # each is written to the log file. A stop, kill or restart you asked for
+  # is not a crash. contexts: can override any of these per context.
+  alerts:
+    enabled: true
+    # Ring the terminal bell with each alert too.
+    bell: false
+    # count crash restarts within window is a restart loop.
+    restartLoop:
+      count: 3
+      window: 5m
   # The VULN column (images, containers): a summary of each image's last
   # vulnerability scan (grype or trivy), cached by image ID under the state
   # directory. v caches its result either way. Scans are expensive, so all

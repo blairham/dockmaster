@@ -208,6 +208,7 @@ const (
 	ViewOutput
 	ViewRegistries
 	ViewLoginForm
+	ViewAlerts
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -257,6 +258,7 @@ var viewNames = map[ViewType]string{
 	ViewOutput:       "Output",
 	ViewRegistries:   "Registries",
 	ViewLoginForm:    "Login",
+	ViewAlerts:       "Alerts",
 }
 
 // ViewResource returns the singular resource noun for the border title,
@@ -313,4 +315,5 @@ var viewResources = map[ViewType]string{
 	ViewOutput:       "line",
 	ViewRegistries:   "registrie",
 	ViewLoginForm:    resField,
+	ViewAlerts:       "alert",
 }

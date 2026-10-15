@@ -145,6 +145,56 @@ which image is being scanned. With `background` off nothing scans unless
 `ttl` must be at least a minute. All three keys apply on a reload
 (`ui.reactive`).
 
+## alerts
+
+```yaml
+dockmaster:
+  alerts:
+    enabled: true      # watch for them while dockmaster runs
+    bell: false        # ring the terminal bell with each one too
+    restartLoop:
+      count: 3         # this many crash restarts...
+      window: 5m       # ...within this long is a loop
+  contexts:
+    prod:
+      alerts:
+        bell: true     # any key, over the top-level one, on this context
+```
+
+While dockmaster runs it holds one `docker events` subscription, from the
+moment it starts (`tui/alerts.go`) — its own, not the events view's, which
+exists only while that view is open — and flashes, in whatever view is on
+screen, `[web] OOM-killed`. Each alert is also written to the log file at
+warn (`msg=alert kind=oom container=web id=… context=…`), which the
+default `--log-level` keeps, and listed by `:alerts` for the rest of the
+session, newest first, with the context it fired on.
+
+What alerts is decided by `internal/alerts`, a pure function of the event
+stream, judged by the events' own times — no daemon call, no clock:
+
+- **unhealthy**: a `health_status: unhealthy` after anything else. A
+  container that stays unhealthy is reported once; after `healthy`, or a
+  restart, the next unhealthy is news again.
+- **OOM-killed**: an `oom` event. The `die` that follows within 10 s is the
+  same crash and is not reported again.
+- **exited with code N**: a `die` with a non-zero exit **that nobody asked
+  for**. `docker stop`, `kill`, `restart` and `compose down` all send a
+  `kill` event first; a `die` after one is a stop, whatever its exit code,
+  and is never an alert.
+- **restart-looping**: `count` restarts within `window`, where a restart is
+  a `start` after an unasked `die` — the restart policy's, not yours.
+  Reported once; until fewer than `count` restarts are left in the window,
+  the loop is the alert and its crashes are not reported one by one. A
+  container's crashes are reported at most once per `window` before that,
+  so a fast crash loop is one "exited" and then one "restart-looping".
+
+`count` must be at least 2 and `window` at least 1s. The subscription
+starts from now, never replaying history, so starting dockmaster does not
+re-announce yesterday's crash. If the stream ends — the daemon restarted,
+the VM slept — the next poll subscribes again. A context switch starts the
+watcher over on the new daemon, with that context's settings; a reload
+applies new settings at once.
+
 ## Skins
 
 `ui.skin` names a skin in `skins/` beside `config.yaml` (`<name>.yaml` or
@@ -190,7 +240,9 @@ dockmaster:
       readOnly: false
 ```
 
-`skin`, `readOnly` and `defaultView` are the only keys, and decoding is as
+`skin`, `readOnly`, `defaultView` and `alerts` are the only keys — `alerts`
+taking any of the top-level [alerts](#alerts) keys, a `restartLoop` with
+only a `count` or a `window` keeping the other — and decoding is as
 strict as anywhere else in the file: any other key is an error. An entry
 does not have to name a context the docker store has — contexts come and
 go — and one that does not is simply never used. Each entry is checked at
@@ -677,6 +729,7 @@ regardless of case. The view keys, and the columns each can show:
 | `files` | `enter` on a volume | NAME, SIZE, MODE, AGE |
 | `scan` | `v` on an image | SEVERITY, ID, PACKAGE, INSTALLED, FIXED IN, TITLE |
 | `aliases` | `ctrl-a`, `:aliases` | COMMAND, ALSO, KIND, DESCRIPTION |
+| `alerts` | `:alerts` | TIME, ALERT, CONTAINER, CONTEXT, MESSAGE |
 
 VULN is shown without `views.yaml` only with `imageScans.enable` on (see
 [imageScans](#imagescans)); naming it here shows it either way.
