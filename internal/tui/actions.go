@@ -54,7 +54,7 @@ var mutating = map[string]bool{
 	"runtime_start": true, "runtime_shell": true,
 	"confirm_runtime_stop": true, "confirm_runtime_restart": true, "confirm_runtime_delete": true,
 	"runtime_new": true, "runtime_edit": true, "runtime_create": true, "runtime_apply": true,
-	"compose_up": true, "compose_edit": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
+	actComposeUp: true, "compose_edit": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
 	"scale_form": true, "compose_scale": true,
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
 	"confirm_delete_all_images": true, "confirm_delete_all_volumes": true,
@@ -70,7 +70,7 @@ var mutating = map[string]bool{
 	"confirm_remove_dump": true,
 	"compose_up_file":     true, "compose_edit_file": true, "confirm_compose_down_file": true,
 	// A build writes an image into the daemon; the form is the way in.
-	"build_form": true, "build_run": true,
+	"build_form": true, "build_run": true, "compose_build_form": true, "compose_build": true,
 	// The context store, not the daemon — but a removal all the same.
 	"confirm_remove_context": true,
 	// A commit or a load makes an image; export and save only read the
@@ -642,7 +642,7 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		name, op, _ := strings.Cut(param, "\x00")
 		a.errFlash = fmt.Sprintf("%s is already %s — wait for it to finish", name, op)
 		return a, nil
-	case "compose_up":
+	case actComposeUp:
 		return a, a.composeUp(param)
 	case "compose_edit":
 		return a, a.composeEdit(param)
@@ -653,6 +653,19 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "confirm_compose_down":
 		a.confirmComposeDown(param)
 		return a, nil
+	case "compose_build_form":
+		a.openComposeBuildForm(param)
+		return a, nil
+	case "compose_build":
+		sp, err := views.DecodeComposeBuildSpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		cmd := a.composeBuild(sp)
+		return a, cmd
+	case "compose_config":
+		return a.composeConfig(param)
 	case "scale_form":
 		a.openScaleForm(param)
 		return a, nil

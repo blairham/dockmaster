@@ -34,10 +34,13 @@ is showing rather than the shell's current context.
 | `R` | `compose restart` | no |
 | `p` | `compose pull` | no |
 | `s` | a form for a service and its count, then `compose up -d --scale svc=N --no-recreate svc` | when it removes containers |
+| `b` | a form for the service (or all) and "then up", then `compose build [svc]`, streamed | no |
+| `y` | `compose config`, the merged project as YAML, in the inspect view | no — read-only |
 | `ctrl-d` | `compose down` — containers and networks; **volumes are kept** | yes |
 | `x` | stops each container | yes |
 
-All are actions in `handleAction`, so `--readonly` refuses them.
+All are actions in `handleAction`, so `--readonly` refuses them — except
+`y`, which reads files and changes nothing.
 
 ## When the files are not here
 
@@ -53,7 +56,9 @@ machine", and the verbs fall back to what the Engine API can do on its own:
 - `p` refuses, with the reason — there is nothing to pull without a file;
 - `e` refuses too — there is no file to edit;
 - `s` refuses, with the reason — only compose knows how to make another
-  replica of a service, so there is nothing to fall back to.
+  replica of a service, so there is nothing to fall back to;
+- `b` and `y` refuse too — a build and the merged config both start from
+  the files.
 
 ## Scaling
 
@@ -80,6 +85,26 @@ naming the service and both counts ("scale web in shop from 3 to 1? 2
 containers are removed"); to 0, the prompt says every container goes. A
 scale up, or to the same count, removes nothing and runs directly. The
 project's busy guard applies as for the other verbs, rechecked on submit.
+
+## Building and the merged config
+
+`b` (#105) opens a small form — the service, a choice of "(all)" and the
+project's services, and "then up", no by default — and runs
+
+    docker <endpoint> compose <project args> build [<svc>]
+
+into the output view `:build` uses (`views.OutputView`): the output streams
+as it runs, `s` / `w` / `f` / `c` / `ctrl-s` act as in a log, a failure
+stays on screen, and leaving the view stops the build. Progress is plain
+text through `BUILDKIT_PROGRESS` and `COMPOSE_PROGRESS` rather than a flag,
+since compose's `--progress` has moved between versions. With "then up",
+`compose up -d` runs once the build succeeds — through `handleAction`, so
+it is the `u` above, rechecked — and never after a failure.
+
+`y` (k9s's yaml) is `compose config`: every `-f` file merged, `.env` read
+and variables interpolated — the usual answer to "why is it running with
+that value" — shown in the inspect view, so `/` searches it and `c` /
+`ctrl-s` copy or save it.
 
 ## Editing
 

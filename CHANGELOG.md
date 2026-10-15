@@ -56,6 +56,13 @@ fails when the tag has none.
   `repo[:tag]`; `p` (or `:push [ref]`) pushes its tag after a confirm, with
   the credential the docker config holds for the registry (`:registries`),
   progress streaming to the flash line. Both are refused under `--readonly`.
+- Projects build and show their config (#105): `b` runs `compose build` —
+  every service or one, picked in a form — streamed into the same output view
+  as `:build`, and optionally `compose up -d` once it succeeds; `y` shows
+  `compose config`, the merged YAML of every compose file, `.env` and
+  interpolation, in the inspect view. A build is refused under `--readonly`
+  and when the compose files are not on this machine; the config is allowed
+  under `--readonly`.
 
 ### Changed
 

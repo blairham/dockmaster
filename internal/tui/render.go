@@ -327,6 +327,8 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<R>", "Restart",
 		"<p>", "Pull",
 		"<s>", "Scale",
+		"<b>", "Build",
+		"<y>", "Config",
 		"<ctrl-d>", "Down",
 	),
 	style.ViewRuntimes: keys(
@@ -397,6 +399,12 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<enter>", "Connect/Disconnect",
 		"<tab>", "Next field",
 		"<←/→>", "Network",
+		"<esc>", "Cancel",
+	),
+	style.ViewComposeBuild: keys(
+		"<enter>", "Build",
+		"<tab>", "Next field",
+		"<←/→>", "Choice",
 		"<esc>", "Cancel",
 	),
 	style.ViewBuildForm: keys(
@@ -842,6 +850,8 @@ func projectHelp() chrome.HelpSection {
 			{Key: "<p>", Desc: "Pull images"},
 			{Key: "<e>", Desc: "Edit, then up"},
 			{Key: "<s>", Desc: "Scale a service"},
+			{Key: "<b>", Desc: "Build, then up"},
+			{Key: "<y>", Desc: "Config, merged"},
 			{Key: "<ctrl-d>", Desc: "Compose down"},
 		},
 	}

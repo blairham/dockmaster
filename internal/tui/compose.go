@@ -22,6 +22,9 @@ import (
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
+// actComposeUp is compose up's action, which a build can be followed by.
+const actComposeUp = "compose_up"
+
 // composeTimeout bounds a compose call. `up` pulls and builds what it has
 // to; a cold one on a slow daemon runs for minutes.
 const composeTimeout = 10 * time.Minute
@@ -418,4 +421,88 @@ func (a *App) composeScale(sp views.ScaleSpec) tea.Cmd {
 	return a.composeRun(p, "scaling", verb, func(c *docker.Compose, ctx context.Context, p docker.Project) error {
 		return c.Scale(ctx, p, sp.Service, sp.Replicas)
 	})
+}
+
+// openComposeBuildForm opens the compose build form on a project (#105). As
+// with pull and scale there is no per-container fallback — only compose
+// knows how to build a service — so a project whose files are not here, or
+// one busy with another verb, is refused up front.
+func (a *App) openComposeBuildForm(name string) {
+	p, ok := a.composeProject(name)
+	if !ok {
+		a.errFlash = "project " + name + " is not in the last listing — refresh and try again"
+		return
+	}
+	if op := a.projectBusy(name); op != "" {
+		a.errFlash = fmt.Sprintf("%s is already %s — wait for it to finish", name, op)
+		return
+	}
+	if missing := p.MissingFile(); missing != "" {
+		a.errFlash = "cannot build " + name + ": " + missing
+		return
+	}
+	a.setView(style.ViewComposeBuild, views.NewComposeBuildForm(name, p.Services))
+	a.pushView(style.ViewComposeBuild)
+}
+
+// composeBuild runs `compose build` into the output view, rechecking what
+// may have changed since the form opened. With "then up" it runs compose up
+// once the build succeeds — through handleAction, so readonly and the
+// missing-files fallback are compose up's own.
+func (a *App) composeBuild(sp views.ComposeBuildSpec) tea.Cmd {
+	if a.view == style.ViewComposeBuild {
+		a.popView()
+	}
+	p, ok := a.composeProject(sp.Project)
+	if !ok {
+		a.errFlash = "project " + sp.Project + " is not in the last listing — refresh and try again"
+		return nil
+	}
+	if missing := p.MissingFile(); missing != "" {
+		a.errFlash = "cannot build " + sp.Project + ": " + missing
+		return nil
+	}
+	endpoint := a.client.EndpointArgs()
+	if _, err := p.BuildCommand("docker", endpoint, sp.Service); err != nil {
+		a.errFlash = "cannot build " + sp.Project + ": " + err.Error()
+		return nil
+	}
+	start := a.streamCLI(func(_ context.Context, bin string) docker.CommandSpec {
+		cs, _ := p.BuildCommand(bin, endpoint, sp.Service) //nolint:errcheck // checked above, same service
+		return cs
+	})
+	title := "compose build " + sp.Project
+	if sp.Service != "" {
+		title += " " + sp.Service
+	}
+	then := ""
+	if sp.Up {
+		then = actComposeUp
+	}
+	return a.openOutput(title, start, then, sp.Project)
+}
+
+// composeConfig shows `compose config` for a project in the inspect view:
+// the merged result of every -f file, .env and interpolation, which is the
+// usual answer to "why is it running with that value". It reads files and
+// changes nothing, so --readonly allows it.
+func (a *App) composeConfig(name string) (tea.Model, tea.Cmd) {
+	p, ok := a.composeProject(name)
+	if !ok {
+		return a, nil
+	}
+	if missing := p.MissingFile(); missing != "" {
+		a.errFlash = "cannot show the config of " + name + ": " + missing
+		return a, nil
+	}
+	c, err := a.newCompose()
+	if err != nil {
+		a.errFlash = err.Error()
+		return a, nil
+	}
+	v := views.NewInspectFetchView(name+" config", func(ctx context.Context) ([]byte, error) {
+		return c.Config(ctx, p)
+	})
+	v.SetPlain()
+	return a.openReport(v)
 }

@@ -35,7 +35,7 @@ type ScaleFormView struct {
 // starts at the chosen service's count and follows the choice.
 func NewScaleForm(project string, services []string, replicas map[string]int, service string) *ScaleFormView {
 	v := &ScaleFormView{project: project, replicas: replicas}
-	svc := formField{key: "service", label: "Service", hint: "←/→ to change", choices: services}
+	svc := formField{key: "service", label: labelService, hint: commitChoiceHint, choices: services}
 	for i, s := range services {
 		if s == service {
 			svc.choice = i
