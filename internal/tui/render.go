@@ -477,9 +477,25 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<esc>", "Back",
 	),
 	style.ViewRegistries: keys(
+		"<enter>", "Repositories",
+		"<u>", "Start local",
+		"<x>", "Stop",
+		"<P>", "Garbage collect",
 		"<n>", "Log in",
-		"<enter>", "Log in again",
-		"<ctrl-d>", "Log out",
+		"<l>", "Log in again",
+		"<ctrl-d>", "Log out/Remove",
+		"<esc>", "Back",
+	),
+	style.ViewRegistryCatalog: keys(
+		"<enter>", "Tags",
+		"<P>", "Garbage collect",
+		"<c>", "Copy",
+		"<esc>", "Back",
+	),
+	style.ViewRegistryTags: keys(
+		"<ctrl-d>", "Delete",
+		"<P>", "Garbage collect",
+		"<c>/<I>", "Copy ref/digest",
 		"<esc>", "Back",
 	),
 	style.ViewBuilders: keys(

@@ -38,6 +38,12 @@ var otherCommands = []views.Command{
 		Also: []string{"registry", "reg"},
 		Desc: "The registries the docker config knows, and whether each is logged in",
 	},
+	{
+		Name: cmdRegistryUp, Also: []string{"registry start", "reg up"},
+		Desc: "Run the local registry (registry:2 on localhost:5000), or start the one there",
+	},
+	{Name: cmdRegistryStop, Also: []string{"registry down", "reg stop"}, Desc: "Stop the local registry"},
+	{Name: cmdCatalog, Desc: "A registry's repositories: :catalog [registry], default the local one"},
 	{Name: cmdTag, Desc: "Tag the selected image: :tag <repo[:tag]>, or the form, as t"},
 	{Name: cmdPush, Desc: "Push an image: :push <ref>, or the selected image's tag, as p (confirms)"},
 	{

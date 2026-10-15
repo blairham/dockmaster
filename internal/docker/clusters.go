@@ -12,6 +12,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 )
@@ -183,12 +184,20 @@ func (c *Client) SetClusterRunning(ctx context.Context, cl Cluster, on bool) err
 	return nil
 }
 
-// Registry is the local registry next to a kind cluster, as kind's own
-// "local registry" recipe sets it up: registry:2, published on
-// 127.0.0.1:<Port>, restarting with the daemon.
+// Registry is a registry:2 container to create: published on
+// 127.0.0.1:<Port>, restarting with the daemon. Kind's own "local
+// registry" recipe is the zero extras (DefaultRegistry); dockmaster's own
+// (LocalRegistrySpec) adds a named volume, so images survive the container,
+// a label to find it by, and deletes enabled.
 type Registry struct {
-	Name string // container name, "kind-registry"
-	Port string // host port, "5001"
+	Labels map[string]string
+	Name   string // container name, "kind-registry"
+	Port   string // host port, "5001"
+	// Volume is a named volume mounted at the registry's storage; empty is
+	// the image's anonymous one.
+	Volume string
+	// Env is the registry's configuration, REGISTRY_* variables.
+	Env []string
 }
 
 // DefaultRegistry is kind's documented local registry.
@@ -217,23 +226,42 @@ func (c *Client) EnsureRegistry(ctx context.Context, r Registry) error {
 			return perr
 		}
 	}
-	port := network.MustParsePort("5000/tcp")
-	created, err := c.api.ContainerCreate(ctx, client.ContainerCreateOptions{
-		Config: &container.Config{Image: registryImage, ExposedPorts: network.PortSet{port: {}}},
-		HostConfig: &container.HostConfig{
-			RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyUnlessStopped},
-			PortBindings: network.PortMap{port: {{
-				HostIP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
-				HostPort: r.Port,
-			}}},
-		},
-		Name: r.Name,
-	})
+	created, err := c.api.ContainerCreate(ctx, registryCreateOptions(r))
 	if err != nil {
 		return fmt.Errorf("creating %s: %w", r.Name, err)
 	}
 	_, err = c.api.ContainerStart(ctx, created.ID, client.ContainerStartOptions{})
 	return err
+}
+
+// registryPort is the port registry:2 listens on inside its container.
+var registryPort = network.MustParsePort("5000/tcp")
+
+// registryStorage is where registry:2 keeps its blobs.
+const registryStorage = "/var/lib/registry"
+
+// registryCreateOptions is the create request for r.
+func registryCreateOptions(r Registry) client.ContainerCreateOptions {
+	hc := &container.HostConfig{
+		RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyUnlessStopped},
+		PortBindings: network.PortMap{registryPort: {{
+			HostIP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
+			HostPort: r.Port,
+		}}},
+	}
+	if r.Volume != "" {
+		hc.Mounts = []mount.Mount{{Type: mount.TypeVolume, Source: r.Volume, Target: registryStorage}}
+	}
+	return client.ContainerCreateOptions{
+		Config: &container.Config{
+			Image:        registryImage,
+			ExposedPorts: network.PortSet{registryPort: {}},
+			Labels:       r.Labels,
+			Env:          r.Env,
+		},
+		HostConfig: hc,
+		Name:       r.Name,
+	}
 }
 
 // ConnectRegistry attaches the registry to the cluster's network ("kind"),

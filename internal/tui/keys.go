@@ -43,6 +43,9 @@ var knownCommands = []string{
 	"ctx",
 	"contexts",
 	cmdRegistries,
+	cmdRegistryUp,
+	cmdRegistryStop,
+	cmdCatalog,
 	cmdLogin,
 	cmdBuilders,
 	cmdTag,
@@ -485,6 +488,10 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	if rest, ok := cutPrefixFold(raw, cmdPush+" "); ok {
 		return a.pushCommand(strings.TrimSpace(rest))
 	}
+	// :catalog <registry> browses that registry's repositories.
+	if rest, ok := strings.CutPrefix(lower, cmdCatalog+" "); ok {
+		return a.catalogCommand(strings.TrimSpace(rest))
+	}
 	// :login <registry>; the address is folded the way docker login folds it.
 	if rest, ok := strings.CutPrefix(lower, "login "); ok {
 		_, cmd := a.handleAction("login_form", strings.TrimSpace(rest))
@@ -544,6 +551,13 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	case cmdRegistries, "registry", "reg":
 		_, cmd := a.handleAction("open_registries", "")
 		return "", cmd
+	case cmdRegistryUp, "registry start", "reg up":
+		_, cmd := a.handleAction(views.ActRegistryUp, "")
+		return "", cmd
+	case cmdRegistryStop, "registry down", "reg stop":
+		return a.registryStopCommand()
+	case cmdCatalog:
+		return a.catalogCommand("")
 	case cmdTag:
 		return a.tagCommand("")
 	case cmdPush:
@@ -724,7 +738,7 @@ var noContextCommands = map[string]bool{
 // argCommands take an argument after their name. xray's must be a root it
 // can grow from (validateCommand).
 var argCommands = map[string]bool{
-	"pull": true, cmdLoad: true, cmdLogin: true, cmdTag: true, cmdPush: true,
+	"pull": true, cmdLoad: true, cmdLogin: true, cmdTag: true, cmdPush: true, cmdCatalog: true,
 	"dir": true, cmdBuild: true,
 	"ctx": true, "context": true, "prune": true, "xray": true,
 }

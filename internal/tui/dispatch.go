@@ -318,6 +318,10 @@ func detailMsgView(msg tea.Msg) (style.ViewType, bool) {
 		return style.ViewLayers, true
 	case views.VolumeBrowseMsg:
 		return style.ViewVolumeBrowse, true
+	case views.RegistryCatalogMsg:
+		return style.ViewRegistryCatalog, true
+	case views.RegistryTagsMsg:
+		return style.ViewRegistryTags, true
 	case views.NodeRefreshMsg:
 		return style.ViewNode, true
 	case views.TopRefreshMsg:

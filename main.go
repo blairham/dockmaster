@@ -412,7 +412,7 @@ func stateFile(name string) string {
 
 // behaviorOptions carries config.yaml's k9s behavior keys (#17) into the
 // app's options — noExitOnCtrlC, screenDumpDir, the log view's opening
-// state, the mouse, shell and portForwardAddress.
+// state, the mouse, shell, portForwardAddress, hostShell and localRegistry.
 func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.NoExitOnCtrlC = cfg.NoExitOnCtrlC
 	o.DumpDir = config.ExpandHome(cfg.ScreenDumpDir)
@@ -423,6 +423,7 @@ func behaviorOptions(cfg config.Config, o *tui.Options) {
 	o.Shell = cfg.Shell
 	o.ForwardAddress = cfg.ForwardAddress()
 	o.HostShellImage = cfg.HostShell.Image
+	o.LocalRegistryName, o.LocalRegistryPort = cfg.LocalRegistry.Name, cfg.LocalRegistry.Port
 }
 
 // settings is everything read from the config directory: config.yaml with

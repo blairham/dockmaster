@@ -59,6 +59,8 @@ var columnSets = map[string][]func() []table.Column{
 	"contexts":     {contextColumns},
 	"registries":   {registryColumns},
 	"builders":     {builderColumns},
+	"repositories": {registryCatalogColumns},
+	"tags":         {registryTagColumns},
 	"lint":         {lintColumns},
 	"dir":          {dirColumns},
 	"dumps":        {dumpColumns},

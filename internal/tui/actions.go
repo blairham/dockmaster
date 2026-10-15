@@ -89,6 +89,9 @@ var mutating = map[string]bool{
 	views.ActStartBuilder: true, views.ActStopBuilder: true, views.ActUseBuilder: true,
 	views.ActRemoveBuilder: true, views.ActPruneBuilder: true,
 	views.ActBuilderForm: true, views.ActBuilderCreate: true,
+	// The local registry (#120): its container, and what is in it.
+	views.ActRegistryUp: true, views.ActRegistryStop: true, views.ActRegistryRemove: true,
+	views.ActRegistryGC: true, views.ActRegistryDeleteTag: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -290,9 +293,33 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case "open_registries":
-		a.setView(style.ViewRegistries, views.NewRegistriesView())
+		a.setView(style.ViewRegistries, views.NewRegistriesView(a.client))
 		a.pushView(style.ViewRegistries)
 		return a, a.viewMap[style.ViewRegistries].Init()
+	case views.ActRegistryUp:
+		cmd := a.registryUp(param)
+		return a, cmd
+	case views.ActRegistryStop:
+		cmd := a.registryStop(param)
+		return a, cmd
+	case views.ActRegistryRemove:
+		a.confirmRegistryRemove(param)
+		return a, nil
+	case views.ActRegistryGC:
+		a.confirmRegistryGC(param)
+		return a, nil
+	case views.ActRegistryDeleteTag:
+		a.confirmRegistryDeleteTag(param)
+		return a, nil
+	case views.ActRegistryCatalog:
+		cmd := a.openRegistryCatalog(views.DecodeRegistryTarget(param))
+		return a, cmd
+	case views.ActRegistryTags:
+		cmd := a.openRegistryTags(views.DecodeRegistryTarget(param))
+		return a, cmd
+	case views.ActNotLocal:
+		a.errFlash = param
+		return a, nil
 	case "login_form":
 		a.setView(style.ViewLoginForm, views.NewLoginForm(param))
 		a.pushView(style.ViewLoginForm)
@@ -893,6 +920,10 @@ func confirmTitle(action string) string {
 		return "Delete"
 	case "registry_logout":
 		return "Log Out"
+	case "registry_gc":
+		return "Garbage Collect"
+	case "registry_delete_tag":
+		return "Delete"
 	case actPush:
 		return "Push"
 	case "pod_rm", "node_remove":
@@ -1017,6 +1048,15 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 		return a.removeContext(pa.param)
 	case "registry_logout":
 		return a.registryLogout(pa.param)
+	case "remove_registry":
+		client := a.client
+		return a.run("removed registry", pa.param, func(ctx context.Context) error {
+			return registryRemoveFn(ctx, client, pa.param)
+		})
+	case "registry_gc":
+		return a.registryGC(pa.param)
+	case "registry_delete_tag":
+		return a.registryDeleteTag(pa.param)
 	case actPush:
 		return a.startPush(pa.param)
 	case "compose_scale":

@@ -226,3 +226,21 @@ func TestHostShellImage(t *testing.T) {
 		t.Error("Sample does not document hostShell.image")
 	}
 }
+
+// TestLocalRegistry: localRegistry decodes, defaults to dockmaster-registry
+// on 5000, and refuses a name docker would not take or a port out of range.
+func TestLocalRegistry(t *testing.T) {
+	if d := Default().LocalRegistry; d.Name != DefaultLocalRegistryName || d.Port != DefaultLocalRegistryPort {
+		t.Errorf("default localRegistry = %+v", d)
+	}
+	cfg, err := Parse(strings.NewReader("dockmaster:\n  localRegistry:\n    port: 5055\n"))
+	if err != nil || cfg.LocalRegistry.Port != 5055 || cfg.LocalRegistry.Name != DefaultLocalRegistryName {
+		t.Errorf("localRegistry decoded as %+v, %v", cfg.LocalRegistry, err)
+	}
+	for _, bad := range []string{"port: 0", "port: 70000", `name: "-x"`, `name: "a b"`} {
+		_, err := Parse(strings.NewReader("dockmaster:\n  localRegistry:\n    " + bad + "\n"))
+		if err == nil || !strings.Contains(err.Error(), "localRegistry.") {
+			t.Errorf("localRegistry %s: err %v", bad, err)
+		}
+	}
+}
