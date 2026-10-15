@@ -84,7 +84,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 | in a log: `0`–`5` | usual backlog / last 1m, 5m, 15m, 30m, 1h | `w` / `f` | wrap / fullscreen |
 | in a log: `c` / `ctrl-s` | copy / save what is shown (`~/.local/state/dockmaster/logs`) | `shift-c` | clear |
 | in a log: `m` | mark: a stamped rule at the end, so later lines are easy to find | | |
-| in a build's output: `s` / `w` / `f` | autoscroll / wrap / fullscreen, as in a log | `c` / `ctrl-s` | copy / save the output; `esc` stops a running build |
+| in a build's output: `s` / `w` / `f` | autoscroll / wrap / fullscreen, as in a log | `c` / `ctrl-s` | copy / save the output; `x` stops a running build (confirms) — `esc` leaves it running, `:build` reopens it |
 | in `:dir`: `b` | build the Dockerfile (or the directory's own) — a form, then `docker buildx build` | | |
 | in inspect: `/` | search: matches highlighted, nothing hidden, the title counts them; `n` / `N` next / previous | `c` / `ctrl-s` | copy / save the document (saves list in `:sd`) |
 | in inspect: `f` | fullscreen | `a` | refresh on the poll |

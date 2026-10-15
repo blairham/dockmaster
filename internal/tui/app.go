@@ -195,7 +195,13 @@ type App struct {
 	composeRunner docker.ComposeRunner
 	// streamFn replaces running a streamed CLI command — a build — and
 	// builderFn the buildx probe; tests only.
-	streamFn  docker.StreamFunc
+	streamFn docker.StreamFunc
+	// builds are the builds started this session, running and recent
+	// (#121): the app owns them, so leaving their output never stops one.
+	builds []*views.Build
+	// quitAsked is set while the quit confirm is up, so a second ctrl-c
+	// answers it.
+	quitAsked bool
 	builderFn func(ctx context.Context, bin string) docker.Builder
 	// execProcess replaces tea.ExecProcess, which hands a child the
 	// terminal; tests only.
@@ -792,6 +798,7 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *App) shutdown() {
 	_ = a.saveHistory(a.historyFile) //nolint:errcheck // a convenience; the process is exiting
 	a.stopStoppableViews()
+	a.stopAllBuilds()
 	a.stopAlerts()
 	a.stopSessionForwards()
 	if a.client != nil {
@@ -861,6 +868,9 @@ func (a *App) applySwitchContext(msg switchContextMsg) (tea.Model, tea.Cmd) {
 		a.refresh,
 	)
 	a.applyImageScans(a.imageScans)
+	// A compose build keeps running across the switch; coming back to its
+	// context shows its project busy again.
+	a.markBuildsBusy()
 	a.flash = fmt.Sprintf("switched to context %s", msg.name)
 	if a.applied.readOnlyFromContext(msg.name) {
 		a.flash += " — readonly (its contexts: setting)"

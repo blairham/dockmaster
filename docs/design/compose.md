@@ -95,11 +95,14 @@ project's services, and "then up", no by default — and runs
 
 into the output view `:build` uses (`views.OutputView`): the output streams
 as it runs, `s` / `w` / `f` / `c` / `ctrl-s` act as in a log, a failure
-stays on screen, and leaving the view stops the build. Progress is plain
+stays on screen. The build runs in the background (#121): leaving the view
+only detaches, the project's row shows `building…` and refuses the other
+compose verbs until it ends, and `x` in the output stops it after a confirm. Progress is plain
 text through `BUILDKIT_PROGRESS` and `COMPOSE_PROGRESS` rather than a flag,
 since compose's `--progress` has moved between versions. With "then up",
-`compose up -d` runs once the build succeeds — through `handleAction`, so
-it is the `u` above, rechecked — and never after a failure.
+`compose up -d` runs once the build succeeds, whichever view is on screen —
+through `handleAction`, so it is the `u` above, rechecked — never after a
+failure, and not when the context on screen is no longer the one built on.
 
 `y` (k9s's yaml) is `compose config`: every `-f` file merged, `.env` read
 and variables interpolated — the usual answer to "why is it running with

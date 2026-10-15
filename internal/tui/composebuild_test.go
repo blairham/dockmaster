@@ -117,3 +117,37 @@ func TestComposeConfig(t *testing.T) {
 		t.Errorf("config not shown:\n%s", out)
 	}
 }
+
+// TestComposeBuildBusyInBackground (#121): a compose build shows its
+// project busy while it runs, even with its output closed — the project's
+// compose keys say so — and "then up" runs when it finishes, wherever the
+// user is by then. The busy marker clears.
+func TestComposeBuildBusyInBackground(t *testing.T) {
+	a, fc, _ := newComposeApp(t, Options{}, true)
+	fs := &fakeStream{hold: true}
+	a.streamFn = fs.run
+	step(a, key("b"))
+	step(a, key("tab"))
+	step(a, key("right")) // then up: yes
+	start := step(a, key("enter"))
+	next := step(a, step(a, start())())
+	step(a, key("esc"))
+	if a.view != style.ViewProjects {
+		t.Fatalf("esc went to %v", a.view)
+	}
+	if out := render(a); !strings.Contains(out, "building…") {
+		t.Errorf("the project is not shown busy:\n%s", out)
+	}
+	step(a, key("u"))
+	if !strings.Contains(a.errFlash, "already building") || len(fc.calls) != 0 {
+		t.Errorf("u while building: err %q, calls %q", a.errFlash, fc.calls)
+	}
+	fs.end <- nil
+	runCmd(a, drainToEnd(t, a, next))
+	if out := render(a); strings.Contains(out, "building…") {
+		t.Errorf("the busy marker outlived the build:\n%s", out)
+	}
+	if !strings.HasSuffix(fc.last(), " up -d") {
+		t.Errorf("then up did not run after the build: calls %q, err %q", fc.calls, a.errFlash)
+	}
+}
