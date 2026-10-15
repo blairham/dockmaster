@@ -139,11 +139,15 @@ type App struct {
 	shell         string
 	// hostShellImage is :hostshell's helper image; "" is the default.
 	hostShellImage string
-	noMouse        bool
-	reload         func() (Reloaded, error)
-	watchDir       string
-	watchFP        string
-	pendingFP      string
+	// localRegistryName and localRegistryPort are config's localRegistry,
+	// the container :registry up creates; zero values are the defaults.
+	localRegistryName string
+	localRegistryPort int
+	noMouse           bool
+	reload            func() (Reloaded, error)
+	watchDir          string
+	watchFP           string
+	pendingFP         string
 	// applied is the config last read, so a reload changes a runtime
 	// toggle only when its value in the file changed.
 	applied         Options
@@ -297,6 +301,10 @@ type Options struct {
 	// HostShellImage is the privileged helper :hostshell runs (config's
 	// hostShell.image); "" is config.DefaultHostShellImage.
 	HostShellImage string
+	// LocalRegistryName and LocalRegistryPort are config's localRegistry
+	// (#120); zero values are the defaults.
+	LocalRegistryName string
+	LocalRegistryPort int
 	// Reload re-reads the config directory, for ui.reactive; nil turns
 	// live reload off. WatchDir is the directory it watches.
 	Reload   func() (Reloaded, error)
@@ -425,45 +433,47 @@ func NewApp(client *docker.Client, opts Options) *App {
 		client.RequestTimeout = opts.RequestTimeout
 	}
 	a := &App{
-		client:         client,
-		viewMap:        vm,
-		dumpDir:        opts.DumpDir,
-		noExitOnCtrlC:  opts.NoExitOnCtrlC,
-		logWrap:        opts.LogWrap,
-		logPaused:      opts.LogPaused,
-		logFullscreen:  opts.LogFullscreen,
-		shell:          opts.Shell,
-		forwardAddr:    opts.ForwardAddress,
-		hostShellImage: opts.HostShellImage,
-		noMouse:        opts.NoMouse,
-		reload:         opts.Reload,
-		watchDir:       opts.WatchDir,
-		watchFP:        fingerprint(opts.WatchDir),
-		applied:        opts,
-		historyFile:    opts.HistoryFile,
-		urlOpener:      openInBrowser,
-		version:        opts.Version,
-		errFlash:       opts.Notice,
-		view:           startView,
-		loading:        true,
-		splashActive:   !opts.Splashless,
-		readonly:       opts.readOnlyFor(ctxName),
-		logoless:       opts.Logoless,
-		statsOn:        statsOn,
-		showAll:        opts.ShowAll,
-		refresh:        refresh,
-		logTail:        opts.LogTail,
-		logShowTime:    opts.LogShowTime,
-		logBuffer:      opts.LogBuffer,
-		logSince:       opts.LogSince,
-		liveRefresh:    opts.LiveRefresh,
-		aliases:        opts.Aliases,
-		hotKeys:        opts.HotKeys,
-		plugins:        opts.Plugins,
-		jumps:          opts.Jumps,
-		requestTimeout: opts.RequestTimeout,
-		thresholds:     opts.Thresholds,
-		log:            opts.Logger,
+		client:            client,
+		viewMap:           vm,
+		dumpDir:           opts.DumpDir,
+		noExitOnCtrlC:     opts.NoExitOnCtrlC,
+		logWrap:           opts.LogWrap,
+		logPaused:         opts.LogPaused,
+		logFullscreen:     opts.LogFullscreen,
+		shell:             opts.Shell,
+		forwardAddr:       opts.ForwardAddress,
+		hostShellImage:    opts.HostShellImage,
+		localRegistryName: opts.LocalRegistryName,
+		localRegistryPort: opts.LocalRegistryPort,
+		noMouse:           opts.NoMouse,
+		reload:            opts.Reload,
+		watchDir:          opts.WatchDir,
+		watchFP:           fingerprint(opts.WatchDir),
+		applied:           opts,
+		historyFile:       opts.HistoryFile,
+		urlOpener:         openInBrowser,
+		version:           opts.Version,
+		errFlash:          opts.Notice,
+		view:              startView,
+		loading:           true,
+		splashActive:      !opts.Splashless,
+		readonly:          opts.readOnlyFor(ctxName),
+		logoless:          opts.Logoless,
+		statsOn:           statsOn,
+		showAll:           opts.ShowAll,
+		refresh:           refresh,
+		logTail:           opts.LogTail,
+		logShowTime:       opts.LogShowTime,
+		logBuffer:         opts.LogBuffer,
+		logSince:          opts.LogSince,
+		liveRefresh:       opts.LiveRefresh,
+		aliases:           opts.Aliases,
+		hotKeys:           opts.HotKeys,
+		plugins:           opts.Plugins,
+		jumps:             opts.Jumps,
+		requestTimeout:    opts.RequestTimeout,
+		thresholds:        opts.Thresholds,
+		log:               opts.Logger,
 		// main has put the top-level skin in already.
 		globalTheme:      style.Base(),
 		lastViews:        lastViews,
@@ -686,6 +696,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.handleRegistryLoginDone(msg)
 	case builderCreateDoneMsg:
 		return a.handleBuilderCreateDone(msg)
+	case localCatalogMsg:
+		return a.handleLocalCatalog(msg)
 	case tagDoneMsg:
 		return a.handleTagDone(msg)
 	case pushProgressMsg:

@@ -212,7 +212,7 @@ func TestColumnLayoutsValidate(t *testing.T) {
 			entries: map[string]config.ViewColumns{"pdos": {Columns: []string{"NAME"}}},
 			want: `views.yaml: unknown view "pdos" (views are alerts, aliases, builders, containers, contexts, dir, ` +
 				`diskusage, dumps, files, images, layers, lint, networks, node, pods, portforwards, projects, registries, ` +
-				`runtimes, scan, volumes)`,
+				`repositories, runtimes, scan, tags, volumes)`,
 		},
 		{
 			entries: map[string]config.ViewColumns{"images": {Columns: []string{"NAME"}}},

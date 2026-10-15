@@ -107,6 +107,8 @@ type Config struct {
 	PortForwardAddress string `yaml:"portForwardAddress"`
 	// HostShell is :hostshell's helper, a root shell on the daemon's host.
 	HostShell HostShell `yaml:"hostShell"`
+	// LocalRegistry is the registry:2 container :registry up runs (#120).
+	LocalRegistry LocalRegistry `yaml:"localRegistry"`
 	// Alerts flash a container turning unhealthy, OOM-killed, dying or
 	// restart-looping, in any view (#109).
 	Alerts Alerts `yaml:"alerts"`
@@ -152,6 +154,22 @@ func (c Config) ForwardAddress() netip.Addr {
 type HostShell struct {
 	Image string `yaml:"image"`
 }
+
+// LocalRegistry names dockmaster's own registry container and the host
+// port it is published on, at 127.0.0.1 (#120).
+type LocalRegistry struct {
+	Name string `yaml:"name"`
+	Port int    `yaml:"port"`
+}
+
+// The local registry's defaults: docker's own registry port.
+const (
+	DefaultLocalRegistryName = "dockmaster-registry"
+	DefaultLocalRegistryPort = 5000
+)
+
+// containerName is what docker accepts as a container name.
+var containerName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]+$`)
 
 // UI is the header and chrome toggles, as k9s's `ui:` block.
 type UI struct {
@@ -257,6 +275,7 @@ func Default() Config {
 		UI:                 UI{EnableMouse: true},
 		ImageScans:         ImageScans{TTL: DefaultScanTTL},
 		HostShell:          HostShell{Image: DefaultHostShellImage},
+		LocalRegistry:      LocalRegistry{Name: DefaultLocalRegistryName, Port: DefaultLocalRegistryPort},
 		Alerts: Alerts{
 			Enabled:     true,
 			RestartLoop: RestartLoop{Count: DefaultRestartLoopCount, Window: DefaultRestartLoopWindow},
@@ -367,7 +386,8 @@ func (c Config) validateCore() []string {
 	return errs
 }
 
-// validateFeatures checks the image scans and the host shell.
+// validateFeatures checks the image scans, the host shell and the local
+// registry.
 func (c Config) validateFeatures() []string {
 	var errs []string
 	if c.ImageScans.TTL < time.Minute {
@@ -378,6 +398,13 @@ func (c Config) validateFeatures() []string {
 	}
 	if img := c.HostShell.Image; strings.TrimSpace(img) == "" || strings.HasPrefix(img, "-") {
 		errs = append(errs, fmt.Sprintf("hostShell.image is an image name, not empty or a flag, got %q", img))
+	}
+	if !containerName.MatchString(c.LocalRegistry.Name) {
+		errs = append(errs, fmt.Sprintf("localRegistry.name is a container name ([a-zA-Z0-9][a-zA-Z0-9_.-]+), got %q",
+			c.LocalRegistry.Name))
+	}
+	if p := c.LocalRegistry.Port; p < 1 || p > 65535 {
+		errs = append(errs, fmt.Sprintf("localRegistry.port must be between 1 and 65535, got %d", p))
 	}
 	errs = append(errs, validateRestartLoop("alerts.restartLoop", c.Alerts.RestartLoop, false)...)
 	return errs
@@ -461,6 +488,13 @@ dockmaster:
   # this image, which needs nsenter; docker pulls it if it is missing.
   hostShell:
     image: alpine:3
+  # The registry :registry up runs: registry:2 under this name, on
+  # 127.0.0.1:<port>, its images in the volume <name>-data. An existing
+  # kind or k3d registry is reused instead. macOS's AirPlay Receiver also
+  # listens on 5000; pick another port if it is on.
+  localRegistry:
+    name: dockmaster-registry
+    port: 5000
   ui:
     # A skin in skins/ beside this file, by name — a k9s skin works as is
     # (DOCKMASTER_SKIN overrides).

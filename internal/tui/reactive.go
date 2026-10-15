@@ -114,6 +114,7 @@ func (a *App) applyReload(m reloadedMsg) {
 	a.liveRefresh, a.noExitOnCtrlC, a.dumpDir, a.shell, a.noMouse = n.LiveRefresh, n.NoExitOnCtrlC, n.DumpDir, n.Shell, n.NoMouse
 	a.forwardAddr = n.ForwardAddress
 	a.hostShellImage = n.HostShellImage
+	a.localRegistryName, a.localRegistryPort = n.LocalRegistryName, n.LocalRegistryPort
 	if n.RefreshRate > 0 {
 		a.refresh = n.RefreshRate
 		if pv := typedView[*views.PulsesView](a, style.ViewPulses); pv != nil {

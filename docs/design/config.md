@@ -378,6 +378,13 @@ These behave as k9s's do (#17):
   busybox's. docker pulls it when the daemon lacks it. Empty, or starting
   with `-` (docker would read it as a flag), is refused at load. See
   `host-shell.md`.
+- `localRegistry.name`, `localRegistry.port` — the registry `:registry up`
+  creates (#120): `registry:2` under this container name (default
+  `dockmaster-registry`), published on `127.0.0.1:<port>` (default `5000`),
+  its images in the volume `<name>-data`. A name docker would not take and a
+  port outside 1–65535 are refused at load. An existing kind or k3d registry
+  is reused instead of creating this one. macOS's AirPlay Receiver also
+  listens on 5000. See [`local-registry.md`](local-registry.md).
 - `ui.enableMouse` — on by default, unlike k9s, because dockmaster has
   always had wheel scrolling; `false` turns mouse reporting off, so a
   plain drag selects text as in any other program.
@@ -720,7 +727,9 @@ regardless of case. The view keys, and the columns each can show:
 | `portforwards` | `:pf` | NAME, LOCAL, PORT, URL, STATE, AGE |
 | `diskusage` | `:df` | TYPE, TOTAL, ACTIVE, SIZE, RECLAIMABLE |
 | `contexts` | `:ctx` | NAME, ENDPOINT, DESCRIPTION |
-| `registries` | `:registries` | REGISTRY, USER, STORE, LOGIN |
+| `registries` | `:registries` | REGISTRY, CONTAINER, STATE, USER, STORE, LOGIN |
+| `repositories` | `enter` on a registry, `:catalog` | REPOSITORY |
+| `tags` | `enter` on a repository | TAG, DIGEST, SIZE, PLATFORMS, AGE |
 | `builders` | `:builders` | NAME, DRIVER, ENDPOINT, STATUS, BUILDKIT, PLATFORMS, ERROR |
 | `lint` | `:lint` | WORST, NAME, FINDINGS, FIRST FINDING |
 | `dir` | `:dir` | NAME, KIND, SIZE, AGE |
