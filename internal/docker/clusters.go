@@ -239,12 +239,9 @@ func (c *Client) EnsureRegistry(ctx context.Context, r Registry) error {
 // ConnectRegistry attaches the registry to the cluster's network ("kind"),
 // so nodes reach it by name. Already connected is fine.
 func (c *Client) ConnectRegistry(ctx context.Context, r Registry, networkName string) error {
-	_, err := c.api.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{
-		Container:      r.Name,
-		EndpointConfig: &network.EndpointSettings{},
-	})
+	err := c.ConnectNetwork(ctx, networkName, NetworkAttach{Container: r.Name})
 	if err != nil && !cerrdefs.IsConflict(err) && !cerrdefs.IsAlreadyExists(err) && !alreadyConnected(err) {
-		return fmt.Errorf("connecting %s to %s: %w", r.Name, networkName, err)
+		return err
 	}
 	return nil
 }

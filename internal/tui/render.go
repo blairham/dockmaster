@@ -391,6 +391,12 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<tab>", "Next field",
 		"<esc>", "Cancel",
 	),
+	style.ViewNetPicker: keys(
+		"<enter>", "Connect/Disconnect",
+		"<tab>", "Next field",
+		"<←/→>", "Network",
+		"<esc>", "Cancel",
+	),
 	style.ViewScaleForm: keys(
 		"<enter>", "Scale",
 		"<tab>", "Next field",
@@ -747,6 +753,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<C>", Desc: "Copy files"},
 					{Key: "<M>", Desc: "Commit to image"},
 					{Key: "<e>", Desc: "Edit limits, name"},
+					{Key: "<N>", Desc: "Networks: connect"},
 					{Key: "<b>", Desc: "Browse port"},
 					{Key: "<p>", Desc: "Pause/unpause"},
 					{Key: "<s>", Desc: "Shell into it"},

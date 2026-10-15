@@ -114,6 +114,8 @@ var bulkConfirmed = map[string]struct{ run, noun string }{
 	"confirm_remove_image":     {run: "remove_image", noun: "image"},
 	"confirm_remove_volume":    {run: "remove_volume", noun: "volume"},
 	"confirm_remove_network":   {run: "remove_network", noun: "network"},
+	// A used-by list of a network (#107): ctrl-d disconnects from it.
+	actConfirmDisconnect: {run: actDisconnect, noun: "container"},
 }
 
 // bulkDirect are the bulk actions that run without asking, as they do on
@@ -154,8 +156,16 @@ func (a *App) bulkKey(key string) (tea.Cmd, bool) {
 
 	if c, ok := bulkConfirmed[acts[0].Name]; ok {
 		verb := strings.ReplaceAll(c.run, "_"+c.noun, "")
-		if c.run == "kill" {
-			verb = "SIGKILL"
+		question := fmt.Sprintf("%s %d %ss: %s?%s", verb, len(acts), c.noun, labels(acts), note)
+		switch c.run {
+		case "kill":
+			question = fmt.Sprintf("SIGKILL %d %ss: %s?%s", len(acts), c.noun, labels(acts), note)
+		case actDisconnect:
+			from := ""
+			if nc, err := views.DecodeNetChange(acts[0].Param); err == nil {
+				from = " from " + nc.Network
+			}
+			question = fmt.Sprintf("disconnect %d %ss%s: %s?%s", len(acts), c.noun, from, labels(acts), note)
 		}
 		a.confirmDispatch = func(yes bool) (string, tea.Cmd) {
 			if !yes {
@@ -168,7 +178,7 @@ func (a *App) bulkKey(key string) (tea.Cmd, bool) {
 			m.ClearMarks()
 			return "", tea.Batch(cmds...)
 		}
-		a.ask(confirmTitle(c.run), fmt.Sprintf("%s %d %ss: %s?%s", verb, len(acts), c.noun, labels(acts), note))
+		a.ask(confirmTitle(c.run), question)
 		return nil, true
 	}
 

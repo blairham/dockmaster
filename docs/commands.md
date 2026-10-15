@@ -161,7 +161,7 @@ Keys every view shares:
 | `H` / `T` / `D` / `S` | Health / top / diff / stats | `C` | Copy files in or out, as `docker cp` |
 | `e` | Edit limits, restart policy, name | `v` | Scan its image for vulnerabilities |
 | `shift-f` | Port-forward: `local:container`, comma-separated for more; labels can prefill or confirm it | `b` | Open a published port in the browser |
-| `f` | Its port forwards (`:pf` narrowed to it; `esc` back) | | |
+| `f` | Its port forwards (`:pf` narrowed to it; `esc` back) | `N` | Networks: connect (aliases, IP optional), or disconnect from one it is on (confirms); marked rows too |
 | `M` | Commit it to an image (a form) | `E` | Export its filesystem to a tar (a form; confirms before replacing a file) |
 | `J` | Jump to its compose project | `enter`, `n` | On a ⎈ kind/k3d node: the pods' containers inside it (`l` is still its logs) |
 | `a` | Show stopped | `t` | CPU/MEM poll on or off |
@@ -174,7 +174,7 @@ Keys every view shares:
 |---|---|
 | Images | `enter` layers, `u` run (a form), `v` scan, `U` the containers using it, `E` save it (or the marked ones) to a tar, `ctrl-d` remove, `a` all, `P` prune |
 | Volumes | `enter` browse its files, `o` inspect, `U` the containers using it, `z` sizes (slow), `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
-| Networks | `enter` / `o` inspect, `U` the containers on it, `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
+| Networks | `enter` / `o` inspect, `U` the containers on it (there `ctrl-d` disconnects one from the network, confirms), `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
 
 ### Projects
 

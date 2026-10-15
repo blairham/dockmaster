@@ -74,6 +74,7 @@ var mutating = map[string]bool{
 	// A commit or a load makes an image; export and save only read the
 	// daemon (they write a local file, which confirms before replacing one).
 	actCommitForm: true, "commit_container": true, cmdLoad: true,
+	"network_picker": true, "connect_network": true, actConfirmDisconnect: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -370,6 +371,16 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		return a, a.applyEdit(e)
+
+	case "network_picker":
+		cmd := a.loadNetworkForm(param)
+		return a, cmd
+	case "connect_network":
+		cmd := a.connectNetwork(param)
+		return a, cmd
+	case actConfirmDisconnect:
+		a.confirmDisconnect(param)
+		return a, nil
 
 	case "copy_form":
 		return a.openCopyForm(param)
@@ -772,6 +783,8 @@ func confirmTitle(action string) string {
 		return "Delete"
 	case "pod_rm", "node_remove":
 		return "Remove"
+	case actDisconnect:
+		return "Disconnect"
 	}
 	switch {
 	case strings.HasPrefix(action, "prune"):
@@ -824,6 +837,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 			return nil
 		}
 		return removeDump(root, pa.param)
+	case actDisconnect:
+		return a.disconnectNetwork(pa.param)
 	case "remove_network":
 		id, name, _ := strings.Cut(pa.param, "\x00")
 		return a.run("removed network", name, func(ctx context.Context) error {
@@ -1119,6 +1134,7 @@ func removeDump(root, path string) tea.Cmd {
 func (a *App) showUsedBy(param string) tea.Cmd {
 	kind, key, name := splitUsedBy(param)
 	var match func(docker.Container) bool
+	network := ""
 	switch kind {
 	case "image":
 		match = func(c docker.Container) bool { return c.UsesImage(key) }
@@ -1126,6 +1142,7 @@ func (a *App) showUsedBy(param string) tea.Cmd {
 		match = func(c docker.Container) bool { return c.UsesVolume(key) }
 	case "network":
 		match = func(c docker.Container) bool { return c.OnNetwork(key) }
+		network = key
 	default:
 		return nil
 	}
@@ -1134,6 +1151,7 @@ func (a *App) showUsedBy(param string) tea.Cmd {
 		return nil
 	}
 	cv.SetScope("using "+kind+" "+name, match)
+	cv.SetScopeNetwork(network)
 	var cmds []tea.Cmd
 	if !cv.ShowAll() {
 		cmds = append(cmds, cv.ToggleAll())
