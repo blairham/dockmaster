@@ -50,6 +50,7 @@ internal/
     containers.go          list + lifecycle (start/stop/restart/kill/pause/rm)
     images.go              list, history, pull, rm, prune
     volumes.go networks.go list, inspect, rm, prune
+    create.go              volume and network create (the create form's request)
     volbrowse.go           a volume's files, through a read-only, no-network helper (docs/design/volume-browser.md)
     hostshell.go           the host shell's helper argv: privileged, --pid=host, nsenter into PID 1 (docs/design/host-shell.md)
     stats.go               the CPU/MEM sampler
@@ -146,6 +147,8 @@ In the runtimes view the same letters act on the machine, where its runtime supp
 `enter` on a kind or k3d node container (marked ⎈), as `enter` on a node in k9s, and `n` open the node view (`l` stays its logs, and the header's `<enter>` reads Pods on a node row — the same width as Logs, so the sorted bar does not reflow) (`c` is k9s's copy key): the containers inside the node's own containerd (every pod), which `docker ps` never shows. They are read with `crictl` over a docker exec; `enter`/`l` logs, `o` inspect, `s` shell, `ctrl-d` remove (exited only, confirmed), `a` show exited (hidden by default). See `docs/design/kubernetes-nodes.md` — in particular why node log streams run under a watcher.
 
 `u` on an image opens the run form (`views.RunFormView`): name, ports, env, volumes, command, `--rm`, each list space-separated as after `-p`/`-e`/`-v`. It is checked with `docker.RunConfig` — the same code that builds the create request — so a bad port is reported in the form; a daemon failure lands back in the form, and success opens the new container's logs. A container that is created but will not start is removed. The runtime and run forms share their field machinery in `views/form.go`.
+
+`ctrl-n` in the volumes and networks views opens the create form (#106; `views.CreateFormView`, the same `views/form.go` machinery): a volume's name (optional — the daemon names it), driver, driver opts and labels; a network's name, driver, subnet, gateway, internal, attachable and labels. `docker.VolumeCreateConfig` / `NetworkCreateConfig` check it in the form, as `RunConfig` does. `overlay` is offered only when `Client.SwarmManager` (Negotiate's Info), and attachable is locked off for any other driver. `:create volume` / `:create network` switch to that list first, so `esc` and success both land on it; `:create` alone acts on the view on screen. `create_form`, `volume_create` and `network_create` are in `mutating`.
 
 `C` on a container is `docker cp` either way (`views.CopyFormView`): the archive handling is moby/go-archive, the docker CLI's own, so directory-versus-contents and missing-destination rules match `docker cp` — checked against the real CLI on the same input. Copying in changes the container and is gated by `--readonly`; copying out is not. A local path takes `~` and is relative to where dockmaster was started.
 

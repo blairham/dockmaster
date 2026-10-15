@@ -67,6 +67,9 @@ var knownCommands = []string{
 	"delete all",
 	"delete all images",
 	"delete all volumes",
+	cmdCreate,
+	cmdCreateVolume,
+	cmdCreateNetwork,
 	"pull",
 	"readonly",
 	"logo",
@@ -543,6 +546,23 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 			return "", cmd
 		}
 		return "delete all works in the images or volumes view — or :delete all images / :delete all volumes", nil
+	case cmdCreate:
+		// The view decides what to create, as ctrl-n does there.
+		switch a.view {
+		case style.ViewVolumes:
+			_, cmd := a.handleAction(views.ActionCreateForm, views.CreateVolume)
+			return "", cmd
+		case style.ViewNetworks:
+			_, cmd := a.handleAction(views.ActionCreateForm, views.CreateNetwork)
+			return "", cmd
+		}
+		return "create works in the volumes or networks view — or :create volume / :create network", nil
+	case cmdCreateVolume, "create vol":
+		_, cmd := a.handleAction(views.ActionCreateForm, views.CreateVolume)
+		return "", cmd
+	case cmdCreateNetwork, "create net":
+		_, cmd := a.handleAction(views.ActionCreateForm, views.CreateNetwork)
+		return "", cmd
 	case "delete all images":
 		_, cmd := a.handleAction("confirm_delete_all_images", "")
 		return "", cmd

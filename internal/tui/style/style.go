@@ -200,6 +200,7 @@ const (
 	ViewPluginForm
 	ViewScaleForm
 	ViewAliases
+	ViewCreateForm
 )
 
 // ViewName returns the breadcrumb display name for a view.
@@ -241,6 +242,7 @@ var viewNames = map[ViewType]string{
 	ViewPluginForm:   "Plugin",
 	ViewScaleForm:    "Scale",
 	ViewAliases:      "Aliases",
+	ViewCreateForm:   "Create",
 }
 
 // ViewResource returns the singular resource noun for the border title,
@@ -281,6 +283,7 @@ var viewResources = map[ViewType]string{
 	ViewEditForm:     resField,
 	ViewPluginForm:   resField,
 	ViewScaleForm:    resField,
+	ViewCreateForm:   resField,
 	ViewVolumeBrowse: "file",
 	ViewDumps:        "dump",
 	ViewLint:         resContainer,

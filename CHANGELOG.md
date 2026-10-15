@@ -12,6 +12,15 @@ fails when the tag has none.
 
 ## [Unreleased]
 
+### Added
+
+- `ctrl-n` in the volumes and networks views creates one, through a form
+  (#106): a volume's name, driver, driver opts and labels; a network's name,
+  driver (`overlay` offered only on a swarm manager), subnet, gateway,
+  internal, attachable and labels. `:create volume` and `:create network`
+  open the same forms from any view, `:create` the one for the view on
+  screen. Refused under `--readonly`.
+
 ### Changed
 
 - Releases are built and signed by the shared `go-release.yml` in

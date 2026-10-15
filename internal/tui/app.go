@@ -650,6 +650,9 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case editDoneMsg:
 		return a.handleEditDone(msg)
 
+	case createDoneMsg:
+		return a.handleCreateDone(msg)
+
 	case execDoneMsg:
 		if msg.err != nil {
 			a.errFlash = msg.err.Error()
