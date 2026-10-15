@@ -94,6 +94,7 @@ func TestEveryLayoutViewNamesItself(t *testing.T) {
 		"portforwards": NewPortForwardsView(nil).layoutKey,
 		"diskusage":    NewDiskUsageView(nil).layoutKey,
 		"contexts":     NewContextsView("").layoutKey,
+		"registries":   NewRegistriesView().layoutKey,
 		"lint":         NewLintView(nil).layoutKey,
 		"dir":          NewDirView(t.TempDir()).layoutKey,
 		"dumps":        NewDumpsView(t.TempDir()).layoutKey,

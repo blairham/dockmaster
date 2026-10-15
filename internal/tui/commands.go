@@ -33,6 +33,12 @@ var otherCommands = []views.Command{
 	{Name: "xray vol", Also: []string{"xray volume", "xray volumes"}, Desc: "Xray grown from the volumes"},
 	{Name: "xray img", Also: []string{"xray image", "xray images"}, Desc: "Xray grown from the images"},
 	{Name: "lint", Desc: "Each container's risky or fragile settings"},
+	{
+		Name: cmdRegistries,
+		Also: []string{"registry", "reg"},
+		Desc: "The registries the docker config knows, and whether each is logged in",
+	},
+	{Name: cmdLogin, Desc: "Log in to a registry: :login [registry] (default Docker Hub)"},
 	{Name: "hostshell", Desc: "A root shell on the daemon's host (confirms)"},
 	{Name: "dir", Desc: "Browse for compose files; :dir <path> starts there"},
 	{Name: cmdBuild, Desc: "Build an image: :build <dir or Dockerfile>, else here (a form first)"},

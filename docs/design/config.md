@@ -64,16 +64,16 @@ not an error: everything is optional.
 ## thresholds
 
 `thresholds.cpu` and `thresholds.memory` (warn/critical, k9s's 70/90 by
-default) colour the containers view's CPU% and MEM columns orange and red.
+default) color the containers view's CPU% and MEM columns orange and red.
 The displayed CPU% stays `docker stats`'s per-core figure, which reaches
 CPUs × 100; the threshold judges `Stats.CPUShare`, that figure spread over
 the CPUs the container can use. Otherwise one saturated core on a 14-CPU
 VM — CPU% 100, a 7% share — would read as critical. Memory is judged by
 usage over the container's limit, which for an unlimited container is the
 host's memory. The selected row is drawn in the selection style and shows
-no threshold colour.
+no threshold color.
 
-The same thresholds colour the header's `CPU/MEM` line, k9s's cluster CPU
+The same thresholds color the header's `CPU/MEM` line, k9s's cluster CPU
 and MEM for the daemon host: the CPU/MEM poll's CPU % summed over the
 running containers and spread over the host's CPUs, then their memory in
 use over the host's memory — both sizes from the `docker info` dockmaster
@@ -668,6 +668,7 @@ regardless of case. The view keys, and the columns each can show:
 | `portforwards` | `:pf` | NAME, LOCAL, PORT, URL, STATE, AGE |
 | `diskusage` | `:df` | TYPE, TOTAL, ACTIVE, SIZE, RECLAIMABLE |
 | `contexts` | `:ctx` | NAME, ENDPOINT, DESCRIPTION |
+| `registries` | `:registries` | REGISTRY, USER, STORE, LOGIN |
 | `lint` | `:lint` | WORST, NAME, FINDINGS, FIRST FINDING |
 | `dir` | `:dir` | NAME, KIND, SIZE, AGE |
 | `dumps` | `:sd` | NAME, KIND, SIZE, AGE |

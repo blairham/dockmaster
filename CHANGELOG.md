@@ -39,6 +39,12 @@ fails when the tag has none.
   log-style view (autoscroll, wrap, copy, `ctrl-s` save). A failure leaves the
   output on screen; `esc` stops a build still running. `b` on a Dockerfile or
   a directory in `:dir` opens the same form. Refused under `--readonly`.
+- `:registries` (`:reg`) lists the registries in the docker config, where
+  each credential is stored and whether it resolves, never the secret.
+  `:login [registry]` (or `n` there) checks a username and password with
+  the daemon and stores them as `docker login` does, in the credential
+  helper; `ctrl-d` logs out after a confirm. Both are refused under
+  `--readonly`.
 
 ### Changed
 

@@ -77,6 +77,8 @@ var mutating = map[string]bool{
 	// daemon (they write a local file, which confirms before replacing one).
 	actCommitForm: true, "commit_container": true, cmdLoad: true,
 	"network_picker": true, "connect_network": true, actConfirmDisconnect: true,
+	// The docker config and its credential helper, not the daemon.
+	"login_form": true, "registry_login": true, "confirm_registry_logout": true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -266,6 +268,23 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, doSwitchContext(name, host)
 	case "confirm_remove_context":
 		a.confirmRemoveContext(param)
+		return a, nil
+
+	case "open_registries":
+		a.setView(style.ViewRegistries, views.NewRegistriesView())
+		a.pushView(style.ViewRegistries)
+		return a, a.viewMap[style.ViewRegistries].Init()
+	case "login_form":
+		a.setView(style.ViewLoginForm, views.NewLoginForm(param))
+		a.pushView(style.ViewLoginForm)
+		return a, nil
+	case "registry_login":
+		cmd := a.registryLogin()
+		return a, cmd
+	case "confirm_registry_logout":
+		a.openConfirm("registry_logout", param, fmt.Sprintf(
+			"log out of %s? its stored credential is erased, as docker logout does", param,
+		))
 		return a, nil
 
 	// ---- view toggles ---------------------------------------------------
@@ -800,6 +819,8 @@ func confirmTitle(action string) string {
 		return "Stop"
 	case "remove_dump":
 		return "Delete"
+	case "registry_logout":
+		return "Log Out"
 	case "pod_rm", "node_remove":
 		return "Remove"
 	case actDisconnect:
@@ -911,6 +932,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 		return a.composeFileDown(pa.param)
 	case "remove_context":
 		return a.removeContext(pa.param)
+	case "registry_logout":
+		return a.registryLogout(pa.param)
 	case "compose_scale":
 		sp, err := views.DecodeScaleSpec(pa.param)
 		if err != nil {

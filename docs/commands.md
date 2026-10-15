@@ -55,6 +55,8 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
 | `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
+| `:registries` | `:registry`, `:reg` | The registries the docker config knows (`auths` and `credHelpers`), where each credential is stored and whether it resolves — never the secret. `n` logs in to one, `enter` logs in again, `ctrl-d` logs out (confirms) |
+| `:login [registry]` | | Log in: a registry, username and password form (default Docker Hub). The daemon checks the credentials first, then they are stored as `docker login` stores them — in the registry's credential helper, the config's `credsStore`, or the platform's native store; in `config.json` only when there is none. Refused under `--readonly` |
 | `:aliases` | `:alias` | Every `:` command and its spellings, and your own aliases from `aliases.yaml`, as a table; `enter` runs one. `ctrl-a` opens it too |
 | `:help` | `:h`, `:?` | The key reference, as `?` |
 
