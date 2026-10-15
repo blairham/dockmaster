@@ -27,6 +27,12 @@ fails when the tag has none.
   by default under `~/.local/state/dockmaster/exports/`, confirming before
   it replaces a file; `:load <path>` loads images from a tar. Commit and load
   are refused under `--readonly`.
+- `N` on a container connects it to a network or disconnects it (#107): a
+  picker lists every network with the ones it is on marked; choosing another
+  connects it, with optional aliases and a fixed IP, and choosing one it is
+  on disconnects it after a confirm. With rows marked it acts on all of them.
+  In a network's used-by list (`U`), `ctrl-d` disconnects the container from
+  that network (confirms) instead of removing it. `--readonly` refuses both.
 
 ### Changed
 

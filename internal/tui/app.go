@@ -662,6 +662,12 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case createDoneMsg:
 		return a.handleCreateDone(msg)
 
+	case netFormMsg:
+		return a.handleNetForm(msg)
+
+	case netDoneMsg:
+		return a.handleNetDone(msg)
+
 	case execDoneMsg:
 		if msg.err != nil {
 			a.errFlash = msg.err.Error()

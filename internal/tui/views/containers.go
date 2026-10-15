@@ -94,6 +94,9 @@ type ContainersView struct {
 	// or network (#8).
 	scopeMatch func(docker.Container) bool
 	scopeLabel string
+	// scopeNetwork is the network a "used by" list is of, when it is one:
+	// there ctrl-d disconnects from it rather than removing (#107).
+	scopeNetwork string
 
 	// wide shows the ID, command, networks and address columns (ctrl+w);
 	// width is the last width, to refit the columns when they change.
@@ -405,6 +408,18 @@ func (v *ContainersView) keyFor(key string, c docker.Container) (string, string)
 		}
 	}
 	switch key {
+	case KeyCtrlD:
+		if v.scopeNetwork != "" {
+			return ActConfirmDisconnect, DisconnectParam(v.scopeNetwork, c)
+		}
+	case "N":
+		// The picker acts on the marked rows when there are any: a bulk
+		// key maps one row at a time, and this is one form for them all.
+		targets := marked(&v.tableMarks, v.visible, containerMarkKey)
+		if len(targets) == 0 {
+			targets = []docker.Container{c}
+		}
+		return "network_picker", EncodeNetTargets(NetTargets(targets))
 	case "n":
 		if docker.IsClusterRegistry(c) {
 			return "registry_not_node", c.Name
@@ -847,12 +862,17 @@ func (v *ContainersView) SetScope(label string, match func(docker.Container) boo
 	v.rebuildRows()
 }
 
+// SetScopeNetwork says the scope is a network's users, so ctrl-d
+// disconnects a container from it instead of removing it (#107). SetScope
+// sets the narrowing; ClearScope lifts both.
+func (v *ContainersView) SetScopeNetwork(network string) { v.scopeNetwork = network }
+
 // ClearScope lifts SetScope's narrowing.
 func (v *ContainersView) ClearScope() {
 	if v.scopeMatch == nil {
 		return
 	}
-	v.scopeLabel, v.scopeMatch = "", nil
+	v.scopeLabel, v.scopeMatch, v.scopeNetwork = "", nil, ""
 	v.rebuildRows()
 }
 

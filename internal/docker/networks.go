@@ -5,11 +5,14 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 )
 
@@ -128,4 +131,65 @@ func (c *Client) PruneNetworks(ctx context.Context) (deleted int, err error) {
 		return 0, fmt.Errorf("pruning networks: %w", err)
 	}
 	return len(res.Report.NetworksDeleted), nil
+}
+
+// NetworkAttach is one `docker network connect`: the container, and the
+// optional DNS aliases and fixed address it takes on the network.
+type NetworkAttach struct {
+	Container string
+	IP        string
+	Aliases   []string
+}
+
+// ParseEndpointIP reads a fixed address for a connect: "" for one the
+// daemon picks, else an IPv4 or IPv6 address — never a CIDR, which
+// `docker network connect --ip` refuses too.
+func ParseEndpointIP(s string) (*network.EndpointIPAMConfig, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil //nolint:nilnil // no fixed address is not an error
+	}
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return nil, fmt.Errorf("%q is not an IP address", s)
+	}
+	if addr.Is4() || addr.Is4In6() {
+		return &network.EndpointIPAMConfig{IPv4Address: addr.Unmap()}, nil
+	}
+	return &network.EndpointIPAMConfig{IPv6Address: addr}, nil
+}
+
+// ConnectNetwork attaches a container to a network, as `docker network
+// connect [--alias …] [--ip …]`. The daemon's error is wrapped, not
+// replaced, so a caller can still tell "already connected" apart.
+func (c *Client) ConnectNetwork(ctx context.Context, networkName string, at NetworkAttach) error {
+	ipam, err := ParseEndpointIP(at.IP)
+	if err != nil {
+		return err
+	}
+	_, err = c.api.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{
+		Container: at.Container,
+		EndpointConfig: &network.EndpointSettings{
+			Aliases:    at.Aliases,
+			IPAMConfig: ipam,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("connecting %s to %s: %w", at.Container, networkName, err)
+	}
+	return nil
+}
+
+// DisconnectNetwork detaches a container from a network, as `docker
+// network disconnect` without -f: a daemon that cannot detach it cleanly
+// says so rather than having its endpoint state forced.
+func (c *Client) DisconnectNetwork(ctx context.Context, networkName, container string) error {
+	if container == "" {
+		return errors.New("no container to disconnect")
+	}
+	_, err := c.api.NetworkDisconnect(ctx, networkName, client.NetworkDisconnectOptions{Container: container})
+	if err != nil {
+		return fmt.Errorf("disconnecting %s from %s: %w", container, networkName, err)
+	}
+	return nil
 }

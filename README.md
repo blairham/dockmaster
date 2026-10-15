@@ -93,6 +93,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 | `U` | on an image, volume or network: the containers using it, stopped ones too (`esc` back) | `J` | on a container: jump to its compose project |
 | `shift-f` | port-forward to the container (a label can prefill or confirm it) | `f` | on a container: its port forwards (`esc` back) |
 | `M` | on a container: commit it to an image (`repo[:tag]`, message, pause) | `E` | on a container: export its filesystem to a tar; on an image, save it — or every marked one — to a tar (`:load <path>` reads one back) |
+| `N` | on a container: connect it to a network (aliases, IP optional), or disconnect it from one it is on (confirms) | `ctrl-d` | in a network's `U` list: disconnect from that network (confirms) |
 | `space` / `ctrl-space` | mark a row / a range — lifecycle and remove keys then act on every marked row | `ctrl-\` | clear marks |
 | `ctrl-g` | toggle breadcrumbs | `ctrl-e` | toggle the header |
 | `j` `k` `h` `l` | move (arrows work too) | `g` / `G` | top / bottom |
