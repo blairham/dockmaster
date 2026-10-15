@@ -52,7 +52,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:lint` | | Each container's risky or fragile settings, worst first |
 | `:alerts` | | What alerted this session — a container turning unhealthy, OOM-killed, exiting non-zero or restart-looping — newest first (`alerts:` in [`design/config.md`](design/config.md#alerts)) |
 | `:dir [path]` | | Browse a directory for compose files and bring a project up from its file (default: the working directory; `~` works) |
-| `:build [path]` | | Build an image: a form for tag, Dockerfile, target and build args, then `docker buildx build` (or `docker build` without buildx) against the daemon on screen, its output streamed into a log-style view. The path is a directory or a Dockerfile (default: the working directory; `~` works). Refused under `--readonly` |
+| `:build [path]` | | Build an image: a form for tag, Dockerfile, target and build args, then `docker buildx build` (or `docker build` without buildx) against the daemon on screen, its output streamed into a log-style view. The build runs in the background: `esc` leaves it running, and `:build` with no path while one runs reopens the newest. The path is a directory or a Dockerfile (default: the working directory; `~` works). Refused under `--readonly` |
 | `:sd` | `:screendump`, `:screendumps`, `:dumps` | What `ctrl-s` has saved, tables and logs, newest first |
 | `:hostshell` | | A **root** shell on the host of the daemon on screen — the VM under Docker Desktop, OrbStack or Rancher Desktop, or a remote context's server — through a privileged helper (`hostShell.image`, pulled if missing). Confirms; refused under `--readonly` and on a rootless daemon. See [`design/host-shell.md`](design/host-shell.md) |
 | `:ctx [name]` | `:context [name]`, `:contexts` | The docker contexts, or switch straight to one |
@@ -188,7 +188,9 @@ Keys every view shares:
 compose up, `x` stop, `R` restart, `p` pull, `e` edit the compose files then
 up, `s` scale a service (a form: the service and its container count; a
 scale down or to 0 confirms), `b` compose build (a form: every service or
-one, and whether to `up -d` after; the output streams as with `:build`),
+one, and whether to `up -d` after; the output streams as with `:build`, the
+project shows `building…` until it ends, and the up runs even with the
+output closed),
 `y` `compose config` — the merged YAML, in the inspect view, allowed under
 `--readonly` — and `ctrl-d` compose down (confirms).
 
@@ -242,7 +244,7 @@ a root keep every container key above.
 | Disk usage (`:df`) | `P` prune the selected kind |
 | Saved dumps (`:sd`) | `enter` read, `ctrl-d` delete |
 | `:dir` | `enter` walk in or open, `u` up from the file, `e` edit then up, `ctrl-d` `compose -f <file> down` (confirms), `b` build a Dockerfile (or a directory's own), `esc` back up |
-| A build's output | `s` autoscroll, `w` wrap, `f` fullscreen, `c` / `ctrl-s` copy / save (to the saved logs), `/` filter; `esc` stops a build still running and goes back |
+| A build's output | `s` autoscroll, `w` wrap, `f` fullscreen, `c` / `ctrl-s` copy / save (to the saved logs), `/` filter; `x` stops a running build (confirms); `esc` goes back and leaves it running |
 | `:lint` | `enter` explain, `o` inspect the container |
 | `:alerts` | `enter` the container, in the containers view with stopped ones listed (refused for an alert from another context), `c` / `I` copy its name / ID |
 | Image scan | `enter` the fix and the advisory link |

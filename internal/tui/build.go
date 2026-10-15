@@ -35,7 +35,17 @@ var errNoDockerForStream = errors.New("this needs the `docker` CLI on PATH")
 // buildCommand is :build [path] (#104): the build form on a directory, or
 // on a Dockerfile, whose directory is then the context. No path is the
 // directory dockmaster was started in; ~ is the home directory, as in :dir.
+//
+// With no path while a build is running, it reattaches to the newest
+// running build instead (#121): leaving a build's output leaves it running,
+// and this is the way back to it.
 func (a *App) buildCommand(arg string) (string, tea.Cmd) {
+	if arg == "" {
+		if b := a.latestRunningBuild(); b != nil {
+			a.attachBuild(b)
+			return "", nil
+		}
+	}
 	path := arg
 	if path == "" {
 		wd, err := os.Getwd()
@@ -84,7 +94,7 @@ func (a *App) runBuild(spec docker.BuildSpec) tea.Cmd {
 	start := a.streamCLI(func(ctx context.Context, bin string) docker.CommandSpec {
 		return docker.BuildCommand(bin, endpoint, detect(ctx, bin), spec)
 	})
-	return a.openOutput("build "+spec.BuildTitle(), start, "", "")
+	return a.startBuild(views.NewBuild("build "+spec.BuildTitle(), spec.BuildTitle(), start))
 }
 
 // streamCLI is the start of a streamed docker CLI command: argv builds the
@@ -107,65 +117,6 @@ func (a *App) streamCLI(argv func(ctx context.Context, bin string) docker.Comman
 		}
 		return stream(ctx, argv(ctx, bin))
 	}
-}
-
-// openOutput runs start into a new output view, pushed over the view it
-// was started from — a form it was submitted from closes first, so esc
-// goes back to where the user was. then is the action to run once the
-// command succeeds, "" for none.
-func (a *App) openOutput(title string, start views.OutputStartFunc, then, thenParam string) tea.Cmd {
-	switch a.view {
-	case style.ViewBuildForm, style.ViewScaleForm, style.ViewComposeBuild:
-		a.popView()
-	}
-	if old := typedView[*views.OutputView](a, style.ViewOutput); old != nil {
-		old.Stop()
-	}
-	ov := views.NewOutputView(title, start)
-	ov.SetThen(then, thenParam)
-	a.setView(style.ViewOutput, ov)
-	a.pushView(style.ViewOutput)
-	a.flash = title + "…"
-	return ov.Init()
-}
-
-// handleOutputMsg hands a streamed command's message to its view and, when
-// the command has ended, says how — and after a success runs what was
-// asked to follow it, through handleAction like any other action.
-func (a *App) handleOutputMsg(msg tea.Msg) tea.Cmd {
-	ov := typedView[*views.OutputView](a, style.ViewOutput)
-	if ov == nil {
-		return nil
-	}
-	cmd := ov.Update(msg)
-	var gen int64
-	switch m := msg.(type) {
-	case views.OutputDoneMsg:
-		gen = m.Gen
-	case views.OutputStartedMsg:
-		if m.Err == nil {
-			return cmd
-		}
-		gen = m.Gen
-	default:
-		return cmd
-	}
-	if gen != ov.Gen() || ov.Running() {
-		return cmd
-	}
-	switch err := ov.Err(); {
-	case errors.Is(err, context.Canceled):
-		return cmd
-	case err != nil:
-		a.errFlash = fmt.Sprintf("%s failed — %s", ov.Title(), docker.FormatUserError(err))
-		return cmd
-	}
-	a.flash = ov.Title() + " done"
-	if act, p := ov.Then(); act != "" {
-		_, next := a.handleAction(act, p)
-		return tea.Batch(cmd, next)
-	}
-	return cmd
 }
 
 // outputAction carries out the output view's own keys: autoscroll, wrap,

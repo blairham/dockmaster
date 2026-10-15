@@ -71,6 +71,8 @@ var mutating = map[string]bool{
 	"compose_up_file":     true, "compose_edit_file": true, "confirm_compose_down_file": true,
 	// A build writes an image into the daemon; the form is the way in.
 	"build_form": true, "build_run": true, "compose_build_form": true, "compose_build": true,
+	// Stopping a build changes what reaches the daemon too.
+	"confirm_stop_build": true,
 	// The context store, not the daemon — but a removal all the same.
 	"confirm_remove_context": true,
 	// A commit or a load makes an image; export and save only read the
@@ -199,6 +201,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, cmd
 	case "not_dockerfile":
 		a.errFlash = param + " is not a Dockerfile or a directory — Dockerfile, Containerfile and their variants are"
+		return a, nil
+	case "confirm_stop_build":
+		a.confirmStopBuild(param)
+		return a, nil
+	case "build_not_running":
+		a.errFlash = param + " is not running — nothing to stop"
 		return a, nil
 	case "output_follow", "output_wrap", "output_copy", "output_save":
 		cmd := a.outputAction(action)
@@ -814,6 +822,7 @@ func (a *App) handleActionDone(msg actionDoneMsg) (tea.Model, tea.Cmd) {
 // happens later in the dispatch closure.
 func (a *App) openConfirm(action, param, question string) {
 	pa := pendingAction{action: action, param: param}
+	a.quitAsked = false
 	a.confirmDispatch = func(yes bool) (string, tea.Cmd) {
 		if !yes {
 			return "", nil
@@ -846,6 +855,10 @@ func confirmTitle(action string) string {
 		return "Kubernetes"
 	case "stop_forward":
 		return "Stop Forward"
+	case "stop_build":
+		return "Stop Build"
+	case actQuitApp:
+		return "Quit dockmaster"
 	case "stop_project":
 		return "Stop"
 	case "remove_dump":
@@ -878,6 +891,11 @@ func confirmTitle(action string) string {
 //nolint:gocyclo,funlen // flat action dispatch: one case per confirmed action, long by count not depth
 func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 	switch pa.action {
+	case actQuitApp:
+		return a.quit(true)
+	case "stop_build":
+		a.stopBuild(pa.param)
+		return nil
 	case "kill":
 		return a.run("killed", a.containerName(pa.param), func(ctx context.Context) error {
 			return a.client.KillContainer(ctx, pa.param, "SIGKILL")

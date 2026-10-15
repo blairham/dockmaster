@@ -61,6 +61,9 @@ func (a *App) composeProject(name string) (docker.Project, bool) {
 
 // projectBusy is the compose operation in flight on a project, "" if none.
 func (a *App) projectBusy(name string) string {
+	if b := a.projectBuild(name); b != nil {
+		return busyBuilding
+	}
 	if pv := typedView[*views.ProjectsView](a, style.ViewProjects); pv != nil {
 		return pv.Busy(name)
 	}
@@ -458,6 +461,10 @@ func (a *App) composeBuild(sp views.ComposeBuildSpec) tea.Cmd {
 		a.errFlash = "project " + sp.Project + " is not in the last listing — refresh and try again"
 		return nil
 	}
+	if op := a.projectBusy(sp.Project); op != "" {
+		a.errFlash = fmt.Sprintf("%s is already %s — wait for it to finish", sp.Project, op)
+		return nil
+	}
 	if missing := p.MissingFile(); missing != "" {
 		a.errFlash = "cannot build " + sp.Project + ": " + missing
 		return nil
@@ -479,7 +486,10 @@ func (a *App) composeBuild(sp views.ComposeBuildSpec) tea.Cmd {
 	if sp.Up {
 		then = actComposeUp
 	}
-	return a.openOutput(title, start, then, sp.Project)
+	b := views.NewBuild(title, sp.Project, start)
+	b.Project = sp.Project
+	b.ThenAction, b.ThenParam = then, sp.Project
+	return a.startBuild(b)
 }
 
 // composeConfig shows `compose config` for a project in the inspect view:

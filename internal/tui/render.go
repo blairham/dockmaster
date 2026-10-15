@@ -418,7 +418,8 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<f>", "Fullscreen",
 		"<c>", "Copy",
 		"<ctrl-s>", "Save",
-		"<esc>", "Stop/Back",
+		"<x>", "Stop",
+		"<esc>", "Back",
 	),
 	style.ViewScaleForm: keys(
 		"<enter>", "Scale",
@@ -891,7 +892,8 @@ func outputHelp() chrome.HelpSection {
 		{Key: "<f>", Desc: "Fullscreen"},
 		{Key: "<c>", Desc: "Copy"},
 		{Key: "<ctrl-s>", Desc: "Save to file"},
-		{Key: "<esc>", Desc: "Stop and back"},
+		{Key: "<x>", Desc: "Stop the build"},
+		{Key: "<esc>", Desc: "Back (it keeps running)"},
 	}}
 }
 

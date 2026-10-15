@@ -7,10 +7,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/blairham/dockmaster/internal/docker"
 	"github.com/blairham/dockmaster/internal/tui/style"
@@ -19,10 +22,13 @@ import (
 
 // fakeStream stands in for running a CLI command: it records each command
 // and plays back lines and an exit. With hold set, its output stays open
-// until the command is canceled, as a long build's would.
+// until the command is canceled or the test ends it — as a long build's
+// would — and the test can print more through out meanwhile.
 type fakeStream struct {
 	exit     error
 	canceled chan struct{}
+	out      chan string
+	end      chan error
 	specs    []docker.CommandSpec
 	lines    []string
 	mu       sync.Mutex
@@ -33,7 +39,7 @@ func (f *fakeStream) run(ctx context.Context, spec docker.CommandSpec) (*docker.
 	f.mu.Lock()
 	f.specs = append(f.specs, spec)
 	f.mu.Unlock()
-	lines := make(chan string, len(f.lines))
+	lines := make(chan string, len(f.lines)+16)
 	done := make(chan error, 1)
 	for _, l := range f.lines {
 		lines <- l
@@ -43,12 +49,17 @@ func (f *fakeStream) run(ctx context.Context, spec docker.CommandSpec) (*docker.
 		done <- f.exit
 		return &docker.CommandStream{Lines: lines, Done: done}, nil
 	}
-	f.canceled = make(chan struct{})
+	f.out, f.end, f.canceled = lines, make(chan error, 1), make(chan struct{})
 	go func() {
-		<-ctx.Done()
-		close(f.canceled)
-		close(lines)
-		done <- ctx.Err()
+		select {
+		case <-ctx.Done():
+			close(f.canceled)
+			close(lines)
+			done <- ctx.Err()
+		case err := <-f.end:
+			close(lines)
+			done <- err
+		}
 	}()
 	return &docker.CommandStream{Lines: lines, Done: done}, nil
 }
@@ -123,7 +134,7 @@ func TestBuildCommandRunsBuildx(t *testing.T) {
 			t.Errorf("output view is missing %q:\n%s", w, out)
 		}
 	}
-	if !strings.Contains(a.flash, "build app:dev done") {
+	if !strings.Contains(a.flash, "[app:dev] build finished") {
 		t.Errorf("flash %q", a.flash)
 	}
 	// The form closed when the build started: esc goes back past it.
@@ -231,29 +242,180 @@ func TestBuildReadonly(t *testing.T) {
 	}
 }
 
-// TestBuildEscStops: leaving the output view while the build runs stops
-// it — nothing else would read its output.
-func TestBuildEscStops(t *testing.T) {
+// startHeldBuild starts a build of dir on a held fake stream and drains
+// its first batch: what it returns reads the next one. The drain is never
+// run to the end here — a held stream would keep it polling for ever.
+func startHeldBuild(t *testing.T, a *App, dir string) tea.Cmd {
+	t.Helper()
+	_, cmd := a.dispatchCommand("build " + dir)
+	runCmd(a, cmd)
+	typeText(a, "app:dev")
+	start := step(a, key("enter"))
+	drain := step(a, start())
+	return step(a, drain())
+}
+
+// drainToEnd reads a build's batches until its end has been handled, and
+// returns what the end asked to run next.
+func drainToEnd(t *testing.T, a *App, next tea.Cmd) tea.Cmd {
+	t.Helper()
+	for range 1000 {
+		if next == nil {
+			t.Fatal("the drain stopped before the build ended")
+		}
+		msg := next()
+		next = step(a, msg)
+		if _, ok := msg.(views.OutputDoneMsg); ok {
+			return next
+		}
+	}
+	t.Fatal("the build never ended")
+	return nil
+}
+
+// TestBuildEscDetaches (#121): leaving the output view leaves the build
+// running; what it prints meanwhile is there when :build reattaches; x
+// stops it, after a confirm, keeping the output.
+func TestBuildEscDetaches(t *testing.T) {
 	dir := buildTree(t)
 	f := &fakeStream{hold: true, lines: []string{"#1 building"}}
 	a := newBuildApp(t, f)
-	_, cmd := a.dispatchCommand("build " + dir)
-	runCmd(a, cmd)
-	start := step(a, key("enter"))
-	// Start it, but leave the drain unrun: it would wait on the output.
-	step(a, start())
-	ov := typedView[*views.OutputView](a, style.ViewOutput)
-	if ov == nil || !ov.Running() {
-		t.Fatal("the build is not running")
-	}
-	if out := render(a); !strings.Contains(out, "esc stops it") {
-		t.Errorf("the running view does not say esc stops it:\n%s", out)
+	next := startHeldBuild(t, a, dir)
+	if out := render(a); !strings.Contains(out, "#1 building") || !strings.Contains(out, "esc leaves it running") {
+		t.Errorf("the running view:\n%s", out)
 	}
 	step(a, key("esc"))
-	<-f.canceled
-	if ov.Running() || ov.Status() != "canceled" {
-		t.Errorf("after esc: running %v, status %q", ov.Running(), ov.Status())
+	if a.view == style.ViewOutput {
+		t.Fatal("esc stayed in the output")
 	}
+	select {
+	case <-f.canceled:
+		t.Fatal("esc stopped the build")
+	default:
+	}
+	b := a.latestRunningBuild()
+	if b == nil {
+		t.Fatal("no build is running after esc")
+	}
+
+	f.out <- "#2 while you were away"
+	next = step(a, next())
+	if _, cmd := a.dispatchCommand("build"); cmd != nil {
+		runCmd(a, cmd)
+	}
+	if a.view != style.ViewOutput {
+		t.Fatalf(":build with a build running opened %v", a.view)
+	}
+	out := render(a)
+	for _, w := range []string{"#1 building", "#2 while you were away"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("reattached output is missing %q:\n%s", w, out)
+		}
+	}
+
+	step(a, key("x"))
+	if !a.confirm.Active() {
+		t.Fatal("x did not ask before stopping")
+	}
+	step(a, key("y"))
+	<-f.canceled
+	drainToEnd(t, a, next)
+	if b.Running() || b.Status() != "canceled" {
+		t.Errorf("after x: running %v, status %q", b.Running(), b.Status())
+	}
+	if out := render(a); !strings.Contains(out, "#2 while you were away") || !strings.Contains(out, "stopped after") {
+		t.Errorf("the stopped build's output:\n%s", out)
+	}
+	if !strings.Contains(a.flash, "[app:dev] build stopped") {
+		t.Errorf("flash %q", a.flash)
+	}
+}
+
+// TestBuildStopReadonly: x on a running build is refused under readonly,
+// as every other change is.
+func TestBuildStopReadonly(t *testing.T) {
+	dir := buildTree(t)
+	f := &fakeStream{hold: true}
+	a := newBuildApp(t, f)
+	startHeldBuild(t, a, dir)
+	a.readonly = true
+	step(a, key("x"))
+	if a.confirm.Active() || !strings.Contains(a.errFlash, "readonly") {
+		t.Errorf("readonly x: confirm %v, err %q", a.confirm.Active(), a.errFlash)
+	}
+	a.stopAllBuilds()
+	<-f.canceled
+}
+
+// TestBuildEndsElsewhere: a build that ends while its output is closed
+// says so in the flash — finished, or failed with its exit status.
+func TestBuildEndsElsewhere(t *testing.T) {
+	exit3 := exec.Command("sh", "-c", "exit 3").Run()
+	for _, tc := range []struct {
+		exit    error
+		name    string
+		want    string
+		wantErr bool
+	}{
+		{name: "finished", want: "[app:dev] build finished"},
+		{name: "failed", exit: exit3, want: "[app:dev] build failed (exit 3)", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := buildTree(t)
+			f := &fakeStream{hold: true}
+			a := newBuildApp(t, f)
+			next := startHeldBuild(t, a, dir)
+			step(a, key("esc"))
+			f.end <- tc.exit
+			drainToEnd(t, a, next)
+			got := a.flash
+			if tc.wantErr {
+				got = a.errFlash
+			}
+			if got != tc.want {
+				t.Errorf("flash %q / %q, want %q", a.flash, a.errFlash, tc.want)
+			}
+			if a.latestRunningBuild() != nil {
+				t.Error("the build still counts as running")
+			}
+		})
+	}
+}
+
+// TestQuitWithBuildRunningAsks: quitting with a build running asks first;
+// ctrl-c again answers it, and :q! does not ask. Either way the build is
+// stopped with the app.
+func TestQuitWithBuildRunningAsks(t *testing.T) {
+	dir := buildTree(t)
+	f := &fakeStream{hold: true}
+	a := newBuildApp(t, f)
+	startHeldBuild(t, a, dir)
+	if cmd := step(a, key("ctrl+c")); cmd != nil || !a.confirm.Active() {
+		t.Fatalf("ctrl-c with a build running: cmd %v, confirm %v", cmd != nil, a.confirm.Active())
+	}
+	if !strings.Contains(render(a), "1 build is still running") {
+		t.Errorf("the question:\n%s", render(a))
+	}
+	cmd := step(a, key("ctrl+c"))
+	if cmd == nil {
+		t.Fatal("a second ctrl-c did not quit")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Error("a second ctrl-c did not quit")
+	}
+	<-f.canceled
+
+	g := &fakeStream{hold: true}
+	b := newBuildApp(t, g)
+	startHeldBuild(t, b, dir)
+	_, cmd = b.dispatchCommand("q!")
+	if cmd == nil {
+		t.Fatal(":q! asked")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Error(":q! did not quit")
+	}
+	<-g.canceled
 }
 
 // TestBuildOutputSave: ctrl-s saves the output, styling stripped, under the

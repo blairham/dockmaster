@@ -190,8 +190,8 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			a.flash = "ctrl-c does not quit (noExitOnCtrlC) — :q quits"
 			return a, nil
 		}
-		a.shutdown()
-		return a, tea.Quit
+		cmd := a.quit(false)
+		return a, cmd
 	}
 
 	// Any keypress clears a flash — it has been read, or it has not, and
@@ -514,8 +514,7 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		a.showAliases()
 		return "", nil
 	case "q", "q!", "quit", "exit":
-		a.shutdown()
-		return "", tea.Quit
+		return "", a.quit(lower == "q!")
 	case "logs", "log":
 		return a.rowCommand("logs", func(act string) bool { return act == "logs" || act == "project_logs" }, "l")
 	case "inspect", "describe":

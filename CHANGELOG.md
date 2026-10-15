@@ -66,6 +66,14 @@ fails when the tag has none.
 
 ### Changed
 
+- Builds run in the background (#121): `esc` in a build's output leaves it
+  running and only closes the view, and `:build` with no path reopens the
+  newest running build with everything it printed meanwhile. `x` stops a
+  build (confirms). A project shows `building…` while its compose build
+  runs, and "then up" runs when it finishes wherever you are. A build that
+  ends while its output is closed says so — `[app:dev] build finished`, or
+  `failed (exit N)` — and is written to the log. Quitting with a build
+  running asks first (`:q!` does not).
 - Releases are built and signed by the shared `go-release.yml` in
   blairham/.github, which `release.yml` now calls. `checksums.txt`'s
   signature and the provenance name that workflow, with this repository and
