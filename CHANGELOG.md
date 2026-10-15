@@ -45,6 +45,13 @@ fails when the tag has none.
   the daemon and stores them as `docker login` does, in the credential
   helper; `ctrl-d` logs out after a confirm. Both are refused under
   `--readonly`.
+- Alerts: a container turning unhealthy, being OOM-killed, exiting
+  non-zero or restart-looping is flashed in whatever view is on screen
+  (`[web] OOM-killed`), written to the log file, and listed by `:alerts`
+  for the session, where `enter` jumps to the container. A stop, kill or
+  restart you asked for is not a crash, and each transition is reported
+  once. `alerts.enabled` (on), `alerts.bell` and `alerts.restartLoop`
+  (`count` 3 in `window` 5m), overridable per context. (#109)
 
 ### Changed
 

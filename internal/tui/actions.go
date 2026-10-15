@@ -214,6 +214,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		})
 		v.SetPlain()
 		return a.openReport(v)
+	case "alert_jump":
+		cmd := a.jumpToAlert(param)
+		return a, cmd
 	case "lint":
 		a.setView(style.ViewLint, views.NewLintView(a.client))
 		a.pushView(style.ViewLint)

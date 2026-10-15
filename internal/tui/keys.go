@@ -46,6 +46,7 @@ var knownCommands = []string{
 	cmdLogin,
 	"sd",
 	"lint",
+	cmdAlerts,
 	"xray",
 	"xray net",
 	"xray vol",
@@ -533,6 +534,9 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	case cmdLogin:
 		_, cmd := a.handleAction("login_form", "")
 		return "", cmd
+	case cmdAlerts:
+		a.showAlerts()
+		return "", nil
 	case "xray", "x":
 		_, cmd := a.handleAction("xray", "")
 		return "", cmd

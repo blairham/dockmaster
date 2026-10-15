@@ -92,12 +92,12 @@ func TestAliasesViewSorts(t *testing.T) {
 	first, _ := av.Selected()
 	step(a, key("shift+right")) // sort by COMMAND, ascending
 	sorted, _ := av.Selected()
-	if sorted.Name == first.Name || sorted.Name != "aliases" {
-		t.Errorf("sorted by command: first row %q (was %q), want aliases", sorted.Name, first.Name)
+	if sorted.Name == first.Name || sorted.Name != "alerts" {
+		t.Errorf("sorted by command: first row %q (was %q), want alerts", sorted.Name, first.Name)
 	}
 	step(a, key("enter"))
-	if a.view != style.ViewAliases || len(a.viewStack) != 1 {
-		t.Errorf("enter on :aliases from its own view: view %s stack %v", style.ViewName(a.view), a.viewStack)
+	if a.view != style.ViewAlerts {
+		t.Errorf("enter on the sorted first row, :alerts, opened %s", style.ViewName(a.view))
 	}
 }
 

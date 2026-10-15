@@ -66,6 +66,7 @@ var columnSets = map[string][]func() []table.Column{
 	"files":        {volumeBrowseColumns},
 	"scan":         {scanColumns},
 	"aliases":      {aliasColumns},
+	"alerts":       {alertColumns},
 }
 
 // LayoutViews is every view views.yaml can name, sorted.
