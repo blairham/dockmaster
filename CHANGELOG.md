@@ -16,6 +16,113 @@ hand. Changes not yet released are one file each under `.changes/unreleased/`
 the next version is the largest bump among them. See
 [docs/versioning.md](docs/versioning.md).
 
+## [0.1.0](https://github.com/blairham/dockmaster/compare/v0.0.16...v0.1.0) - 2026-10-15
+
+### Added
+
+- A local registry (#120): `:registry up` (or `u` in `:registries`) runs
+  `registry:2` as `dockmaster-registry` on `127.0.0.1:5000`
+  (`localRegistry.name` / `.port`), its images in a named volume that
+  survives the container, deletes enabled — or starts the kind or k3d
+  registry already on the daemon instead of a second one. `:registries`
+  lists the registry containers first; `enter` on any registry, local or
+  one you are logged in to, lists its repositories (`:catalog [registry]`),
+  and `enter` on one its tags with digest, size, platforms and age. `ctrl-d`
+  on a tag deletes it by digest and `P` garbage-collects the registry
+  container, both after a confirm. `x` stops a registry container and
+  `ctrl-d` removes dockmaster's own (its volume stays). In `:registries`,
+  logging in again to a row moved from `enter` to `l`. Everything but
+  browsing is refused under `--readonly`.
+- Pushing to the local registry (#120): `p`'s confirm takes `L` to push to
+  the local registry instead — the image is tagged
+  `localhost:5000/<name>:<tag>` and that is pushed; the build form's "push
+  local" pushes the built tag there once the build succeeds; `u` on a tag
+  in a registry pulls it and opens the run form on it. A push or pull that
+  finds no registry listening says to `:registry up`.
+- `:builds` (also `:build-history`, `:bh`) is the build history, as Docker
+  Desktop's Builds tab (#118): every record the builder keeps (`docker
+  buildx history`, buildx v0.20.0 or later) — name, status, steps, cache
+  hits, duration, age and a failed build's error — newest first, with
+  dockmaster's own running builds on top. `enter` replays a build's log
+  (`enter` on a running one reopens its output), `o` inspects it, `R` opens
+  the build form on the same context, Dockerfile, target and args, `ctrl-d`
+  removes a record (confirms; works on marked rows), `ctrl-z` lists failed
+  builds only. config.yaml's `builder` picks the buildx builder.
+- `ctrl-n` in the volumes and networks views creates one, through a form
+  (#106): a volume's name, driver, driver opts and labels; a network's name,
+  driver (`overlay` offered only on a swarm manager), subnet, gateway,
+  internal, attachable and labels. `:create volume` and `:create network`
+  open the same forms from any view, `:create` the one for the view on
+  screen. Refused under `--readonly`.
+- Snapshot and move images and containers (#108): `M` on a container (or
+  `:commit`) commits it to an image — `repo[:tag]`, a message, paused while
+  it is read unless you say otherwise; `E` exports a container's filesystem
+  (`:export`) or saves an image, or every marked one, to a tar (`:save`),
+  by default under `~/.local/state/dockmaster/exports/`, confirming before
+  it replaces a file; `:load <path>` loads images from a tar. Commit and load
+  are refused under `--readonly`.
+- `N` on a container connects it to a network or disconnects it (#107): a
+  picker lists every network with the ones it is on marked; choosing another
+  connects it, with optional aliases and a fixed IP, and choosing one it is
+  on disconnects it after a confirm. With rows marked it acts on all of them.
+  In a network's used-by list (`U`), `ctrl-d` disconnects the container from
+  that network (confirms) instead of removing it. `--readonly` refuses both.
+- `:build [path]` builds an image (#104): a form for tag, Dockerfile, target
+  and build args, then `docker buildx build` — or `docker build` where buildx
+  is not installed — against the daemon on screen, its output streamed into a
+  log-style view (autoscroll, wrap, copy, `ctrl-s` save). A failure leaves the
+  output on screen; `esc` stops a build still running. `b` on a Dockerfile or
+  a directory in `:dir` opens the same form. Refused under `--readonly`.
+- `:registries` (`:reg`) lists the registries in the docker config, where
+  each credential is stored and whether it resolves, never the secret.
+  `:login [registry]` (or `n` there) checks a username and password with
+  the daemon and stores them as `docker login` does, in the credential
+  helper; `ctrl-d` logs out after a confirm. Both are refused under
+  `--readonly`.
+- Alerts: a container turning unhealthy, being OOM-killed, exiting
+  non-zero or restart-looping is flashed in whatever view is on screen
+  (`[web] OOM-killed`), written to the log file, and listed by `:alerts`
+  for the session, where `enter` jumps to the container. A stop, kill or
+  restart you asked for is not a crash, and each transition is reported
+  once. `alerts.enabled` (on), `alerts.bell` and `alerts.restartLoop`
+  (`count` 3 in `window` 5m), overridable per context. (#109)
+- Tag and push images (#102): `t` on an image (or `:tag <ref>`) tags it
+  `repo[:tag]`; `p` (or `:push [ref]`) pushes its tag after a confirm, with
+  the credential the docker config holds for the registry (`:registries`),
+  progress streaming to the flash line. Both are refused under `--readonly`.
+- Projects build and show their config (#105): `b` runs `compose build` —
+  every service or one, picked in a form — streamed into the same output view
+  as `:build`, and optionally `compose up -d` once it succeeds; `y` shows
+  `compose config`, the merged YAML of every compose file, `.env` and
+  interpolation, in the inspect view. A build is refused under `--readonly`
+  and when the compose files are not on this machine; the config is allowed
+  under `--readonly`.
+- `:builders` (`:buildx`) lists the buildx builders (#119): driver, endpoint,
+  status, BuildKit version and platforms, the current one marked, and why a
+  broken one is broken. `u` / `x` start and stop one, `U` makes it the
+  default (`buildx use`), `P` prunes its build cache, `ctrl-n` creates one
+  (name, driver, platforms, a remote driver's endpoint) and `ctrl-d` removes
+  one (both prune and remove confirm; a docker context's own builder is
+  refused); `enter` / `o` show `buildx inspect`. Changes are refused under
+  `--readonly`.
+
+### Changed
+
+- Builds run in the background (#121): `esc` in a build's output leaves it
+  running and only closes the view; `:builds` lists it on top, and `enter`
+  reopens it with everything it printed meanwhile. `x` stops a
+  build (confirms). A project shows `building…` while its compose build
+  runs, and "then up" runs when it finishes wherever you are. A build that
+  ends while its output is closed says so — `[app:dev] build finished`, or
+  `failed (exit N)` — and is written to the log. Quitting with a build
+  running asks first (`:q!` does not).
+- Releases are built and signed by the shared `go-release.yml` in
+  blairham/.github, which `release.yml` now calls. `checksums.txt`'s
+  signature and the provenance name that workflow, with this repository and
+  the tag; SECURITY.md has the new verify commands, and how to check v0.0.16
+  and earlier.
+- Built with Go 1.26.9.
+
 ## [0.0.16] - 2026-10-07
 
 ### Changed

@@ -1,9 +1,0 @@
-kind: Added
-body: |-
-    `ctrl-n` in the volumes and networks views creates one, through a form
-    (#106): a volume's name, driver, driver opts and labels; a network's name,
-    driver (`overlay` offered only on a swarm manager), subnet, gateway,
-    internal, attachable and labels. `:create volume` and `:create network`
-    open the same forms from any view, `:create` the one for the view on
-    screen. Refused under `--readonly`.
-time: 2026-10-15T12:27:52.810089-04:00

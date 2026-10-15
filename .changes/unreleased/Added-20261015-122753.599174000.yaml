@@ -1,7 +1,0 @@
-kind: Added
-body: |-
-    Tag and push images (#102): `t` on an image (or `:tag <ref>`) tags it
-    `repo[:tag]`; `p` (or `:push [ref]`) pushes its tag after a confirm, with
-    the credential the docker config holds for the registry (`:registries`),
-    progress streaming to the flash line. Both are refused under `--readonly`.
-time: 2026-10-15T12:27:53.599174-04:00
