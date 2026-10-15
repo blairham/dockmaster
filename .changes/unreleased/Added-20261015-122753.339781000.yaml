@@ -1,9 +1,0 @@
-kind: Added
-body: |-
-    `:registries` (`:reg`) lists the registries in the docker config, where
-    each credential is stored and whether it resolves, never the secret.
-    `:login [registry]` (or `n` there) checks a username and password with
-    the daemon and stores them as `docker login` does, in the credential
-    helper; `ctrl-d` logs out after a confirm. Both are refused under
-    `--readonly`.
-time: 2026-10-15T12:27:53.339781-04:00

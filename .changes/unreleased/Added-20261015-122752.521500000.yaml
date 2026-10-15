@@ -1,9 +1,0 @@
-kind: Added
-body: |-
-    Pushing to the local registry (#120): `p`'s confirm takes `L` to push to
-    the local registry instead — the image is tagged
-    `localhost:5000/<name>:<tag>` and that is pushed; the build form's "push
-    local" pushes the built tag there once the build succeeds; `u` on a tag
-    in a registry pulls it and opens the run form on it. A push or pull that
-    finds no registry listening says to `:registry up`.
-time: 2026-10-15T12:27:52.5215-04:00
