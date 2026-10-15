@@ -14,6 +14,13 @@ import (
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
+// The :create commands' names.
+const (
+	cmdCreate        = "create"
+	cmdCreateVolume  = "create volume"
+	cmdCreateNetwork = "create network"
+)
+
 // otherCommands are the `:` commands that are not views, each with the
 // spellings dispatchCommand takes for it, in the order the aliases view
 // lists them. TestAliasesViewCoversEveryCommand fails when a command is
@@ -47,6 +54,9 @@ var otherCommands = []views.Command{
 	{Name: "delete all", Desc: "In images or volumes: delete every one not in use (confirms)"},
 	{Name: "delete all images", Desc: "Delete every image no container uses (confirms)"},
 	{Name: "delete all volumes", Desc: "Delete every volume no container uses, and its data (confirms)"},
+	{Name: cmdCreate, Desc: "In volumes or networks: create one, as ctrl-n"},
+	{Name: cmdCreateVolume, Also: []string{"create vol"}, Desc: "Create a volume (a form)"},
+	{Name: cmdCreateNetwork, Also: []string{"create net"}, Desc: "Create a network (a form)"},
 	{Name: "readonly", Desc: "Read-only mode on or off"},
 	{Name: "all", Desc: "Stopped containers / all images, as a"},
 	{Name: "stats", Desc: "The CPU/MEM poll on or off, as t"},

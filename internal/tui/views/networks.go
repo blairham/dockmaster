@@ -120,8 +120,11 @@ func (v *NetworksView) SetFilter(f string) {
 func (v *NetworksView) HandleKey(key string) (string, string) {
 	n, ok := v.Selected()
 	if !ok {
-		if key == "P" {
+		switch key {
+		case "P":
 			return "confirm_prune_networks", ""
+		case KeyCtrlN:
+			return ActionCreateForm, CreateNetwork
 		}
 		return "", ""
 	}
@@ -144,6 +147,8 @@ func (v *NetworksView) keyFor(key string, n docker.Network) (string, string) {
 			return "refuse_builtin_network", n.Name
 		}
 		return "confirm_remove_network", n.ID + "\x00" + n.Name
+	case KeyCtrlN:
+		return ActionCreateForm, CreateNetwork
 	}
 	return "", ""
 }

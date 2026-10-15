@@ -64,6 +64,7 @@ var mutating = map[string]bool{
 	// run re-checks readonly itself, since a reload can turn it on meanwhile.
 	"node_shell": true, "confirm_node_remove": true, "confirm_host_shell": true,
 	"run_image": true, "run_create": true, "copy_into": true,
+	views.ActionCreateForm: true, "volume_create": true, "network_create": true,
 	"confirm_runtime_k8s": true, "edit_form": true, "edit_apply": true,
 	// Not daemon state, but a delete all the same: readonly means hands off.
 	"confirm_remove_dump": true,
@@ -386,6 +387,25 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		return a, a.runImage(spec)
+
+	case views.ActionCreateForm:
+		return a.openCreateForm(param)
+	case "volume_create":
+		spec, err := views.DecodeVolumeSpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		cmd := a.createVolume(spec)
+		return a, cmd
+	case "network_create":
+		spec, err := views.DecodeNetworkSpec(param)
+		if err != nil {
+			a.errFlash = err.Error()
+			return a, nil
+		}
+		cmd := a.createNetwork(spec)
+		return a, cmd
 
 	case "health":
 		return a.openReport(views.NewHealthView(a.client, param, a.containerName(param)))

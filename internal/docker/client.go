@@ -57,6 +57,9 @@ type Client struct {
 	// Rootless is a daemon that reports running rootless (Negotiate): a
 	// container there cannot enter its host's namespaces.
 	Rootless bool
+	// SwarmManager is a daemon that manages a swarm (Negotiate): only
+	// there can an overlay network be created.
+	SwarmManager bool
 	// imageNames caches what an image ID is called (imageName); an ID
 	// names one image for good, so an entry never goes stale.
 	imageNames map[string]string
@@ -177,6 +180,7 @@ func (c *Client) Negotiate(ctx context.Context) error {
 	c.OSArch = info.OSType + "/" + info.Architecture
 	c.NCPU, c.MemTotal = info.NCPU, info.MemTotal
 	c.Rootless = rootless(info.SecurityOptions)
+	c.SwarmManager = info.Swarm.ControlAvailable
 	c.APIVersion = c.api.ClientVersion()
 	return nil
 }

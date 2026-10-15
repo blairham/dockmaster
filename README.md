@@ -55,7 +55,7 @@ dockmaster info                   # every path dockmaster uses, and the endpoint
 
 **dockmaster keeps a log** at `~/.local/state/dockmaster/dockmaster.log` (`$XDG_STATE_HOME` moves it, `--log-file` replaces it): every error it flashes, and at `--log-level info` plugin and hotkey runs and context switches. It never records environment values, a plugin's arguments or output, or what was typed into a plugin's inputs form. `dockmaster info` shows where it is, with the config, skins, dumps and history paths and the docker context and endpoint dockmaster would use — it does not dial the daemon, so it works when there is none.
 
-**Settings persist in `config.yaml`**, shaped like k9s's: `dockmaster config init` writes a commented one with the defaults to `~/.config/dockmaster/config.yaml` (`dockmaster config path` shows where it is read from; `$DOCKMASTER_CONFIG_DIR` and `$XDG_CONFIG_HOME` move it). Every flag above has a key there, plus `context`, `thresholds` (CPU/MEM colours, k9s's 70/90), `portForwardAddress`, and `logger.tail` / `logger.showTime`. Flags given on the command line win. See [`docs/design/config.md`](docs/design/config.md).
+**Settings persist in `config.yaml`**, shaped like k9s's: `dockmaster config init` writes a commented one with the defaults to `~/.config/dockmaster/config.yaml` (`dockmaster config path` shows where it is read from; `$DOCKMASTER_CONFIG_DIR` and `$XDG_CONFIG_HOME` move it). Every flag above has a key there, plus `context`, `thresholds` (CPU/MEM colors, k9s's 70/90), `portForwardAddress`, and `logger.tail` / `logger.showTime`. Flags given on the command line win. See [`docs/design/config.md`](docs/design/config.md).
 
 **It follows your docker context.** The Go SDK reads only the environment — `DOCKER_HOST`, which is empty on Colima, Rancher Desktop, Podman and remote hosts — so an SDK tool dials `/var/run/docker.sock` and claims your daemon is down while `docker ps` works fine. dockmaster reads the context store itself, in the CLI's own precedence order. See [`docs/design/docker-context-resolution.md`](docs/design/docker-context-resolution.md).
 
@@ -77,6 +77,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 | `ctrl-w` | wide columns: ID, command, networks and IP | | |
 | `t` | toggle the CPU/MEM poll | `z` | volume sizes (slow) |
 | on a volume: `enter` | browse its files (`enter` opens, `esc` goes up) | `o` | inspect |
+| in volumes / networks: `ctrl-n` | create one (a form; also `:create volume` / `:create network`) | | |
 | in a log: `s` | autoscroll on/off (scrolling pauses it, `G` resumes) | `t` | timestamps |
 | in a log: `0`–`5` | usual backlog / last 1m, 5m, 15m, 30m, 1h | `w` / `f` | wrap / fullscreen |
 | in a log: `c` / `ctrl-s` | copy / save what is shown (`~/.local/state/dockmaster/logs`) | `shift-c` | clear |

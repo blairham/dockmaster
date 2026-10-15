@@ -81,6 +81,9 @@ These act on the row selected in the current view, as their keys do.
 | `:delete all` | | In the images or volumes view: delete every one, never forced — anything a container uses, or the daemon refuses, is skipped (confirms) |
 | `:delete all images` | | Every image, from any view; skips as above (confirms) |
 | `:delete all volumes` | | Every volume and its data, from any view; skips as above (confirms) |
+| `:create` | | In the volumes or networks view: create one, as `ctrl-n` (a form) |
+| `:create volume` | `:create vol` | Create a volume, from any view: name, driver, driver opts, labels |
+| `:create network` | `:create net` | Create a network, from any view: name, driver (`overlay` only on a swarm manager), subnet, gateway, internal, attachable, labels |
 
 ### Settings for this session
 
@@ -165,8 +168,8 @@ Keys every view shares:
 | View | Keys |
 |---|---|
 | Images | `enter` layers, `u` run (a form), `v` scan, `U` the containers using it, `ctrl-d` remove, `a` all, `P` prune |
-| Volumes | `enter` browse its files, `o` inspect, `U` the containers using it, `z` sizes (slow), `ctrl-d` remove, `P` prune |
-| Networks | `enter` / `o` inspect, `U` the containers on it, `ctrl-d` remove, `P` prune |
+| Volumes | `enter` browse its files, `o` inspect, `U` the containers using it, `z` sizes (slow), `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
+| Networks | `enter` / `o` inspect, `U` the containers on it, `ctrl-n` create (a form), `ctrl-d` remove, `P` prune |
 
 ### Projects
 

@@ -133,6 +133,8 @@ func (v *VolumesView) HandleKey(key string) (string, string) {
 			return "toggle_size", ""
 		case "P":
 			return "confirm_prune_volumes", ""
+		case KeyCtrlN:
+			return ActionCreateForm, CreateVolume
 		}
 		return "", ""
 	}
@@ -154,6 +156,8 @@ func (v *VolumesView) keyFor(key string, vol docker.Volume) (string, string) {
 		return "confirm_prune_volumes", ""
 	case KeyCtrlD:
 		return "confirm_remove_volume", vol.Name
+	case KeyCtrlN:
+		return ActionCreateForm, CreateVolume
 	}
 	return "", ""
 }

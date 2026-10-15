@@ -42,6 +42,7 @@ func applyTheme() {
 const (
 	KeyEnter  = "enter"
 	KeyCtrlD  = "ctrl+d"
+	KeyCtrlN  = "ctrl+n"
 	KeyDelete = "delete"
 )
 

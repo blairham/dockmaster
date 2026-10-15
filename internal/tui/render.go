@@ -305,12 +305,14 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 		"<U>", "Used by",
 		"<z>", "Sizes",
 		"<P>", "Prune",
+		"<ctrl-n>", "Create",
 		"<ctrl-d>", "Remove",
 	),
 	style.ViewNetworks: keys(
 		"<enter>", "Inspect",
 		"<U>", "Used by",
 		"<P>", "Prune",
+		"<ctrl-n>", "Create",
 		"<ctrl-d>", "Remove",
 	),
 	style.ViewProjects: keys(
@@ -370,6 +372,11 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 	),
 	style.ViewRunForm: keys(
 		"<enter>", "Run",
+		"<tab>", "Next field",
+		"<esc>", "Cancel",
+	),
+	style.ViewCreateForm: keys(
+		"<enter>", "Create",
 		"<tab>", "Next field",
 		"<esc>", "Cancel",
 	),
