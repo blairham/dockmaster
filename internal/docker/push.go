@@ -34,6 +34,28 @@ func ParseTag(target string) (full, familiar string, err error) {
 	return ref.String(), reference.FamiliarString(ref), nil
 }
 
+// RetargetRef is ref renamed into registry: its repository path, without
+// its own registry (and without Docker Hub's library/), and its tag —
+// ghcr.io/o/app:v1 into localhost:5000 is localhost:5000/o/app:v1, nginx
+// is localhost:5000/nginx:latest. It is how p's "push to local" names the
+// copy it pushes.
+func RetargetRef(ref, registry string) (string, error) {
+	n, err := reference.ParseNormalizedNamed(strings.TrimSpace(ref))
+	if err != nil {
+		return "", fmt.Errorf("%q is not a valid reference: %w", ref, err)
+	}
+	path := strings.TrimPrefix(reference.Path(n), "library/")
+	tagged, ok := reference.TagNameOnly(n).(reference.Tagged)
+	if !ok {
+		return "", fmt.Errorf("%q has a digest, not a tag", ref)
+	}
+	out := strings.TrimSuffix(registry, "/") + "/" + path + ":" + tagged.Tag()
+	if _, _, err := ParseTag(out); err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
 // TagImage is `docker tag source target`: source is an image reference or
 // ID, target a `repo[:tag]` (":latest" when it has none).
 func (c *Client) TagImage(ctx context.Context, source, target string) error {

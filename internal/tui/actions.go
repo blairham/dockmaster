@@ -92,6 +92,9 @@ var mutating = map[string]bool{
 	// The local registry (#120): its container, and what is in it.
 	views.ActRegistryUp: true, views.ActRegistryStop: true, views.ActRegistryRemove: true,
 	views.ActRegistryGC: true, views.ActRegistryDeleteTag: true,
+	// Push to local tags and pushes; run from a registry pulls, then the
+	// run form runs.
+	actPushLocal: true, views.ActRegistryRun: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -201,12 +204,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		a.openBuildForm(param)
 		return a, nil
 	case "build_run":
-		spec, err := views.DecodeBuildSpec(param)
+		spec, pushLocal, err := views.DecodeBuildSpec(param)
 		if err != nil {
 			a.errFlash = err.Error()
 			return a, nil
 		}
-		cmd := a.runBuild(spec)
+		cmd := a.runBuild(spec, pushLocal)
 		return a, cmd
 	case "not_dockerfile":
 		a.errFlash = param + " is not a Dockerfile or a directory — Dockerfile, Containerfile and their variants are"
@@ -316,6 +319,12 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 		return a, cmd
 	case views.ActRegistryTags:
 		cmd := a.openRegistryTags(views.DecodeRegistryTarget(param))
+		return a, cmd
+	case actPushLocal:
+		cmd := a.pushLocal(param)
+		return a, cmd
+	case views.ActRegistryRun:
+		cmd := a.registryRun(param)
 		return a, cmd
 	case views.ActNotLocal:
 		a.errFlash = param
@@ -891,6 +900,7 @@ func (a *App) openConfirm(action, param, question string) {
 // Cancel so a stray enter never runs the action; y answers yes directly.
 // a.confirmDispatch must already be set.
 func (a *App) ask(title, question string) {
+	a.confirmAlt = nil
 	a.confirm.Open(question, chrome.ModalOpts{Title: title})
 }
 

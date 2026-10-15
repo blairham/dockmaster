@@ -235,3 +235,98 @@ func (a *App) registryStopCommand() (string, tea.Cmd) {
 	_, cmd := a.handleAction(views.ActRegistryStop, a.localRegistrySpec().Name)
 	return "", cmd
 }
+
+// actPushLocal tags an image into the local registry and pushes it:
+// param is the source, NUL, the target (docker.RetargetRef's).
+const actPushLocal = "push_local"
+
+// localRegistryAddr is where push to local goes: the local registry the
+// registries view last listed — which may be a kind or k3d cluster's,
+// reused — else config's, localhost:<localRegistry.port>.
+func (a *App) localRegistryAddr() string {
+	if rv := typedView[*views.RegistriesView](a, style.ViewRegistries); rv != nil {
+		if r, ok := rv.Local(); ok {
+			return r.Address()
+		}
+	}
+	return "localhost:" + a.localRegistrySpec().Port
+}
+
+// pushLocal tags source as target, then pushes target, its progress in
+// the flash as any push. It does not confirm: it is the push confirm's
+// other answer, or the build form's "push to local" asked for it.
+func (a *App) pushLocal(param string) tea.Cmd {
+	source, target, _ := strings.Cut(param, "\x00")
+	if _, _, err := docker.ParseTag(target); err != nil || source == "" {
+		a.errFlash = "push to local: " + cmpOr(errText(err), "no image to push")
+		return nil
+	}
+	tag := tagImageFn
+	return a.startPushAfter(target, func(ctx context.Context, c *docker.Client) error {
+		return tag(ctx, c, source, target)
+	})
+}
+
+func errText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func cmpOr(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+// localRegistryHint is what to add to a failed push to a loopback
+// registry that refused the connection: it is not running.
+func localRegistryHint(registry string, err error) string {
+	host := docker.RegistryHost(registry)
+	if !strings.HasPrefix(host, "localhost:") && !strings.HasPrefix(host, "127.0.0.1:") {
+		return ""
+	}
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "connection refused") {
+		return ""
+	}
+	return " (is the local registry running? :registry up)"
+}
+
+// registryPullFn pulls ref with the docker config's credential for its
+// registry; a var so tests pull without a daemon.
+var registryPullFn = func(ctx context.Context, c *docker.Client, ref string) error {
+	if c == nil {
+		return errNotConnected
+	}
+	return c.PullFromRegistry(ctx, ref)
+}
+
+// registryPulledMsg reports u's pull from a registry.
+type registryPulledMsg struct {
+	err error
+	ref string
+}
+
+// registryRun is u on a tag: pull it, then open the run form on it.
+func (a *App) registryRun(ref string) tea.Cmd {
+	client := a.client
+	a.flash = "pulling " + ref + "…"
+	return func() tea.Msg {
+		ctx, cancel := client.RequestContext(pushTimeout)
+		defer cancel()
+		return registryPulledMsg{ref: ref, err: registryPullFn(ctx, client, ref)}
+	}
+}
+
+func (a *App) handleRegistryPulled(msg registryPulledMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		a.flash = ""
+		a.errFlash = "pull " + msg.ref + " failed — " + docker.FormatUserError(msg.err).Error() +
+			localRegistryHint(docker.RegistryForRef(msg.ref), msg.err)
+		return a, nil
+	}
+	a.flash = "pulled " + msg.ref
+	return a.handleAction("run_image", msg.ref)
+}

@@ -20,6 +20,7 @@ const (
 	keyBuildTag        = "tag"
 	keyBuildTarget     = "target"
 	keyBuildArgs       = "args"
+	keyBuildPush       = "push"
 )
 
 // buildInputWidth is the build form's input width: a context directory is
@@ -49,6 +50,10 @@ func NewBuildForm(dir, dockerfile string) *BuildFormView {
 		{key: keyBuildTag, label: "Tag", hint: "optional; app:dev", input: input("", 256)},
 		{key: keyBuildTarget, label: "Target", hint: "optional; a stage name", input: input("", 128)},
 		{key: keyBuildArgs, label: "Build args", hint: "KEY=value …", input: input("", 2048)},
+		{
+			key: keyBuildPush, label: "Push local", hint: "then push the tag to the local registry",
+			choices: []string{"no", choiceYes},
+		},
 	}
 	v.labelWidth = 12
 	// The tag is what is typed nearly every time; start there.
@@ -101,9 +106,20 @@ func (v *BuildFormView) Spec() docker.BuildSpec {
 	}
 }
 
+// PushLocal reports the form's "push to the local registry" choice (#120).
+func (v *BuildFormView) PushLocal() bool { return v.field(keyBuildPush).value() == choiceYes }
+
+// buildRequest is what the form submits: the spec, and whether to push the
+// tag to the local registry after it builds.
+type buildRequest struct {
+	docker.BuildSpec
+	PushLocal bool `json:"pushLocal,omitempty"`
+}
+
 // HandleKey submits on enter. The spec is checked first, so a context
 // that is not a directory, a missing Dockerfile or a malformed build arg
-// is reported here, in the form, rather than as a failed build.
+// is reported here, in the form, rather than as a failed build; so is a
+// push to local with no tag to push.
 func (v *BuildFormView) HandleKey(key string) (string, string) {
 	if key != KeyEnter {
 		return "", ""
@@ -114,7 +130,11 @@ func (v *BuildFormView) HandleKey(key string) (string, string) {
 		v.err = err.Error()
 		return "", ""
 	}
-	b, err := json.Marshal(spec)
+	if v.PushLocal() && spec.Tag == "" {
+		v.err = "push local: a tag is required — it is what is pushed"
+		return "", ""
+	}
+	b, err := json.Marshal(buildRequest{BuildSpec: spec, PushLocal: v.PushLocal()})
 	if err != nil {
 		v.err = err.Error()
 		return "", ""
@@ -125,9 +145,10 @@ func (v *BuildFormView) HandleKey(key string) (string, string) {
 // SetError shows a failure in the form, to be fixed.
 func (v *BuildFormView) SetError(msg string) { v.err = msg }
 
-// DecodeBuildSpec reads a submitted build form back.
-func DecodeBuildSpec(s string) (docker.BuildSpec, error) {
-	var spec docker.BuildSpec
-	err := json.Unmarshal([]byte(s), &spec)
-	return spec, err
+// DecodeBuildSpec reads a submitted build form back: the spec, and whether
+// to push its tag to the local registry once it has built.
+func DecodeBuildSpec(s string) (docker.BuildSpec, bool, error) {
+	var req buildRequest
+	err := json.Unmarshal([]byte(s), &req)
+	return req.BuildSpec, req.PushLocal, err
 }
