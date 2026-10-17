@@ -5,10 +5,9 @@
 [[IgnoredVulns]]
 id = "GO-2026-5932"
 # golang.org/x/crypto/openpgp is deprecated, and this advisory covers every
-# x/crypto version with no fixed release. x/crypto is required only by the
-# changie tool module (tools/changie/go.mod), as
-# changie -> Masterminds/sprig -> x/crypto/bcrypt (plus blowfish, pbkdf2 and
-# scrypt); the root module does not require it at all. No package in either
-# build imports openpgp (`go list -deps -test github.com/miniscruff/changie`
-# in tools/changie, `go list -deps -test ./...` at the root).
+# x/crypto version with no fixed release. dockmaster does not require x/crypto:
+# it is only in the module graph (go.sum's /go.mod lines), and no package in the
+# build imports it (`go list -deps -test ./...`). The changie tool module that
+# once pulled it into the build is gone; drop this entry once Scorecard's
+# Vulnerabilities check is seen to stay clean without it.
 reason = "x/crypto/openpgp is not imported by any package in the build; the advisory flags all x/crypto versions"

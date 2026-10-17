@@ -93,14 +93,11 @@ brews:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
-changelog:
-  sort: asc
-  use: github
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
+# No changelog block: the release notes are the tag's section of CHANGELOG.md,
+# which release-please writes (docs/versioning.md). The shared release workflow
+# extracts that section and passes it as --release-notes, which replaces
+# anything GoReleaser would generate from commits. Do not set
+# changelog.disable: it also skips the stage that reads --release-notes.
 
 release:
   draft: false

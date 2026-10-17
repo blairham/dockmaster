@@ -61,32 +61,6 @@ tidy: ## go mod tidy
 clean: ## Remove build output
 	rm -rf dist
 
-# The changelog and the version come from changie (docs/versioning.md). It is
-# pinned in a module of its own: as a tool in go.mod its dependencies would be
-# resolved with dockmaster's, and they disagree on charmbracelet/x/ansi.
-CHANGIE := go tool -modfile=tools/changie/go.mod changie
-# RELEASE is what release-prep batches: auto (the largest pending bump), or an
-# explicit major|minor|patch|vX.Y.Z when a release has to say otherwise.
-RELEASE ?= auto
-
-.PHONY: change
-change: ## Record a change for the changelog (asks its kind and text)
-	$(CHANGIE) new
-
-.PHONY: next-version
-next-version: ## The version the pending changes add up to
-	@echo "$$($(CHANGIE) next $(RELEASE))"
-
-.PHONY: changelog-preview
-changelog-preview: ## Print CHANGELOG.md with the pending changes under Unreleased
-	@$(CHANGIE) merge --dry-run --include-unreleased '## [Unreleased]'
-
-.PHONY: release-prep
-release-prep: ## Batch pending changes into the next version and rebuild CHANGELOG.md
-	$(CHANGIE) batch $(RELEASE)
-	$(CHANGIE) merge
-	@echo "next: commit, open the release PR, then tag $$($(CHANGIE) latest) (signed) on its merge commit"
-
 # DEMO_HOST is the daemon the screenshots are staged on — an empty one, so
 # nothing of the developer's own appears. OrbStack's by default.
 DEMO_HOST ?= unix://$(HOME)/.orbstack/run/docker.sock

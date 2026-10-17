@@ -2,9 +2,10 @@
 
 dockmaster follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 exactly. Which part of a version a release bumps is not decided at release
-time: each change records its kind when it is made, and the release is the
-largest bump among the changes it carries. [changie](https://changie.dev)
-keeps the records and does the arithmetic.
+time: each change records its kind when it is made — in its pull request's
+title — and the release is the largest bump among the changes it carries.
+[release-please](https://github.com/googleapis/release-please) reads the
+titles and does the arithmetic.
 
 ## The public API
 
@@ -46,54 +47,62 @@ writes for itself (`history.json`, `contexts.json`, the scan cache).
 
 ## Recording a change
 
-Every pull request a user could notice adds one file:
+A pull request's title is a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/),
+and that title is the record: the repository squash-merges with the title as
+the commit subject, and release-please reads the subjects. The **PR title**
+check, required on `main`, fails a title that is not one.
 
-```bash
-make change          # asks the kind and the text; writes .changes/unreleased/<kind>-<time>.yaml
+```text
+feat(builds): a build history view from docker buildx history
+fix: a stopped container's logs no longer hang the view
+feat!: remove the --legacy flag
+docs: say where the release notes come from
 ```
 
-or, without prompts, `go tool -modfile=tools/changie/go.mod changie new --kind Added --body '…'`.
-The text is what goes in the changelog, in the same voice as the entries
-already there. A pull request with nothing a user can see (CI, docs, a
-refactor) takes the `no-changelog` label instead; the **Changelog** check
-fails a pull request that has neither.
+The text after the colon is the changelog entry, so write it for someone
+upgrading, in the same voice as the entries already there. The scope in
+parentheses is optional.
 
-| Kind | Bump | Use it for |
-|---|---|---|
-| **Breaking** | major | anything in the public API that stops working as it did: a flag, key, command or config key removed, renamed or given a different meaning; a default changed in a way someone relying on it would notice |
-| **Removed** | major | a feature taken out |
-| **Added** | minor | something new, everything old still working |
-| **Changed** | minor | an existing behavior changed *compatibly* — nobody's config, keys or scripts need to change |
-| **Deprecated** | minor | something still working but announced for removal (rule 7) |
-| **Fixed** | patch | a bug fixed, the API untouched (rule 6) |
-| **Security** | patch | a vulnerability fixed compatibly; if the fix has to break something, it is **Breaking** |
+| Title | Bump | Changelog | Use it for |
+|---|---|---|---|
+| `feat!:` / `fix!:` (any type with `!`) | major | ⚠ Breaking Changes | anything in the public API that stops working as it did: a flag, key, command or config key removed, renamed or given a different meaning; a default changed in a way someone relying on it would notice; a feature taken out |
+| `feat:` | minor | Added | something new, everything old still working; an existing behavior changed *compatibly*; something deprecated — still working, announced for removal (rule 7) |
+| `fix:` | patch | Fixed | a bug fixed, the API untouched (rule 6); a vulnerability fixed compatibly — if the fix has to break something, it is `fix!:` |
+| `perf:` | patch | Performance | faster or lighter, nothing else changed |
+| `revert:` | patch | Reverted | undoing an earlier change |
+| `docs:` `ci:` `build:` `refactor:` `test:` `chore:` `style:` | none | hidden | nothing a user of dockmaster can see |
 
-When in doubt between two kinds, take the bigger bump. A pull request with
-several user-visible changes records each.
+When in doubt between two, take the bigger bump. A pull request with several
+user-visible changes can say so in its body, which becomes the commit body —
+a `BREAKING CHANGE: …` footer there also makes it major.
+
+**A title that went wrong after the merge** is fixed on the merged pull
+request, not in git: edit its body to add the messages it should have had,
+one per line, between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`.
+release-please reads that block instead of the commit subject. The PR title
+check on the release pull request fails on any commit in the release that is
+neither a Conventional Commit nor overridden, rather than letting release-please
+skip it silently; fix it this way and re-run the check.
 
 ## Releasing
 
-```bash
-make next-version    # what the pending changes add up to
-make release-prep    # batch them into .changes/vX.Y.Z.md and rebuild CHANGELOG.md
-```
+There is nothing to run. Every merge to `main` updates one standing pull
+request, **chore(main): release X.Y.Z**, holding the next version (the
+largest bump since the last release) and its section of `CHANGELOG.md`.
+Merging it is the release: release-please tags `vX.Y.Z` and creates the
+GitHub release, and the release workflow builds, signs and publishes it with
+that section as the notes. The release workflow refuses a tag that is not the
+version in `.release-please-manifest.json`.
 
-Commit that in a release pull request, merge it, and tag the signed `vX.Y.Z`
-it names on the merge commit. The release workflow refuses a tag that is not
-changie's latest version, and publishes that version's section as the notes.
-`RELEASE=minor make release-prep` (or `major`, `patch`, `vX.Y.Z`) overrides
-`auto` when a release has to; a pre-release is
-`go tool -modfile=tools/changie/go.mod changie batch auto --prerelease rc.1`.
-
-`CHANGELOG.md` is generated from `.changes/` — never edit it by hand; the
-Changelog check fails when it differs from what changie builds.
-`make changelog-preview` shows it with the pending changes in place.
+To force a version, put `Release-As: X.Y.Z` in the body of a pull request
+before it merges. `CHANGELOG.md`'s existing sections may be edited by hand;
+release-please only inserts new ones above them.
 
 ## Before 1.0.0
 
 Rule 4: in `0.y.z` "anything MAY change at any time", so until 1.0.0 the
-version carries no compatibility promise, whatever bump the changes record.
-changie still applies the table above, which means a **Breaking** or
-**Removed** change recorded while dockmaster is `0.x` makes the next release
-`1.0.0`. Recording a breaking change is therefore also the decision to
-declare the API stable, and should be made as one.
+version carries no compatibility promise, whatever bump the titles record.
+release-please still applies the table above, which means a breaking (`!`)
+change merged while dockmaster is `0.x` makes the next release `1.0.0`.
+Marking a change breaking is therefore also the decision to declare the API
+stable, and should be made as one.
