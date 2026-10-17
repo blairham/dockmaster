@@ -16,6 +16,13 @@ hand. Changes not yet released are one file each under `.changes/unreleased/`
 the next version is the largest bump among them. See
 [docs/versioning.md](docs/versioning.md).
 
+## [0.2.0](https://github.com/blairham/dockmaster/compare/v0.1.0...v0.2.0) (2026-10-17)
+
+
+### Added
+
+* Swarm services, tasks, nodes, secrets and configs views ([#133](https://github.com/blairham/dockmaster/issues/133)) ([31f0a08](https://github.com/blairham/dockmaster/commit/31f0a085826aa5bda3e58fae03d8f99c16bca96d))
+
 ## [0.1.0](https://github.com/blairham/dockmaster/compare/v0.0.16...v0.1.0) - 2026-10-15
 
 ### Added
