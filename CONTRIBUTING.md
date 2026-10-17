@@ -79,16 +79,16 @@ including that no employer holds rights to it.
 
 ## Releasing
 
-Every user-visible change records itself with `make change`: one file under
-`.changes/unreleased/` whose kind is the version bump it forces (see
-[docs/versioning.md](docs/versioning.md)). A pull request with nothing a user
-can see takes the `no-changelog` label instead. [CHANGELOG.md](CHANGELOG.md)
-is generated from `.changes/` — do not edit it by hand.
+The pull request's title is a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/)
+— `feat: …`, `fix: …`, `feat!: …` for a breaking change, or `docs:`, `ci:`,
+`refactor:`, `test:`, `chore:` for one nobody using dockmaster can see. It
+becomes the commit on `main`, the changelog entry and the version bump (see
+[docs/versioning.md](docs/versioning.md)); the **PR title** check fails one
+that is not.
 
-Maintainers release: `make release-prep` batches the pending changes into the
-next version and rebuilds the changelog in a pull request, then tag the signed
-`vX.Y.Z` it names on its merge commit; the release workflow refuses any other
-tag. The release workflow
+Releases are release-please's: it keeps a release pull request open with the
+next version and its [CHANGELOG.md](CHANGELOG.md) section, and a maintainer
+merging it is the release. The release workflow
 publishes the tag's section as the release notes — and fails if there is
 none — builds the binaries, signs `checksums.txt` with cosign, publishes the GitHub
 release with SLSA build provenance attached, and updates the formula in

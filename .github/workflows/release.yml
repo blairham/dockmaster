@@ -1,16 +1,24 @@
 name: Release
 
-# A signed v* tag releases through blairham/.github's go-release.yml:
-# GoReleaser builds the darwin/linux archives and the `dockmaster` formula (with
-# the `dm` symlink) in blairham/homebrew-tap, cosign signs checksums.txt
-# keylessly, and every archive gets SLSA build provenance, attached as
-# dockmaster-<tag>.intoto.jsonl. The notes are the tag's CHANGELOG.md
-# section. The signing identity is go-release.yml itself; SECURITY.md shows
-# how to verify it.
+# A release is release-please's: merging its release pull request tags vX.Y.Z
+# and calls this workflow (release-please.yml), which releases through
+# blairham/.github's go-release.yml: GoReleaser builds the darwin/linux
+# archives and the `dockmaster` formula (with the `dm` symlink) in
+# blairham/homebrew-tap, cosign signs checksums.txt keylessly, and every
+# archive gets SLSA build provenance, attached as dockmaster-<tag>.intoto.jsonl.
+# The notes are the tag's CHANGELOG.md section, which release-please wrote. The
+# signing identity is go-release.yml itself; SECURITY.md shows how to verify it.
+#
+# Pushing a tag by hand releases nothing: there is one path to a release. Run
+# it by hand (workflow_dispatch) only to redo a release from a tag that exists,
+# or for a dry run.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.0.0). Must already exist."
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       tag:
@@ -28,37 +36,29 @@ permissions:
   contents: read
 
 jobs:
-  # The version is changie's answer, not a number someone typed: the tag must
-  # be the latest version `make release-prep` batched into .changes/, so a
-  # release can only be the bump its recorded changes call for
-  # (docs/versioning.md). A dry run builds whatever it is given and skips this.
+  # The version is release-please's answer, not a number someone typed: the
+  # tag must be the version its manifest records at that tag, so a release can
+  # only be the bump its commits call for (docs/versioning.md). A dry run
+  # builds whatever it is given and skips this.
   version:
-    name: Version is changie's
+    name: Version is release-please's
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: inputs.dry-run != true
         with:
-          ref: ${{ inputs.tag || github.ref }}
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        if: inputs.dry-run != true
-        with:
-          go-version-file: tools/changie/go.mod
-          check-latest: true
-          cache-dependency-path: tools/changie/go.sum
-      - name: The tag is the version changie batched
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: The tag is the version release-please recorded
         if: inputs.dry-run != true
         env:
-          TAG: ${{ inputs.tag || github.ref_name }}
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          latest="$(go tool -modfile=tools/changie/go.mod changie latest)"
-          if [ "$TAG" != "$latest" ]; then
-            echo "::error::the tag is $TAG but changie's latest batched version is $latest; run 'make release-prep', merge that pull request, and tag what it batched"
+          want="v$(jq -r '."."' .release-please-manifest.json)"
+          if [ "$TAG" != "$want" ]; then
+            echo "::error::the tag is $TAG but .release-please-manifest.json at it records $want; release by merging release-please's pull request"
             exit 1
-          fi
-          if [ -n "$(ls .changes/unreleased/*.yaml 2>/dev/null)" ]; then
-            echo "::warning::changes are pending in .changes/unreleased/ at $TAG; they go out in the next release, not this one"
           fi
 
   release:
