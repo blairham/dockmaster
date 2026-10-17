@@ -77,12 +77,16 @@ user-visible changes can say so in its body, which becomes the commit body —
 a `BREAKING CHANGE: …` footer there also makes it major.
 
 **A title that went wrong after the merge** is fixed on the merged pull
-request, not in git: edit its body to add the messages it should have had,
-one per line, between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`.
-release-please reads that block instead of the commit subject. The PR title
-check on the release pull request fails on any commit in the release that is
-neither a Conventional Commit nor overridden, rather than letting release-please
-skip it silently; fix it this way and re-run the check.
+request, not in git: edit its body to add the messages it should have had
+between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`, **separated by blank
+lines** (one message per line reads as a single message with the rest as its
+body). release-please reads that block instead of the commit subject, even for a
+conventional commit, and starts at the first `BEGIN_COMMIT_OVERRIDE` anywhere in
+the body, so never write that word elsewhere in a PR body, even in backticks.
+The PR title check on the release pull request reads each commit as
+release-please will and fails on any message that is not a Conventional Commit,
+rather than letting release-please skip it silently; fix it this way and re-run
+the check.
 
 ## Releasing
 
