@@ -108,6 +108,11 @@ func TestEveryLayoutViewNamesItself(t *testing.T) {
 		"aliases":      NewAliasesView(nil).layoutKey,
 		"alerts":       NewAlertsView(nil).layoutKey,
 		"builds":       NewBuildsView(nil, nil).layoutKey,
+		"services":     NewSwarmView(nil, SwarmServices).layoutKey,
+		"tasks":        NewSwarmView(nil, SwarmTasks).layoutKey,
+		"swarmnodes":   NewSwarmView(nil, SwarmNodes).layoutKey,
+		"secrets":      NewSwarmView(nil, SwarmSecrets).layoutKey,
+		"configs":      NewSwarmView(nil, SwarmConfigs).layoutKey,
 	}
 	if !slices.Equal(LayoutViews(), slices.Sorted(maps.Keys(got))) {
 		t.Errorf("layout views %q, constructors checked %q", LayoutViews(), slices.Sorted(maps.Keys(got)))

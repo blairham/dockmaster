@@ -736,6 +736,11 @@ regardless of case. The view keys, and the columns each can show:
 | `tags` | `enter` on a repository | TAG, DIGEST, SIZE, PLATFORMS, AGE |
 | `builders` | `:builders` | NAME, DRIVER, ENDPOINT, STATUS, BUILDKIT, PLATFORMS, ERROR |
 | `builds` | `:builds` | NAME, STATUS, STEPS, CACHED, DURATION, AGE, ERROR |
+| `services` | `:services` | NAME, ID, MODE, REPLICAS, IMAGE, PORTS, STACK, UPDATE, AGE |
+| `tasks` | `:tasks`, `enter` on a service or node | NAME, ID, IMAGE, NODE, DESIRED, CURRENT, ERROR, AGE |
+| `swarmnodes` | `:nodes` | HOSTNAME, ID, ROLE, STATUS, AVAILABILITY, MANAGER, ENGINE, ADDRESS, AGE |
+| `secrets` | `:secrets` | NAME, ID, DRIVER, STACK, UPDATED, AGE |
+| `configs` | `:configs` | NAME, ID, DRIVER, STACK, UPDATED, AGE |
 | `lint` | `:lint` | WORST, NAME, FINDINGS, FIRST FINDING |
 | `dir` | `:dir` | NAME, KIND, SIZE, AGE |
 | `dumps` | `:sd` | NAME, KIND, SIZE, AGE |

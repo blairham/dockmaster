@@ -72,6 +72,12 @@ func (c *Client) StreamLogs(
 		return nil, fmt.Errorf("streaming logs for %s: %w", shortID(id), err)
 	}
 
+	return demuxLogs(ctx, rc, tty), nil
+}
+
+// demuxLogs reads a follow-mode log body into a LogStream: raw for a TTY,
+// stdcopy-framed otherwise. It owns rc and closes it when the stream ends.
+func demuxLogs(ctx context.Context, rc io.ReadCloser, tty bool) *LogStream {
 	lines := make(chan LogLine, 512)
 	errc := make(chan error, 1)
 
@@ -105,7 +111,7 @@ func (c *Client) StreamLogs(
 		<-done
 	}()
 
-	return &LogStream{Lines: lines, Err: errc}, nil
+	return &LogStream{Lines: lines, Err: errc}
 }
 
 // logOptions builds a follow-mode log request: the last tail lines (all

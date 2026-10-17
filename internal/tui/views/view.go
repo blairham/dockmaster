@@ -25,6 +25,7 @@ var (
 	_ View = (*PulsesView)(nil)
 	_ View = (*AliasesView)(nil)
 	_ View = (*AlertsView)(nil)
+	_ View = (*SwarmView)(nil)
 
 	_ InputCapturer = (*RuntimeFormView)(nil)
 

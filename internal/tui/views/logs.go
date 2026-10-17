@@ -66,6 +66,10 @@ type LogsView struct {
 	// lifecycle keys do not apply.
 	node   string
 	filter string
+	// swarm, when set, is the swarm log source (docker.SwarmLogService or
+	// SwarmLogTask) and containerID the service's or task's ID: no
+	// container keys apply.
+	swarm string
 
 	gen        int
 	tailLines  int
@@ -182,6 +186,15 @@ var OpenProjectLogs = func(
 // container's.
 func (v *LogsView) Project() string { return v.project }
 
+// NewSwarmLogsView opens a tail of a swarm service's tasks merged, or of
+// one task (kind is docker.SwarmLogService or SwarmLogTask), read through
+// the manager, so a task on another node streams as well as a local one.
+func NewSwarmLogsView(client *docker.Client, kind, id, name string) *LogsView {
+	v := NewLogsView(client, id, name)
+	v.swarm = kind
+	return v
+}
+
 func NewNodeLogsView(client *docker.Client, node, id, name string) *LogsView {
 	v := NewLogsView(client, id, name)
 	v.node = node
@@ -242,7 +255,7 @@ func (v *LogsView) start() tea.Cmd {
 	ctx, cancel := context.WithCancel(context.Background())
 	v.cancel = cancel
 
-	id, ts, n, node, project := v.containerID, v.timestamps, v.tailLines, v.node, v.project
+	id, ts, n, node, project, swarmKind := v.containerID, v.timestamps, v.tailLines, v.node, v.project, v.swarm
 	var since time.Time
 	if v.since > 0 {
 		since = time.Now().Add(-v.since)
@@ -258,6 +271,10 @@ func (v *LogsView) start() tea.Cmd {
 		case node != "":
 			open = func(ctx context.Context, id string, n int, ts bool, since time.Time) (*docker.LogStream, error) {
 				return client.StreamNodeLogs(ctx, node, id, n, ts, since)
+			}
+		case swarmKind != "":
+			open = func(ctx context.Context, id string, n int, ts bool, since time.Time) (*docker.LogStream, error) {
+				return client.StreamSwarmLogs(ctx, swarmKind, id, n, ts, since)
 			}
 		}
 		st, err := open(ctx, id, n, ts, since)
@@ -480,6 +497,14 @@ func (v *LogsView) HandleKey(key string) (string, string) {
 	}
 	if v.node != "" {
 		return v.nodeKey(key)
+	}
+	if v.swarm != "" {
+		// A service's or task's log: o inspects it; the container keys
+		// would reach for a container ID it does not have.
+		if key == "o" {
+			return ActSwarmInspect, SwarmParam(v.swarm, v.containerID, v.containerName)
+		}
+		return "", ""
 	}
 	if v.project != "" {
 		// A merged log has no one container to inspect, stop or restart.

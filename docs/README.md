@@ -24,4 +24,5 @@ Current design notes:
 - [`design/host-shell.md`](design/host-shell.md) — a root shell on the daemon's host through a privileged nsenter helper, and its readonly and confirm gates.
 - [`design/local-registry.md`](design/local-registry.md) — running a local registry:2, reusing a cluster's, and browsing any registry over the v2 API.
 - [`design/volume-browser.md`](design/volume-browser.md) — browsing a volume's files through a read-only helper container.
+- [`design/swarm.md`](design/swarm.md) — Swarm services, tasks, nodes, secrets and configs: one view over five kinds, and read-modify-write updates.
 - [`design/kubernetes-nodes.md`](design/kubernetes-nodes.md) — kind/k3d nodes: listing the pods' containers inside a node with crictl.

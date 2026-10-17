@@ -59,6 +59,11 @@ var columnSets = map[string][]func() []table.Column{
 	"contexts":     {contextColumns},
 	"registries":   {registryColumns},
 	"builders":     {builderColumns},
+	"services":     {serviceColumns},
+	"tasks":        {taskColumns},
+	"swarmnodes":   {swarmNodeColumns},
+	"secrets":      {swarmDataColumns},
+	"configs":      {swarmDataColumns},
 	"repositories": {registryCatalogColumns},
 	"tags":         {registryTagColumns},
 	"builds":       {buildsColumns},
@@ -367,4 +372,5 @@ var (
 	_ Relayouter = (*LayersView)(nil)
 	_ Relayouter = (*VolumeBrowseView)(nil)
 	_ Relayouter = (*ScanView)(nil)
+	_ Relayouter = (*SwarmView)(nil)
 )

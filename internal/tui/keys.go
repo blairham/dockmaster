@@ -111,6 +111,11 @@ var viewCommands = map[string]style.ViewType{
 	"forwards": style.ViewPortForwards, "forward": style.ViewPortForwards,
 	"df": style.ViewDiskUsage, "disk": style.ViewDiskUsage, "usage": style.ViewDiskUsage, "system": style.ViewDiskUsage,
 	"pulses": style.ViewPulses, "pulse": style.ViewPulses, "pu": style.ViewPulses,
+	"services": style.ViewServices, "service": style.ViewServices, "svc": style.ViewServices,
+	"tasks": style.ViewTasks, "task": style.ViewTasks,
+	"nodes": style.ViewSwarmNodes, "no": style.ViewSwarmNodes, "swarm": style.ViewSwarmNodes,
+	"secrets": style.ViewSecrets, "secret": style.ViewSecrets, "sec": style.ViewSecrets,
+	"configs": style.ViewConfigs, "config": style.ViewConfigs, "cm": style.ViewConfigs,
 }
 
 // ViewForCommand resolves a view name as the palette spells it.
@@ -124,6 +129,7 @@ func ViewCommandNames() []string {
 	return []string{
 		"containers", "images", "volumes", "networks", "projects", "runtimes",
 		"events", "pods", "pf", "df", "pulses",
+		"services", "tasks", "nodes", "secrets", "configs",
 	}
 }
 
@@ -436,6 +442,7 @@ func (a *App) onFilterChange(value string) {
 // labelledViews are the views whose rows carry labels a -l filter reads.
 var labelledViews = map[style.ViewType]bool{
 	style.ViewContainers: true, style.ViewImages: true, style.ViewVolumes: true, style.ViewNetworks: true,
+	style.ViewServices: true, style.ViewSwarmNodes: true, style.ViewSecrets: true, style.ViewConfigs: true,
 }
 
 // dispatchCommand parses a `:` command.
@@ -533,7 +540,9 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	case "q", "q!", "quit", "exit":
 		return "", a.quit(lower == "q!")
 	case "logs", "log":
-		return a.rowCommand("logs", func(act string) bool { return act == "logs" || act == "project_logs" }, "l")
+		return a.rowCommand("logs", func(act string) bool {
+			return act == "logs" || act == "project_logs" || act == views.ActSwarmLogs
+		}, "l")
 	case "inspect", "describe":
 		return a.rowCommand("inspect", isInspectAction, "o")
 	// :stats stays the CPU/MEM poll toggle below; the stats view is S.
