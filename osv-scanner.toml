@@ -1,0 +1,14 @@
+# OSV ignores, read by osv-scanner and by OpenSSF Scorecard's Vulnerabilities
+# check. Every entry names why it does not apply; re-check it when the module
+# graph changes rather than letting it outlive its reason.
+
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+# golang.org/x/crypto/openpgp is deprecated, and this advisory covers every
+# x/crypto version with no fixed release. x/crypto is required only by the
+# changie tool module (tools/changie/go.mod), as
+# changie -> Masterminds/sprig -> x/crypto/bcrypt (plus blowfish, pbkdf2 and
+# scrypt); the root module does not require it at all. No package in either
+# build imports openpgp (`go list -deps -test github.com/miniscruff/changie`
+# in tools/changie, `go list -deps -test ./...` at the root).
+reason = "x/crypto/openpgp is not imported by any package in the build; the advisory flags all x/crypto versions"
