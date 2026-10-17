@@ -98,6 +98,11 @@ var mutating = map[string]bool{
 	// Push to local tags and pushes; run from a registry pulls, then the
 	// run form runs.
 	actPushLocal: true, views.ActRegistryRun: true,
+	// Swarm (#64): scaling, restarting and removing services, a node's
+	// availability or removal, and removing secrets and configs.
+	views.ActServiceScaleForm: true, views.ActServiceScale: true, views.ActServiceRestart: true,
+	views.ActRemoveService: true, views.ActNodeAvailability: true, views.ActDrainNode: true,
+	views.ActRemoveSwarmNode: true, views.ActRemoveSecret: true, views.ActRemoveConfig: true,
 }
 
 // handleAction turns a view's (action, param) request into state changes
@@ -111,6 +116,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	if a.readonly && mutating[action] {
 		a.errFlash = "readonly mode — " + strings.ReplaceAll(strings.TrimPrefix(action, "confirm_"), "_", " ") + " refused"
 		return a, nil
+	}
+	if cmd, ok := a.swarmAction(action, param); ok {
+		return a, cmd
 	}
 
 	switch action {
@@ -931,8 +939,10 @@ func confirmTitle(action string) string {
 		return "Host Shell"
 	case "compose_down", "compose_down_file":
 		return "Compose Down"
-	case "compose_scale":
+	case "compose_scale", actServiceScale:
 		return "Scale"
+	case actDrainNode:
+		return "Drain"
 	case "runtime_k8s":
 		return "Kubernetes"
 	case "stop_forward":
@@ -976,6 +986,9 @@ func confirmTitle(action string) string {
 //
 //nolint:gocyclo,funlen // flat action dispatch: one case per confirmed action, long by count not depth
 func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
+	if cmd, ok := a.swarmConfirmed(pa); ok {
+		return cmd
+	}
 	switch pa.action {
 	case actQuitApp:
 		return a.quit(true)

@@ -409,6 +409,11 @@ func rootViews(
 		style.ViewPods:         views.NewPodsView(podmanOf(runtimes.Providers())),
 		style.ViewEvents:       views.NewEventsView(client),
 		style.ViewPulses:       views.NewPulsesView(client, statsOn, refresh),
+		style.ViewServices:     views.NewSwarmView(client, views.SwarmServices),
+		style.ViewTasks:        views.NewSwarmView(client, views.SwarmTasks),
+		style.ViewSwarmNodes:   views.NewSwarmView(client, views.SwarmNodes),
+		style.ViewSecrets:      views.NewSwarmView(client, views.SwarmSecrets),
+		style.ViewConfigs:      views.NewSwarmView(client, views.SwarmConfigs),
 	}
 }
 
@@ -804,6 +809,9 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, pv.Update(msg)
 		}
 		return a, nil
+
+	case views.SwarmRefreshMsg:
+		return a.handleSwarmRefresh(msg)
 
 	// Data refresh messages: clear the spinner when they belong to the
 	// active view, then hand them down.

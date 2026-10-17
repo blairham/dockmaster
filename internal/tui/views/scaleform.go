@@ -14,18 +14,24 @@ import (
 // is asked to have, and the count it had when the form opened — which is
 // what decides whether the scale removes containers and has to confirm.
 type ScaleSpec struct {
-	Project  string `json:"project"`
-	Service  string `json:"service"`
-	Replicas int    `json:"replicas"`
-	Current  int    `json:"current"`
+	Project string `json:"project"`
+	Service string `json:"service"`
+	// ServiceID is a swarm service's ID, "" for a compose service.
+	ServiceID string `json:"serviceId,omitempty"`
+	Replicas  int    `json:"replicas"`
+	Current   int    `json:"current"`
 }
 
 // ScaleFormView scales one service of a compose project — k9s's scale
 // dialog. It runs nothing itself: enter returns the spec, and the app
 // confirms and runs it; esc abandons it.
 type ScaleFormView struct {
-	project  string
 	replicas map[string]int
+	project  string
+	// serviceID and submit are a swarm service's (NewServiceScaleForm):
+	// its ID, and the action enter returns instead of compose_scale.
+	serviceID string
+	submit    string
 	form
 }
 
@@ -34,7 +40,7 @@ type ScaleFormView struct {
 // it is one of them (xray's service node), else on the first; replicas
 // starts at the chosen service's count and follows the choice.
 func NewScaleForm(project string, services []string, replicas map[string]int, service string) *ScaleFormView {
-	v := &ScaleFormView{project: project, replicas: replicas}
+	v := &ScaleFormView{project: project, replicas: replicas, submit: "compose_scale"}
 	svc := formField{key: "service", label: labelService, hint: commitChoiceHint, choices: services}
 	for i, s := range services {
 		if s == service {
@@ -51,6 +57,15 @@ func NewScaleForm(project string, services []string, replicas map[string]int, se
 	return v
 }
 
+// NewServiceScaleForm builds the form for one swarm service — `docker
+// service scale` — over its current replica count. Enter returns
+// ActServiceScale.
+func NewServiceScaleForm(id, name string, replicas int) *ScaleFormView {
+	v := NewScaleForm("", []string{name}, map[string]int{name: replicas}, name)
+	v.serviceID, v.submit = id, ActServiceScale
+	return v
+}
+
 // prefill sets replicas to the chosen service's current count.
 func (v *ScaleFormView) prefill() {
 	v.field("replicas").input.SetValue(strconv.Itoa(v.replicas[v.field("service").value()]))
@@ -61,7 +76,12 @@ func (v *ScaleFormView) prefill() {
 func (v *ScaleFormView) CapturesInput() bool { return true }
 
 // Title names the project, for the border title.
-func (v *ScaleFormView) Title() string { return "scale " + v.project }
+func (v *ScaleFormView) Title() string {
+	if v.serviceID != "" {
+		return "scale service " + v.field("service").value()
+	}
+	return "scale " + v.project
+}
 
 // Init has nothing to start.
 func (v *ScaleFormView) Init() tea.Cmd { return nil }
@@ -101,12 +121,14 @@ func (v *ScaleFormView) HandleKey(key string) (string, string) {
 		return "", ""
 	}
 	svc := v.field("service").value()
-	b, err := json.Marshal(ScaleSpec{Project: v.project, Service: svc, Replicas: n, Current: v.replicas[svc]})
+	b, err := json.Marshal(ScaleSpec{
+		Project: v.project, Service: svc, ServiceID: v.serviceID, Replicas: n, Current: v.replicas[svc],
+	})
 	if err != nil {
 		v.err = err.Error()
 		return "", ""
 	}
-	return "compose_scale", string(b)
+	return v.submit, string(b)
 }
 
 // parseReplicas reads a count: digits only — no sign, no space inside —

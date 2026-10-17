@@ -50,6 +50,7 @@ func (a *App) showView(v style.ViewType) tea.Cmd {
 	a.setFullscreen(false)
 	a.clearContainerScope()
 	a.clearForwardScope()
+	a.clearTaskScope()
 	a.viewStack = nil
 	a.view = v
 	a.rememberView(v)
@@ -96,6 +97,8 @@ func (a *App) popView() {
 		a.clearContainerScope()
 	case style.ViewPortForwards:
 		a.clearForwardScope()
+	case style.ViewTasks:
+		a.clearTaskScope()
 	}
 	// The view being left is a drill-in; if it holds a stream, it is
 	// genuinely finished with, so stop that one specifically.
@@ -283,7 +286,7 @@ func (a *App) refreshMsgMatchesView(msg tea.Msg) bool {
 
 // listMsgView is the resource list view a data message is for.
 func listMsgView(msg tea.Msg) (style.ViewType, bool) {
-	switch msg.(type) {
+	switch m := msg.(type) {
 	case views.ContainersRefreshMsg, views.ContainerStatsMsg:
 		return style.ViewContainers, true
 	case views.ImagesRefreshMsg:
@@ -302,6 +305,8 @@ func listMsgView(msg tea.Msg) (style.ViewType, bool) {
 		return style.ViewBuilders, true
 	case views.BuildsRefreshMsg:
 		return style.ViewBuilds, true
+	case views.SwarmRefreshMsg:
+		return m.Kind.ViewType(), true
 	case views.DumpsRefreshMsg:
 		return style.ViewDumps, true
 	case views.DiskUsageRefreshMsg:

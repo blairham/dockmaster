@@ -360,6 +360,35 @@ var viewShortcuts = map[style.ViewType][]chrome.Shortcut{
 	style.ViewDiskUsage: keys(
 		"<P>", "Prune",
 	),
+	style.ViewServices: keys(
+		"<enter>", "Tasks",
+		"<l>", "Logs",
+		"<o>", "Inspect",
+		"<s>", "Scale",
+		"<R>", "Restart",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewTasks: keys(
+		"<enter>", "Logs",
+		"<o>", "Inspect",
+		"<a>", "History",
+	),
+	style.ViewSwarmNodes: keys(
+		"<enter>", "Tasks",
+		"<o>", "Inspect",
+		"<u>", "Active",
+		"<p>", "Pause",
+		"<x>", "Drain",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewSecrets: keys(
+		"<enter>", "Inspect",
+		"<ctrl-d>", "Remove",
+	),
+	style.ViewConfigs: keys(
+		"<enter>", "Inspect",
+		"<ctrl-d>", "Remove",
+	),
 	style.ViewRuntimeForm: keys(
 		"<enter>", "Save",
 		"<tab>", "Next field",

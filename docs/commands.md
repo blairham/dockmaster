@@ -29,6 +29,15 @@ recall earlier commands, kept across runs. Names are case-insensitive.
 | `:pf` | `:portforward`, `:portforwards`, `:forwards`, `:forward` | Port forwards |
 | `:df` | `:disk`, `:usage`, `:system` | Disk usage, as `docker system df` |
 | `:pulses` | `:pulse`, `:pu` | The pulses dashboard: gauges and sparklines for the whole daemon |
+| `:services` | `:service`, `:svc` | Swarm services, as `docker service ls`: mode, RUNNING/DESIRED replicas, image, published ports, stack, update state |
+| `:tasks` | `:task` | Swarm tasks, as `docker service ps`: each slot's live task, `a` for the history after it |
+| `:nodes` | `:no`, `:swarm` | Swarm nodes, as `docker node ls`: role, status, availability, manager status, engine; `*` marks the daemon on screen |
+| `:secrets` | `:secret`, `:sec` | Swarm secrets — names, drivers and stacks; a value never leaves the manager |
+| `:configs` | `:config`, `:cm` | Swarm configs |
+
+The swarm views need the daemon on screen to be a swarm manager; on any
+other they show the manager's own refusal ("This node is not a swarm
+manager…"). See [`design/swarm.md`](design/swarm.md).
 
 A view command takes two optional parts, `@context` before `/filter`:
 
@@ -260,5 +269,9 @@ a root keep every container key above.
 | Contexts (`:ctx`) | `enter` switch, `ctrl-d` `docker context rm` (confirms; not `default`, the one dockmaster is on, or the CLI's current one) |
 | Aliases (`ctrl-a`) | `enter` run the command, `/` filter |
 | Pods | `enter` / `o` inspect, `u` / `x` / `R` start / stop / restart, `ctrl-d` remove |
+| Services (`:services`) | `enter` its tasks, `l` its logs (every task merged, through the manager), `o` inspect, `s` scale a replicated service (a form; down confirms), `R` restart (every task replaced under the update policy, as `service update --force`), `ctrl-d` remove (confirms) |
+| Tasks (`:tasks`) | `enter` / `l` the task's logs, `o` inspect, `a` show history (tasks no longer meant to run) |
+| Nodes (`:nodes`) | `enter` its tasks, `o` inspect, `u` active, `p` pause (no new tasks), `x` drain (confirms: its tasks move elsewhere), `ctrl-d` remove from the swarm (confirms; the manager refuses a node still up) |
+| Secrets and configs | `enter` / `o` inspect, `ctrl-d` remove (confirms; the manager refuses one a service uses) |
 | A node's pods (`n`) | `enter` / `l` logs, `o` inspect, `s` shell, `ctrl-d` remove (exited only), `a` show exited |
 | A volume's files | `enter` open, `esc` / `q` up a directory |
