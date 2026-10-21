@@ -57,7 +57,7 @@ var mutating = map[string]bool{
 	actComposeUp: true, "compose_edit": true, "compose_restart": true, "compose_pull": true, "confirm_compose_down": true,
 	"scale_form": true, "compose_scale": true,
 	"confirm_prune_all": true, "confirm_prune_all_volumes": true, "confirm_prune_cache": true,
-	"confirm_delete_all_images": true, "confirm_delete_all_volumes": true,
+	"confirm_delete_all_images": true, "confirm_delete_all_volumes": true, "confirm_delete_all_builds": true,
 	"portforward": true, "confirm_stop_forward": true,
 	"pod_start": true, "pod_stop": true, "pod_restart": true, "confirm_pod_rm": true,
 	// confirm_host_shell is a root shell on the daemon's host; its confirmed
@@ -722,6 +722,9 @@ func (a *App) handleAction(action, param string) (tea.Model, tea.Cmd) {
 	case "confirm_delete_all_volumes":
 		a.confirmDeleteAll("volumes")
 		return a, nil
+	case "confirm_delete_all_builds":
+		a.confirmDeleteAll("builds")
+		return a, nil
 	case "confirm_prune_cache":
 		a.openConfirm("prune_cache", "", "prune the build cache? cache no image still uses is removed")
 		return a, nil
@@ -1068,6 +1071,8 @@ func (a *App) executeConfirmed(pa pendingAction) tea.Cmd {
 		return a.runDeleteAll("images", a.client.RemoveAllImages)
 	case "delete_all_volumes":
 		return a.runDeleteAll("volumes", a.client.RemoveAllVolumes)
+	case "delete_all_builds":
+		return a.deleteAllBuilds()
 	case "prune_cache":
 		return a.runPruneAll(pruneOnly(a.pruneAllSteps(false), "build cache"))
 	case "stop_project":

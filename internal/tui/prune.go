@@ -124,15 +124,18 @@ func (a *App) runPruneAll(steps []pruneStep) tea.Cmd {
 var deleteAllPrompt = map[string]string{
 	"images":  "delete EVERY image? anything a container uses, or the daemon refuses, is skipped",
 	"volumes": "delete EVERY volume and its data? anything a container uses, or the daemon refuses, is skipped",
+	"builds":  "remove EVERY build record of this builder? their logs and details go — the images stay",
 }
 
-// confirmDeleteAll asks before :delete all on kind, images or volumes.
+// confirmDeleteAll asks before :delete all on kind: images, volumes or
+// builds.
 func (a *App) confirmDeleteAll(kind string) {
 	a.openConfirm("delete_all_"+kind, "", deleteAllPrompt[kind])
 }
 
 // runDeleteAll removes every image or volume the daemon lets go, one at a
-// time and never forced, and reports what was removed and what was left.
+// time and never forced — or every build record — and reports what was
+// removed and what was left.
 func (a *App) runDeleteAll(kind string, fn func(context.Context) (docker.RemoveAllResult, error)) tea.Cmd {
 	a.flash = "deleting all " + kind + "…"
 	return func() tea.Msg {
