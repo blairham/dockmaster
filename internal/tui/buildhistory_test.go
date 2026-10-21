@@ -144,6 +144,27 @@ func TestBuildsViewRemove(t *testing.T) {
 	}
 }
 
+// TestBuildsViewNameFillsItsColumn: a name longer than NAME's declared
+// width is shown in full when the screen gives the column the room — the
+// table clips to the laid-out width, and nothing clips earlier.
+func TestBuildsViewNameFillsItsColumn(t *testing.T) {
+	const name = "git@github.com:pinpredict/legato.git#main:api"
+	a := newBuildApp(t, &fakeStream{})
+	a.historyRunner = func(_ context.Context, _ []string, args ...string) ([]byte, error) {
+		if strings.Contains(strings.Join(args, " "), "history ls") {
+			return []byte(`{"cached_steps":2,"completed_at":"2026-10-15T16:01:05Z","completed_steps":4,` +
+				`"created_at":"2026-10-15T16:01:05Z","name":"` + name + `",` +
+				`"ref":"colima/colima/pzk1kndfayz6pb67ixyla74lz","status":"Completed","total_steps":4}` + "\n"), nil
+		}
+		return nil, nil
+	}
+	_, cmd := a.dispatchCommand("builds")
+	runCmd(a, cmd)
+	if out := render(a); !strings.Contains(out, name) {
+		t.Fatalf("a %d-cell name was cut on a 160-column screen:\n%s", len(name), out)
+	}
+}
+
 // TestBuildsDigit: 7 opens the builds view as a top-level view, the way
 // the other digits open theirs — nothing to esc back to — where :builds
 // drills in over the view it was typed in.

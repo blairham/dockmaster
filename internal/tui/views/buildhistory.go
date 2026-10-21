@@ -341,6 +341,10 @@ func (v *BuildsView) View() string {
 	return fixSelectedRow(v.table.View())
 }
 
+// rebuildRows builds the rows. NAME and ERROR are not cut here: both are
+// flexible columns that grow with the screen (fitColumns), and the table
+// clips every cell to its column's laid-out width itself — a fixed cut
+// here only ever removed text the column had room for.
 func (v *BuildsView) rebuildRows() {
 	f := parseFilter(v.filter)
 	rows := make([]table.Row, 0, len(v.local)+len(v.all))
@@ -352,7 +356,7 @@ func (v *BuildsView) rebuildRows() {
 			continue
 		}
 		rows = append(rows, table.Row{
-			truncate(b.Title, 32),
+			b.Title,
 			style.StateRestarting.Render(statusRunningLocal),
 			"", "",
 			buildDuration(time.Since(b.Started)),
@@ -372,13 +376,13 @@ func (v *BuildsView) rebuildRows() {
 			continue
 		}
 		rows = append(rows, table.Row{
-			truncate(r.Name, 32),
+			r.Name,
 			buildStatusCell(r.Status),
 			fmt.Sprintf("%d/%d", r.CompletedSteps, r.TotalSteps),
 			fmt.Sprintf("%d%%", r.CachedPercent()),
 			buildDuration(r.Duration(now)),
 			since(r.Created),
-			style.Error.Render(truncate(errLine, 120)),
+			style.Error.Render(errLine),
 		})
 		v.visible = append(v.visible, buildRow{rec: r})
 	}
