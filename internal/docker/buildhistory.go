@@ -244,6 +244,23 @@ func (h *BuildHistory) Remove(ctx context.Context, id string) error {
 	return err
 }
 
+// RemoveAll deletes every record the builder keeps — `rm --all` — and
+// reports how many there were: the listing is read first, since buildx
+// says nothing about what it removed.
+func (h *BuildHistory) RemoveAll(ctx context.Context) (RemoveAllResult, error) {
+	recs, err := h.List(ctx)
+	if err != nil {
+		return RemoveAllResult{}, err
+	}
+	if len(recs) == 0 {
+		return RemoveAllResult{}, nil
+	}
+	if _, err := h.exec(ctx, "rm", "--all"); err != nil {
+		return RemoveAllResult{}, err
+	}
+	return RemoveAllResult{Removed: len(recs)}, nil
+}
+
 // HistoryError is a failed `buildx history` call.
 type HistoryError struct {
 	Err    error

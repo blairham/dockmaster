@@ -144,6 +144,58 @@ func TestBuildsViewRemove(t *testing.T) {
 	}
 }
 
+// TestBuildsDigit: 7 opens the builds view as a top-level view, the way
+// the other digits open theirs — nothing to esc back to — where :builds
+// drills in over the view it was typed in.
+func TestBuildsDigit(t *testing.T) {
+	a := newBuildApp(t, &fakeStream{})
+	h := &fakeHistory{t: t, ctxDir: t.TempDir()}
+	a.historyRunner = h.run
+	runCmd(a, step(a, key("7")))
+	if a.view != style.ViewBuilds || len(a.viewStack) != 0 {
+		t.Fatalf("7 opened %v over %v", a.view, a.viewStack)
+	}
+	if !strings.Contains(render(a), "app/Dockerfile.dev (base)") {
+		t.Fatalf("7 did not list the history:\n%s", render(a))
+	}
+	step(a, key("esc"))
+	if a.view != style.ViewBuilds {
+		t.Errorf("esc left the top-level builds view for %v", a.view)
+	}
+	step(a, key("0"))
+	_, cmd := a.dispatchCommand("builds")
+	runCmd(a, cmd)
+	if a.view != style.ViewBuilds || len(a.viewStack) != 1 {
+		t.Errorf(":builds opened %v over %v, want a drill-in", a.view, a.viewStack)
+	}
+}
+
+// TestBuildsDeleteAll: :delete all in the builds view asks, then removes
+// every record in one `history rm --all`; readonly refuses it.
+func TestBuildsDeleteAll(t *testing.T) {
+	a, h := newBuildsApp(t)
+	_, cmd := a.dispatchCommand("delete all")
+	runCmd(a, cmd)
+	if !a.confirm.Active() || !strings.Contains(render(a), "EVERY build record") {
+		t.Fatalf(":delete all did not ask:\n%s", render(a))
+	}
+	runCmd(a, step(a, key("y")))
+	if strings.Join(h.removed, " ") != "--all" {
+		t.Errorf("removed %q, want one rm --all", h.removed)
+	}
+	if !strings.Contains(a.flash, "deleted 2 builds") {
+		t.Errorf("flash %q", a.flash)
+	}
+
+	r, rh := newBuildsApp(t)
+	r.readonly = true
+	_, cmd = r.dispatchCommand("delete all builds")
+	runCmd(r, cmd)
+	if r.confirm.Active() || !strings.Contains(r.errFlash, "readonly") || len(rh.removed) != 0 {
+		t.Errorf("readonly: confirm %v, err %q, removed %q", r.confirm.Active(), r.errFlash, rh.removed)
+	}
+}
+
 // TestBuildsViewRebuild: R opens the build form on the record's context,
 // Dockerfile, target and args; a context not on this machine is refused.
 func TestBuildsViewRebuild(t *testing.T) {

@@ -65,7 +65,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 
 | | | | |
 |---|---|---|---|
-| `0`–`6` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events | `/` | filter: a regex (leading `!` negates), `-f term` fuzzy, `-l k=v,k!=v,k,!k` by label |
+| `0`–`7` | Containers / Images / Volumes / Networks / Projects / Runtimes / Events / Builds | `/` | filter: a regex (leading `!` negates), `-f term` fuzzy, `-l k=v,k!=v,k,!k` by label |
 | `enter` | drill in — logs, layers, inspect | `:` | command palette |
 | `n` | on a ⎈ kind/k3d node: the pods' containers inside it | `i` / `d` / `y` | inspect, as `o` (`d` / `y` are k9s's describe / yaml) |
 | `o` | inspect (pretty-printed, colorized JSON); `H` health: the check, its streak, and the last probes' output; `T` top, `D` diff (files changed), `S` full stats; `C` copies files in or out (`docker cp`); `e` edits CPU/memory limits, restart policy and name, live (`docker update`, no restart) | `r` | refresh |
@@ -80,7 +80,7 @@ Digits pick the resource; `?` shows every key, and `ctrl-a` every `:` command.
 | in `:registries`: `n` | log in to a registry (`l` logs in again to the selected one) | `ctrl-d` | log out (confirms); on a registry container, remove it |
 | in `:registries`: `enter` | the registry's repositories, then a repository's tags | `u` / `x` | start the local registry (`:registry up`) / stop a registry container |
 | in a registry: `ctrl-d` | delete a tag by digest (confirms) | `P` | garbage-collect a registry container (confirms) |
-| in `:builds`: `enter` | a build's log (a running one's output) | `o` / `R` / `ctrl-d` | inspect / build again (the form, filled in) / remove the record (confirms); `ctrl-z` failed only |
+| in `:builds` (`7`): `enter` | a build's log (a running one's output) | `o` / `R` / `ctrl-d` | inspect / build again (the form, filled in) / remove the record (confirms); `ctrl-z` failed only; `:delete all` removes every record (confirms) |
 | `t` | toggle the CPU/MEM poll | `z` | volume sizes (slow) |
 | on a volume: `enter` | browse its files (`enter` opens, `esc` goes up) | `o` | inspect |
 | in volumes / networks: `ctrl-n` | create one (a form; also `:create volume` / `:create network`) | | |

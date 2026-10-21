@@ -134,9 +134,14 @@ func TestBuildHistoryArgs(t *testing.T) {
 	if err := h.Remove(context.Background(), "abc"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := h.RemoveAll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	want := []string{
 		"--host unix:///x.sock buildx history ls --builder=colima --format=json",
 		"--host unix:///x.sock buildx history rm --builder=colima abc",
+		"--host unix:///x.sock buildx history ls --builder=colima --format=json",
+		"--host unix:///x.sock buildx history rm --builder=colima --all",
 	}
 	for i, w := range want {
 		if g := strings.Join(got[i], " "); g != w {

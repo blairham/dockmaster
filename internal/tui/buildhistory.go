@@ -16,10 +16,11 @@ import (
 	"github.com/blairham/dockmaster/internal/tui/views"
 )
 
-// The build history (#118): `:builds` lists what the builder recorded —
-// `docker buildx history` — with dockmaster's own running builds (#121)
-// on top. enter replays a record's log into the output view, o inspects
-// it, ctrl-d removes it, R opens the build form on it again.
+// The build history (#118): `:builds`, or 7, lists what the builder
+// recorded — `docker buildx history` — with dockmaster's own running
+// builds (#121) on top. enter replays a record's log into the output view,
+// o inspects it, ctrl-d removes it, R opens the build form on it again,
+// and :delete all removes every record at once.
 
 // cmdBuilds is the :builds command.
 const cmdBuilds = "builds"
@@ -54,8 +55,10 @@ func (a *App) buildHistory() (*docker.BuildHistory, error) {
 	return docker.NewBuildHistory(endpoint, a.builder)
 }
 
-// openBuilds pushes the builds view.
-func (a *App) openBuilds() tea.Cmd {
+// newBuildsView makes the builds view over config's builder as it is now
+// and registers it: a fresh one each time, so a builder changed by a
+// config reload is the one read.
+func (a *App) newBuildsView() *views.BuildsView {
 	h, err := a.buildHistory()
 	var src views.BuildHistorySource
 	if err == nil {
@@ -64,8 +67,32 @@ func (a *App) openBuilds() tea.Cmd {
 	bv := views.NewBuildsView(src, err)
 	bv.SetLocal(a.runningBuilds())
 	a.setView(style.ViewBuilds, bv)
+	return bv
+}
+
+// openBuilds pushes the builds view, as :builds does: esc comes back.
+func (a *App) openBuilds() tea.Cmd {
+	bv := a.newBuildsView()
 	a.pushView(style.ViewBuilds)
 	return bv.Init()
+}
+
+// switchBuilds is 7: the builds view as a top-level view, like the other
+// digits' — the stack cleared, the visit in the view history.
+func (a *App) switchBuilds() tea.Cmd {
+	a.newBuildsView()
+	return a.switchView(style.ViewBuilds)
+}
+
+// deleteAllBuilds removes every record of the builder — `buildx history
+// rm --all` — once :delete all is confirmed, then lists again.
+func (a *App) deleteAllBuilds() tea.Cmd {
+	h, err := a.buildHistory()
+	if err != nil {
+		a.errFlash = err.Error()
+		return nil
+	}
+	return a.runDeleteAll("builds", h.RemoveAll)
 }
 
 // syncBuildsView hands the builds view dockmaster's running builds, after

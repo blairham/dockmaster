@@ -21,6 +21,13 @@ const (
 	cmdCreateNetwork = "create network"
 )
 
+// The :delete all commands' names; the images and volumes ones are spelled
+// where they are used.
+const (
+	cmdDeleteAll       = "delete all"
+	cmdDeleteAllBuilds = "delete all builds"
+)
+
 // otherCommands are the `:` commands that are not views, each with the
 // spellings dispatchCommand takes for it, in the order the aliases view
 // lists them. TestAliasesViewCoversEveryCommand fails when a command is
@@ -47,7 +54,7 @@ var otherCommands = []views.Command{
 	{
 		Name: cmdBuilds,
 		Also: []string{"build-history", "bh"},
-		Desc: "Build history: the builder's records, newest first, with dockmaster's running builds on top",
+		Desc: "Build history (7): the builder's records, newest first, with dockmaster's running builds on top",
 	},
 	{Name: cmdTag, Desc: "Tag the selected image: :tag <repo[:tag]>, or the form, as t"},
 	{Name: cmdPush, Desc: "Push an image: :push <ref>, or the selected image's tag, as p (confirms)"},
@@ -83,9 +90,10 @@ var otherCommands = []views.Command{
 		Desc: "prune all, and every unused volume (confirms)",
 	},
 	{Name: "prune cache", Also: []string{"prune build", "prune builder"}, Desc: "The build cache (confirms)"},
-	{Name: "delete all", Desc: "In images or volumes: delete every one not in use (confirms)"},
+	{Name: cmdDeleteAll, Desc: "In images, volumes or builds: delete every one not in use (confirms)"},
 	{Name: "delete all images", Desc: "Delete every image no container uses (confirms)"},
 	{Name: "delete all volumes", Desc: "Delete every volume no container uses, and its data (confirms)"},
+	{Name: cmdDeleteAllBuilds, Desc: "Remove every build record of the builder; the images stay (confirms)"},
 	{Name: cmdCreate, Desc: "In volumes or networks: create one, as ctrl-n"},
 	{Name: cmdCreateVolume, Also: []string{"create vol"}, Desc: "Create a volume (a form)"},
 	{Name: cmdCreateNetwork, Also: []string{"create net"}, Desc: "Create a network (a form)"},
@@ -112,7 +120,7 @@ func isOtherSpelling(line string) bool {
 // viewDigits are the views a digit opens, for their description.
 var viewDigits = map[style.ViewType]string{
 	style.ViewContainers: "0", style.ViewImages: "1", style.ViewVolumes: "2", style.ViewNetworks: "3",
-	style.ViewProjects: "4", style.ViewRuntimes: "5", style.ViewEvents: "6",
+	style.ViewProjects: "4", style.ViewRuntimes: "5", style.ViewEvents: "6", style.ViewBuilds: "7",
 }
 
 // commandRows is every `:` command for the aliases view: the user's

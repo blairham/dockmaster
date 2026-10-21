@@ -74,9 +74,10 @@ var knownCommands = []string{
 	"prune all",
 	"prune all volumes",
 	"prune cache",
-	"delete all",
+	cmdDeleteAll,
 	"delete all images",
 	"delete all volumes",
+	cmdDeleteAllBuilds,
 	cmdCreate,
 	cmdCreateVolume,
 	cmdCreateNetwork,
@@ -316,6 +317,9 @@ func (a *App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, a.switchView(style.ViewRuntimes)
 	case "6":
 		return a, a.switchView(style.ViewEvents)
+	case "7":
+		cmd := a.switchBuilds()
+		return a, cmd
 	case "r", chrome.KeyReload:
 		a.flash = "refreshing..."
 		return a, a.refreshActiveView()
@@ -622,7 +626,7 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 	case "prune":
 		_, cmd := a.handleAction("confirm_prune_containers", "")
 		return "", cmd
-	case "delete all":
+	case cmdDeleteAll:
 		// The view decides what "all" is; anywhere else, say how to name it.
 		switch a.view {
 		case style.ViewImages:
@@ -631,8 +635,15 @@ func (a *App) dispatchCommand(input string) (string, tea.Cmd) {
 		case style.ViewVolumes:
 			_, cmd := a.handleAction("confirm_delete_all_volumes", "")
 			return "", cmd
+		case style.ViewBuilds:
+			_, cmd := a.handleAction("confirm_delete_all_builds", "")
+			return "", cmd
 		}
-		return "delete all works in the images or volumes view — or :delete all images / :delete all volumes", nil
+		return "delete all works in the images, volumes or builds view — " +
+			"or :delete all images / :delete all volumes / :delete all builds", nil
+	case cmdDeleteAllBuilds:
+		_, cmd := a.handleAction("confirm_delete_all_builds", "")
+		return "", cmd
 	case cmdCreate:
 		// The view decides what to create, as ctrl-n does there.
 		switch a.view {

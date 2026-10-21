@@ -213,6 +213,7 @@ func (a *App) renderShortcuts(info []string) []string {
 		{Key: "<4>", Desc: "Projects"},
 		{Key: "<5>", Desc: "Runtimes"},
 		{Key: "<6>", Desc: "Events"},
+		{Key: "<7>", Desc: "Builds"},
 	}
 
 	// In a log the digits pick a time range (k9s), so the digit column
@@ -834,6 +835,7 @@ func (a *App) helpPanel() chrome.HelpPanel {
 					{Key: "<4>", Desc: "Projects"},
 					{Key: "<5>", Desc: "Runtimes"},
 					{Key: "<6>", Desc: "Events"},
+					{Key: "<7>", Desc: "Builds"},
 					{Key: "<enter>", Desc: "Drill in"},
 					{Key: "<o>", Desc: "Inspect"},
 					{Key: "<d>", Desc: "Describe (inspect)"},
@@ -977,6 +979,7 @@ func buildsHelp() chrome.HelpSection {
 		{Key: "<x>", Desc: "Stop a running build"},
 		{Key: "<ctrl-d>", Desc: "Remove record"},
 		{Key: "<ctrl-z>", Desc: "Failed only"},
+		{Key: "<:delete all>", Desc: "Remove every record"},
 	}}
 }
 

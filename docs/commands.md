@@ -69,7 +69,7 @@ A view command takes two optional parts, `@context` before `/filter`:
 | `:registry up` | `:registry start`, `:reg up` | Run the local registry: `registry:2` as `dockmaster-registry` on `127.0.0.1:5000` (`localRegistry.name` / `.port`), its images in the volume `dockmaster-registry-data`, deletes enabled, restarting with the daemon. One already there is started instead — dockmaster's own, else a kind or k3d cluster's that publishes a port — never a second. Refused under `--readonly` |
 | `:registry stop` | `:registry down`, `:reg stop` | Stop dockmaster's registry (`localRegistry.name`); `x` in `:registries` stops any registry container. Refused under `--readonly` |
 | `:catalog [registry]` | | A registry's repositories, from `GET /v2/_catalog` — the running local registry by default, or any registry by address (`:catalog ghcr.io`), with the docker config's credential when it asks for one. `enter` on a repository lists its tags with digest, size, platforms and age; `ctrl-d` on a tag deletes its manifest by digest (confirms — every tag on that digest goes), and `P` garbage-collects a registry container (confirms). See [`design/local-registry.md`](design/local-registry.md) |
-| `:builds` | `:build-history`, `:bh` | The build history, as Docker Desktop's Builds tab: every record the builder keeps (`docker buildx history`, buildx v0.20.0 or later) — NAME, STATUS, STEPS, CACHED, DURATION, AGE and a failed build's ERROR — newest first, dockmaster's running builds on top as RUNNING. `enter` replays a record's log (on a running build, reopens its output), `o` inspects, `R` opens the build form on the same context, Dockerfile, target and args, `x` stops a running build, `ctrl-d` removes a record (confirms; marked rows too), `ctrl-z` failed builds only. config.yaml's `builder` picks the builder |
+| `:builds` | `:build-history`, `:bh`, `7` | The build history, as Docker Desktop's Builds tab: every record the builder keeps (`docker buildx history`, buildx v0.20.0 or later) — NAME, STATUS, STEPS, CACHED, DURATION, AGE and a failed build's ERROR — newest first, dockmaster's running builds on top as RUNNING. `enter` replays a record's log (on a running build, reopens its output), `o` inspects, `R` opens the build form on the same context, Dockerfile, target and args, `x` stops a running build, `ctrl-d` removes a record (confirms; marked rows too), `ctrl-z` failed builds only, `:delete all` removes every record (confirms). `7` opens it as a top-level view; `:builds` drills in. config.yaml's `builder` picks the builder |
 | `:builders` | `:builder`, `:buildx` | The buildx builders, from `docker buildx ls`: driver, endpoint, status, BuildKit version, platforms and any error, the current one marked. Loads on open and `r`, never on the poll (buildx asks each builder) |
 | `:login [registry]` | | Log in: a registry, username and password form (default Docker Hub). The daemon checks the credentials first, then they are stored as `docker login` stores them — in the registry's credential helper, the config's `credsStore`, or the platform's native store; in `config.json` only when there is none. Refused under `--readonly` |
 | `:aliases` | `:alias` | Every `:` command and its spellings, and your own aliases from `aliases.yaml`, as a table; `enter` runs one. `ctrl-a` opens it too |
@@ -102,9 +102,10 @@ These act on the row selected in the current view, as their keys do.
 | `:prune all` | | As `docker system prune`: stopped containers, unused networks, dangling images, build cache; volumes are kept (confirms) |
 | `:prune all volumes` | `:prune all -v`, `:prune all --volumes` | The same, and every unused volume (confirms) |
 | `:prune cache` | `:prune build`, `:prune builder` | The build cache (confirms) |
-| `:delete all` | | In the images or volumes view: delete every one, never forced — anything a container uses, or the daemon refuses, is skipped (confirms) |
+| `:delete all` | | In the images or volumes view: delete every one, never forced — anything a container uses, or the daemon refuses, is skipped; in the builds view, every build record (confirms) |
 | `:delete all images` | | Every image, from any view; skips as above (confirms) |
 | `:delete all volumes` | | Every volume and its data, from any view; skips as above (confirms) |
+| `:delete all builds` | | Every build record of the builder (`docker buildx history rm --all`), from any view; the images stay (confirms) |
 | `:create` | | In the volumes or networks view: create one, as `ctrl-n` (a form) |
 | `:create volume` | `:create vol` | Create a volume, from any view: name, driver, driver opts, labels |
 | `:create network` | `:create net` | Create a network, from any view: name, driver (`overlay` only on a swarm manager), subnet, gateway, internal, attachable, labels |
@@ -151,7 +152,7 @@ Keys every view shares:
 
 | Key | What it does |
 |---|---|
-| `0`–`6` | Containers, Images, Volumes, Networks, Projects, Runtimes, Events |
+| `0`–`7` | Containers, Images, Volumes, Networks, Projects, Runtimes, Events, Builds |
 | `:` / `/` | Command bar / filter |
 | `?` | Help for this view |
 | `enter` | Drill in: logs, layers, a volume's files, a network's containers |

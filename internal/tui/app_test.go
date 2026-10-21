@@ -155,6 +155,7 @@ func TestDigitKeysSwitchViews(t *testing.T) {
 		{key: "4", want: style.ViewProjects},
 		{key: "5", want: style.ViewRuntimes},
 		{key: "6", want: style.ViewEvents},
+		{key: "7", want: style.ViewBuilds},
 		{key: "0", want: style.ViewContainers},
 	} {
 		step(a, key(tc.key))
