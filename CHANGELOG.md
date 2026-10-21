@@ -16,6 +16,19 @@ hand. Changes not yet released are one file each under `.changes/unreleased/`
 the next version is the largest bump among them. See
 [docs/versioning.md](docs/versioning.md).
 
+## [0.2.0](https://github.com/blairham/dockmaster/compare/v0.1.0...v0.2.0) (2026-10-21)
+
+
+### Added
+
+* 7 opens the builds view; :delete all removes every build record ([#136](https://github.com/blairham/dockmaster/issues/136)) ([bbd66d2](https://github.com/blairham/dockmaster/commit/bbd66d2f71454d206e3158935c8e5baaff44334d))
+* Swarm services, tasks, nodes, secrets and configs views ([#133](https://github.com/blairham/dockmaster/issues/133)) ([31f0a08](https://github.com/blairham/dockmaster/commit/31f0a085826aa5bda3e58fae03d8f99c16bca96d))
+
+
+### Fixed
+
+* the builds view no longer cuts NAME and ERROR short of their columns ([#137](https://github.com/blairham/dockmaster/issues/137)) ([3281fde](https://github.com/blairham/dockmaster/commit/3281fde7fdebf3fd93d449ddfecdb989a01cb66f))
+
 ## [0.1.0](https://github.com/blairham/dockmaster/compare/v0.0.16...v0.1.0) - 2026-10-15
 
 ### Added
