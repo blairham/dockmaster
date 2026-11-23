@@ -72,23 +72,36 @@ signs:
       - "--yes"
     artifacts: checksum
 
-# The formula installs dockmaster and its short name, dm, as a symlink — the
-# same pair `make install` sets up.
-brews:
+# The formula builds from the source archive below (`brew install -s`) and
+# pours bottles made from the release's darwin and linux dockmaster binaries,
+# the way homebrew-core ships a CLI, rather than a formula that only downloads
+# a prebuilt archive (the "hackyish" shape GoReleaser deprecated `brews` over).
+# Both install dockmaster and its short name, dm, as a symlink — the same pair
+# `make install` sets up. homebrew_bottles, and the bottles.files keg layout
+# that adds the symlink, come from blairham/goreleaser
+# (goreleaser/goreleaser#7342), which release.yml selects with goreleaser-ref;
+# official GoReleaser rejects this key.
+homebrew_bottles:
   - name: dockmaster
+    ids:
+      - dockmaster
     repository:
       owner: blairham
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
     homepage: "https://github.com/blairham/dockmaster"
     description: "k9s-style terminal UI for Docker"
     license: "Apache-2.0"
-    install: |
-      bin.install "dockmaster"
-      bin.install_symlink "dockmaster" => "dm"
+    bottles:
+      files:
+        - dst: bin/dm
+          link: dockmaster
     test: |
       system "#{bin}/dockmaster", "--version"
+
+# The tarball the formula's `url` points at, for building from source.
+source:
+  enabled: true
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

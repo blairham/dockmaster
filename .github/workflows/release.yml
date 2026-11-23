@@ -3,9 +3,10 @@ name: Release
 # A release is release-please's: merging its release pull request tags vX.Y.Z
 # and calls this workflow (release-please.yml), which releases through
 # blairham/.github's go-release.yml: GoReleaser builds the darwin/linux
-# archives and the `dockmaster` formula (with the `dm` symlink) in
-# blairham/homebrew-tap, cosign signs checksums.txt keylessly, and every
-# archive gets SLSA build provenance, attached as dockmaster-<tag>.intoto.jsonl.
+# archives and the `dockmaster` formula (a source build with bottles, and the
+# `dm` symlink) in blairham/homebrew-tap, cosign signs checksums.txt
+# keylessly, and every archive gets SLSA build provenance, attached as
+# dockmaster-<tag>.intoto.jsonl.
 # The notes are the tag's CHANGELOG.md section, which release-please wrote. The
 # signing identity is go-release.yml itself; SECURITY.md shows how to verify it.
 #
@@ -70,13 +71,16 @@ jobs:
       # workflow's OIDC identity — see signs in .goreleaser.yaml.
       id-token: write
       attestations: write # store the provenance in the repository's attestations
-    uses: blairham/.github/.github/workflows/go-release.yml@2a975269ebbb74aa0b4ec96f45773d7d68cc7bcc # v0.0.3
+    uses: blairham/.github/.github/workflows/go-release.yml@ed30c1599f3dae98165801429893d397069b433c # v0.0.4
     with:
       tag: ${{ inputs.tag }}
       snapshot: ${{ inputs.dry-run == true }}
       # -short, as in CI: the live-daemon tests read whatever the runner's
       # daemon holds, which is not a fixture.
       test-command: go test -race -short ./...
+      # blairham/goreleaser homebrew_bottles with keg layout
+      # (goreleaser/goreleaser#7342), for the formula's dm symlink.
+      goreleaser-ref: a76c419b192457c710f8726d80913b1cd10ebb4a
     secrets:
       # A fine-grained token with contents:write on blairham/homebrew-tap
       # only; GITHUB_TOKEN cannot push to another repository.
