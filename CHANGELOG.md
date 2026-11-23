@@ -16,6 +16,13 @@ hand. Changes not yet released are one file each under `.changes/unreleased/`
 the next version is the largest bump among them. See
 [docs/versioning.md](docs/versioning.md).
 
+## [0.2.1](https://github.com/blairham/dockmaster/compare/v0.2.0...v0.2.1) (2026-11-23)
+
+
+### Documentation
+
+* say the Homebrew formula pours a bottle or builds from source ([#151](https://github.com/blairham/dockmaster/issues/151)) ([25889a7](https://github.com/blairham/dockmaster/commit/25889a7b6e1bc6e2affcbaacea8a24aa30f8a4c2))
+
 ## [0.2.0](https://github.com/blairham/dockmaster/compare/v0.1.0...v0.2.0) (2026-10-21)
 
 
