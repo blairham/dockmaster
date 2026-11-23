@@ -19,6 +19,8 @@ Built on [tuikit](https://github.com/blairham/tuikit), a shared Bubble Tea chrom
 brew install blairham/tap/dockmaster   # installs dockmaster and the dm short name
 ```
 
+That pours a prebuilt bottle; `brew install --build-from-source` builds it with Go instead.
+
 Or download an archive from [Releases](https://github.com/blairham/dockmaster/releases)
 — `checksums.txt` is signed with cosign and each archive carries SLSA build
 provenance; [SECURITY.md](SECURITY.md#verifying-a-release) shows how to verify both. From source:
